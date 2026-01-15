@@ -71,6 +71,11 @@ type dockerComposeService struct {
 	Build any    `yaml:"build"`
 }
 
+type dockerImageKey struct {
+	name    string
+	version string
+}
+
 func (p *dockerComposeParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	var compose dockerCompose
 	if err := yaml.Unmarshal(content, &compose); err != nil {
@@ -78,7 +83,7 @@ func (p *dockerComposeParser) Parse(filename string, content []byte) ([]core.Dep
 	}
 
 	var deps []core.Dependency
-	seen := make(map[string]bool)
+	seen := make(map[dockerImageKey]bool)
 
 	for _, service := range compose.Services {
 		if service.Image == "" {
@@ -96,7 +101,7 @@ func (p *dockerComposeParser) Parse(filename string, content []byte) ([]core.Dep
 		}
 
 		// Deduplicate
-		key := name + "@" + version
+		key := dockerImageKey{name, version}
 		if seen[key] {
 			continue
 		}

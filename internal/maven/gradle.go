@@ -249,9 +249,8 @@ func (p *gradleDependenciesParser) Parse(filename string, content []byte) ([]cor
 			version := match[2]
 
 			// Handle version resolution: 1.0 -> 2.0
-			if strings.Contains(version, " -> ") {
-				parts := strings.Split(version, " -> ")
-				version = strings.TrimSpace(parts[len(parts)-1])
+			if idx := strings.LastIndex(version, " -> "); idx >= 0 {
+				version = strings.TrimSpace(version[idx+4:])
 			}
 
 			// Skip (*) which indicates already shown

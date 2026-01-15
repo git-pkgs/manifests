@@ -80,6 +80,8 @@ type mavenResolvedDepsParser struct{}
 // Format: group:artifact:type:version:scope or group:artifact:type:classifier:version:scope
 var mavenResolvedDepRegex = regexp.MustCompile(`^\s*([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):[a-z-]+:([^:]+):([a-z]+)`)
 
+var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
 func (p *mavenResolvedDepsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	var deps []core.Dependency
 	seen := make(map[string]bool)
@@ -126,6 +128,5 @@ func (p *mavenResolvedDepsParser) Parse(filename string, content []byte) ([]core
 
 // stripANSI removes ANSI escape codes from a string.
 func stripANSI(s string) string {
-	ansiEscapeRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
 	return ansiEscapeRegex.ReplaceAllString(s, "")
 }

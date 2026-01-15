@@ -39,11 +39,11 @@ func (p *cabalParser) Parse(filename string, content []byte) ([]core.Dependency,
 			continue
 		}
 
-		// Check for inline build-depends
-		if strings.Contains(strings.ToLower(line), "build-depends:") {
+		// Check for inline build-depends (case-insensitive)
+		lowerLine := strings.ToLower(line)
+		if idx := strings.Index(lowerLine, "build-depends:"); idx >= 0 {
 			inBuildDepends = true
 			// Parse the rest of the line
-			idx := strings.Index(strings.ToLower(line), "build-depends:")
 			line = line[idx+14:]
 		}
 

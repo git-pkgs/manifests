@@ -1,10 +1,9 @@
 package npm
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
-	"encoding/json"
-	"regexp"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -14,51 +13,62 @@ func init() {
 // bunLockParser parses bun.lock files.
 type bunLockParser struct{}
 
-type bunLock struct {
-	LockfileVersion int                        `json:"lockfileVersion"`
-	Packages        map[string]json.RawMessage `json:"packages"`
-	Workspaces      map[string]bunWorkspace    `json:"workspaces"`
-}
-
-type bunWorkspace struct {
-	Dependencies         map[string]string `json:"dependencies"`
-	DevDependencies      map[string]string `json:"devDependencies"`
-	OptionalDependencies map[string]string `json:"optionalDependencies"`
-	PeerDependencies     map[string]string `json:"peerDependencies"`
-}
-
-var bunTrailingCommaRegex = regexp.MustCompile(`,(\s*[}\]])`)
-
 func (p *bunLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
-	// bun.lock uses JSONC (trailing commas allowed), strip them for standard JSON parsing
-	cleaned := bunTrailingCommaRegex.ReplaceAll(content, []byte("$1"))
-
-	var lock bunLock
-	if err := json.Unmarshal(cleaned, &lock); err != nil {
-		return nil, &core.ParseError{Filename: filename, Err: err}
-	}
-
 	var deps []core.Dependency
 	seen := make(map[string]bool)
 
-	// Parse packages section
-	// Format: "name": ["name@version", "url", {...}, "integrity"]
-	for key, raw := range lock.Packages {
-		var arr []any
-		if err := json.Unmarshal(raw, &arr); err != nil || len(arr) < 1 {
+	lines := strings.Split(string(content), "\n")
+	inPackages := false
+
+	for _, line := range lines {
+		// Detect packages section
+		if strings.HasPrefix(line, `  "packages"`) {
+			inPackages = true
+			continue
+		}
+
+		// End of packages section
+		if inPackages && strings.HasPrefix(line, "  }") {
+			break
+		}
+
+		if !inPackages {
+			continue
+		}
+
+		// Package line format: "name": ["resolved@version", "url", {...}, "sha..."],
+		// Look for lines starting with 4 spaces + quote
+		if !strings.HasPrefix(line, `    "`) {
+			continue
+		}
+
+		// Extract the array part after the colon
+		colonIdx := strings.Index(line, `": [`)
+		if colonIdx < 0 {
+			continue
+		}
+
+		// Find first element in array (name@version)
+		arrayStart := colonIdx + 4
+		if arrayStart >= len(line) {
 			continue
 		}
 
 		// First element is "name@version"
-		nameVersion, ok := arr[0].(string)
-		if !ok {
+		if line[arrayStart] != '"' {
 			continue
 		}
 
+		// Find closing quote of first element
+		endQuote := strings.IndexByte(line[arrayStart+1:], '"')
+		if endQuote < 0 {
+			continue
+		}
+
+		nameVersion := line[arrayStart+1 : arrayStart+1+endQuote]
 		name, version := parseBunPackageKey(nameVersion)
 		if name == "" {
-			// Use the key as name if we can't parse
-			name = key
+			continue
 		}
 
 		if seen[name] {
@@ -66,18 +76,20 @@ func (p *bunLockParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 		seen[name] = true
 
-		// Get integrity if present (last element if it's a string starting with sha)
+		// Look for integrity hash (sha256- or sha512-)
 		var integrity string
-		if len(arr) >= 4 {
-			if intStr, ok := arr[3].(string); ok && strings.HasPrefix(intStr, "sha") {
-				integrity = intStr
+		if shaIdx := strings.Index(line, `"sha`); shaIdx > 0 {
+			// Find closing quote
+			endSha := strings.IndexByte(line[shaIdx+1:], '"')
+			if endSha > 0 {
+				integrity = line[shaIdx+1 : shaIdx+1+endSha]
 			}
 		}
 
 		deps = append(deps, core.Dependency{
 			Name:      name,
 			Version:   version,
-			Scope:   core.Runtime,
+			Scope:     core.Runtime,
 			Direct:    false,
 			Integrity: integrity,
 		})

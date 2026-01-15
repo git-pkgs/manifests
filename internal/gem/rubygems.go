@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+type gemDepKey struct {
+	name    string
+	version string
+}
+
 func init() {
 	// Gemfile and gems.rb - manifests
 	core.Register("gem", core.Manifest, &gemfileParser{}, core.ExactMatch("Gemfile", "gems.rb"))
@@ -177,7 +182,7 @@ func extractChecksum(line string) (name, version, hash string, ok bool) {
 func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
-	checksums := make(map[string]string)
+	checksums := make(map[gemDepKey]string)
 	directDeps := make(map[string]bool)
 
 	section := ""
@@ -226,7 +231,7 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 
 		if section == "checksums" {
 			if name, version, hash, ok := extractChecksum(line); ok {
-				checksums[name+"@"+version] = hash
+				checksums[gemDepKey{name, version}] = hash
 			}
 		}
 		return true
@@ -235,7 +240,7 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 	// Update direct status and checksums
 	for i := range deps {
 		deps[i].Direct = directDeps[deps[i].Name]
-		if hash, ok := checksums[deps[i].Name+"@"+deps[i].Version]; ok {
+		if hash, ok := checksums[gemDepKey{deps[i].Name, deps[i].Version}]; ok {
 			deps[i].Integrity = "sha256-" + hash
 		}
 	}

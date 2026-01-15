@@ -1,9 +1,10 @@
 package npm
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -131,44 +132,36 @@ type npmPackageLockParser struct{}
 // packageLockJSON supports both v1/v2 and v3 lockfile formats.
 type packageLockJSON struct {
 	LockfileVersion int `json:"lockfileVersion"`
-
 	// v1/v2 format
 	Dependencies map[string]packageLockDep `json:"dependencies"`
-
-	// v3 format (also in v2 for backwards compat)
-	Packages map[string]packageLockPackage `json:"packages"`
 }
 
 type packageLockDep struct {
-	Version      string                       `json:"version"`
-	Resolved     string                       `json:"resolved"`
-	Integrity    string                       `json:"integrity"`
-	Dev          bool                         `json:"dev"`
-	Optional     bool                         `json:"optional"`
-	Dependencies map[string]packageLockDep    `json:"dependencies"`
-}
-
-type packageLockPackage struct {
-	Version      string `json:"version"`
-	Resolved     string `json:"resolved"`
-	Integrity    string `json:"integrity"`
-	Dev          bool   `json:"dev"`
-	Optional     bool   `json:"optional"`
-	DevOptional  bool   `json:"devOptional"`
+	Version      string                    `json:"version"`
+	Resolved     string                    `json:"resolved"`
+	Integrity    string                    `json:"integrity"`
+	Dev          bool                      `json:"dev"`
+	Optional     bool                      `json:"optional"`
+	Dependencies map[string]packageLockDep `json:"dependencies"`
 }
 
 func (p *npmPackageLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	// Quick check for lockfile version to determine parsing strategy
+	// v3 (lockfileVersion >= 2 with packages) uses line-based parsing
+	// v1 uses JSON parsing for nested dependencies
+	header := string(content[:min(200, len(content))])
+
+	// v2+ with packages section uses line-based v3 parsing
+	if strings.Contains(header, `"lockfileVersion": 3`) ||
+		(strings.Contains(header, `"lockfileVersion": 2`) && strings.Contains(string(content[:min(600, len(content))]), `"packages"`)) {
+		return parsePackageLockV3Lines(content), nil
+	}
+
+	// v1 format uses JSON (nested dependencies make line parsing complex)
 	var lock packageLockJSON
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
-
-	// v3 format uses "packages" with paths as keys
-	if lock.LockfileVersion >= 2 && len(lock.Packages) > 0 {
-		return parsePackageLockV3(lock.Packages), nil
-	}
-
-	// v1 format uses "dependencies"
 	return parsePackageLockV1(lock.Dependencies), nil
 }
 
@@ -187,7 +180,7 @@ func parsePackageLockV1(deps map[string]packageLockDep) []core.Dependency {
 			Version:   dep.Version,
 			Scope:     scope,
 			Integrity: dep.Integrity,
-			Direct:    false, // lockfiles don't distinguish direct vs transitive in v1
+			Direct:    false,
 		})
 
 		// Recursively add nested dependencies
@@ -199,41 +192,151 @@ func parsePackageLockV1(deps map[string]packageLockDep) []core.Dependency {
 	return result
 }
 
-func parsePackageLockV3(packages map[string]packageLockPackage) []core.Dependency {
-	var result []core.Dependency
-	for path, pkg := range packages {
-		// Skip the root package (empty path or "")
-		if path == "" {
+// parsePackageLockV3Lines parses v3 format using line-based parsing.
+// Format: "packages": { "node_modules/name": { "version": "x", ... } }
+func parsePackageLockV3Lines(content []byte) []core.Dependency {
+	var deps []core.Dependency
+	lines := strings.Split(string(content), "\n")
+
+	inPackages := false
+	var currentPath string
+	var currentVersion string
+	var currentIntegrity string
+	var currentDev bool
+	var currentOptional bool
+	var currentDevOptional bool
+	var currentLink bool
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Detect "packages": section start
+		if strings.HasPrefix(trimmed, `"packages"`) {
+			inPackages = true
 			continue
 		}
 
-		// Extract package name from path
-		// Path format: node_modules/pkg or node_modules/@scope/pkg
-		// or nested: node_modules/pkg/node_modules/nested
-		name := extractPackageName(path)
-		if name == "" {
+		if !inPackages {
 			continue
 		}
 
-		scope := core.Runtime
-		if pkg.Dev || pkg.DevOptional {
-			scope = core.Development
-		} else if pkg.Optional {
-			scope = core.Optional
+		// Detect end of packages section (closing brace followed by new top-level key)
+		// packages section ends with `  },` at indent 2
+		if (line == "  }," || line == "  }") && strings.HasPrefix(trimmed, "}") {
+			break
 		}
 
-		// Direct dependencies are in node_modules/ directly (not nested)
-		direct := !strings.Contains(strings.TrimPrefix(path, "node_modules/"), "node_modules/")
+		// Package path line: "node_modules/name": {
+		if strings.HasSuffix(trimmed, ": {") || strings.HasSuffix(trimmed, ":{") {
+			// Save previous package (include links even without version)
+			if currentPath != "" && (currentVersion != "" || currentLink) {
+				name := extractPackageName(currentPath)
+				if name != "" {
+					scope := core.Runtime
+					if currentDev || currentDevOptional {
+						scope = core.Development
+					} else if currentOptional {
+						scope = core.Optional
+					}
+					direct := !strings.Contains(strings.TrimPrefix(currentPath, "node_modules/"), "node_modules/")
+					deps = append(deps, core.Dependency{
+						Name:      name,
+						Version:   currentVersion,
+						Scope:     scope,
+						Integrity: currentIntegrity,
+						Direct:    direct,
+					})
+				}
+			}
+			// Extract path
+			start := strings.IndexByte(trimmed, '"')
+			end := strings.IndexByte(trimmed[start+1:], '"')
+			if start >= 0 && end > 0 {
+				currentPath = trimmed[start+1 : start+1+end]
+			}
+			currentVersion = ""
+			currentIntegrity = ""
+			currentDev = false
+			currentOptional = false
+			currentDevOptional = false
+			currentLink = false
+			continue
+		}
 
-		result = append(result, core.Dependency{
-			Name:      name,
-			Version:   pkg.Version,
-			Scope:     scope,
-			Integrity: pkg.Integrity,
-			Direct:    direct,
-		})
+		// Version line
+		if strings.HasPrefix(trimmed, `"version"`) {
+			if v := extractJSONStringValue(trimmed); v != "" {
+				currentVersion = v
+			}
+			continue
+		}
+
+		// Integrity line
+		if strings.HasPrefix(trimmed, `"integrity"`) {
+			if v := extractJSONStringValue(trimmed); v != "" {
+				currentIntegrity = v
+			}
+			continue
+		}
+
+		// Dev/optional/link flags
+		if strings.HasPrefix(trimmed, `"dev": true`) {
+			currentDev = true
+		}
+		if strings.HasPrefix(trimmed, `"optional": true`) {
+			currentOptional = true
+		}
+		if strings.HasPrefix(trimmed, `"devOptional": true`) {
+			currentDevOptional = true
+		}
+		if strings.HasPrefix(trimmed, `"link": true`) {
+			currentLink = true
+		}
 	}
-	return result
+
+	// Don't forget the last package
+	if currentPath != "" && (currentVersion != "" || currentLink) {
+		name := extractPackageName(currentPath)
+		if name != "" {
+			scope := core.Runtime
+			if currentDev || currentDevOptional {
+				scope = core.Development
+			} else if currentOptional {
+				scope = core.Optional
+			}
+			direct := !strings.Contains(strings.TrimPrefix(currentPath, "node_modules/"), "node_modules/")
+			deps = append(deps, core.Dependency{
+				Name:      name,
+				Version:   currentVersion,
+				Scope:     scope,
+				Integrity: currentIntegrity,
+				Direct:    direct,
+			})
+		}
+	}
+
+	return deps
+}
+
+// extractJSONStringValue extracts the string value from a JSON line like: "key": "value"
+func extractJSONStringValue(line string) string {
+	// Find the colon
+	colonIdx := strings.IndexByte(line, ':')
+	if colonIdx < 0 {
+		return ""
+	}
+	rest := line[colonIdx+1:]
+	// Find the opening quote
+	start := strings.IndexByte(rest, '"')
+	if start < 0 {
+		return ""
+	}
+	// Find the closing quote
+	end := strings.IndexByte(rest[start+1:], '"')
+	if end < 0 {
+		return ""
+	}
+	return rest[start+1 : start+1+end]
 }
 
 // extractPackageName extracts the package name from a node_modules path.

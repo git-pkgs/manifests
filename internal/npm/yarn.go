@@ -1,7 +1,6 @@
 package npm
 
 import (
-	"regexp"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -13,21 +12,6 @@ func init() {
 
 // yarnLockParser parses yarn.lock files (both v1 and v4 formats).
 type yarnLockParser struct{}
-
-var (
-	// Match package header: "package@version":, package@version:, "alias@npm:pkg@version":
-	yarnHeaderRegex = regexp.MustCompile(`^"?(@?[^@"]+)@[^"]*"?:?\s*$`)
-	// Match version line
-	yarnVersionRegex = regexp.MustCompile(`^\s+version:?\s+"?([^"\s]+)"?\s*$`)
-	// Match resolved line for integrity
-	yarnResolvedRegex = regexp.MustCompile(`^\s+resolved\s+"([^"]+)"`)
-	// Match integrity line (v1)
-	yarnIntegrityRegex = regexp.MustCompile(`^\s+integrity\s+(\S+)`)
-	// Match checksum line (v4)
-	yarnChecksumRegex = regexp.MustCompile(`^\s+checksum:?\s+(\S+)`)
-	// Match resolution line (v4)
-	yarnResolutionRegex = regexp.MustCompile(`^\s+resolution:?\s+"([^"]+)"`)
-)
 
 func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	var deps []core.Dependency
@@ -42,8 +26,13 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 	var currentIntegrity string
 
 	for _, line := range lines {
+		// Skip empty lines
+		if len(line) == 0 {
+			continue
+		}
+
 		// Skip comments
-		if strings.HasPrefix(line, "#") {
+		if line[0] == '#' {
 			continue
 		}
 
@@ -52,8 +41,8 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 			continue
 		}
 
-		// Check for package header
-		if match := yarnHeaderRegex.FindStringSubmatch(line); match != nil {
+		// Package header: no leading whitespace, ends with :
+		if line[0] != ' ' && line[0] != '\t' {
 			// Save previous package if we have one
 			if currentName != "" && currentVersion != "" && !seen[currentName] {
 				seen[currentName] = true
@@ -66,40 +55,38 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 				})
 			}
 
-			// Start new package - extract actual package name from header
-			currentName = extractYarnPackageName(match[1])
+			// Parse header: "package@version": or package@version:
+			currentName = parseYarnHeader(line)
 			currentVersion = ""
 			currentIntegrity = ""
 			continue
 		}
 
-		// Check for version
-		if match := yarnVersionRegex.FindStringSubmatch(line); match != nil {
-			currentVersion = match[1]
+		// Indented lines are package details
+		trimmed := strings.TrimLeft(line, " \t")
+
+		// Check for version line
+		if strings.HasPrefix(trimmed, "version") {
+			currentVersion = extractYarnValue(trimmed[7:])
 			continue
 		}
 
 		// Check for integrity (v1)
-		if match := yarnIntegrityRegex.FindStringSubmatch(line); match != nil {
-			currentIntegrity = match[1]
+		if strings.HasPrefix(trimmed, "integrity ") {
+			currentIntegrity = strings.TrimSpace(trimmed[10:])
 			continue
 		}
 
-		// Check for checksum (v4) - convert to sha512 format
-		if isV4 {
-			if match := yarnChecksumRegex.FindStringSubmatch(line); match != nil {
-				checksum := match[1]
-				// v4 checksums are in format: 10c0/hash... or sha512-...
-				if strings.Contains(checksum, "/") {
-					parts := strings.SplitN(checksum, "/", 2)
-					if len(parts) == 2 {
-						currentIntegrity = "sha512-" + parts[1]
-					}
-				} else if strings.HasPrefix(checksum, "sha") {
-					currentIntegrity = checksum
-				}
-				continue
+		// Check for checksum (v4)
+		if isV4 && strings.HasPrefix(trimmed, "checksum") {
+			checksum := extractYarnValue(trimmed[8:])
+			// v4 checksums are in format: 10c0/hash... or sha512-...
+			if idx := strings.IndexByte(checksum, '/'); idx > 0 {
+				currentIntegrity = "sha512-" + checksum[idx+1:]
+			} else if strings.HasPrefix(checksum, "sha") {
+				currentIntegrity = checksum
 			}
+			continue
 		}
 	}
 
@@ -118,6 +105,62 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 	}
 
 	return deps, nil
+}
+
+// parseYarnHeader extracts the package name from a yarn header line.
+// Formats: "package@version":, package@version:, "alias@npm:@scope/pkg@version":
+func parseYarnHeader(line string) string {
+	// Remove leading quote if present
+	if len(line) > 0 && line[0] == '"' {
+		line = line[1:]
+	}
+
+	// Find the @ that separates name from version
+	// For scoped packages like @scope/pkg@version, we need to find the second @
+	atIdx := strings.IndexByte(line, '@')
+	if atIdx < 0 {
+		return ""
+	}
+
+	// If scoped package, find the next @
+	if atIdx == 0 {
+		nextAt := strings.IndexByte(line[1:], '@')
+		if nextAt < 0 {
+			return ""
+		}
+		atIdx = nextAt + 1
+	}
+
+	name := line[:atIdx]
+
+	// Handle npm: alias pattern like "alias@npm:@scope/pkg"
+	if idx := strings.Index(name, "@npm:"); idx > 0 {
+		return name[idx+5:]
+	}
+
+	return name
+}
+
+// extractYarnValue extracts a value after a key, handling both quoted and unquoted formats.
+// Input: `: "value"` or ` "value"` or ` value`
+func extractYarnValue(s string) string {
+	s = strings.TrimLeft(s, " \t:")
+	if len(s) == 0 {
+		return ""
+	}
+	if s[0] == '"' {
+		// Find closing quote
+		end := strings.IndexByte(s[1:], '"')
+		if end < 0 {
+			return s[1:]
+		}
+		return s[1 : end+1]
+	}
+	// Unquoted: take until whitespace
+	if end := strings.IndexAny(s, " \t"); end > 0 {
+		return s[:end]
+	}
+	return s
 }
 
 // extractYarnPackageName extracts the package name from yarn header patterns

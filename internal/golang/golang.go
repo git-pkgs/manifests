@@ -85,46 +85,62 @@ func (p *goModParser) Parse(filename string, content []byte) ([]core.Dependency,
 // goSumParser parses go.sum files.
 type goSumParser struct{}
 
-var (
-	// go.sum line: module/path v1.2.3 h1:hash=
-	goSumLineRegex = regexp.MustCompile(`^(\S+)\s+(\S+)\s+(h1:\S+)$`)
-)
+type goSumKey struct {
+	name    string
+	version string
+}
 
 func (p *goSumParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	var deps []core.Dependency
-	seen := make(map[string]bool)
+	seen := make(map[goSumKey]bool)
 	lines := strings.Split(string(content), "\n")
 
 	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		line = strings.TrimSpace(line)
+		if line == "" {
 			continue
 		}
 
-		if match := goSumLineRegex.FindStringSubmatch(trimmed); match != nil {
-			name := match[1]
-			version := match[2]
-
-			// Skip /go.mod entries, only keep actual module checksums
-			if strings.HasSuffix(version, "/go.mod") {
-				continue
-			}
-
-			// Deduplicate (go.sum can have multiple entries per module)
-			key := name + "@" + version
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-
-			deps = append(deps, core.Dependency{
-				Name:      name,
-				Version:   version,
-				Scope:   core.Runtime,
-				Integrity: match[3],
-				Direct:    false, // go.sum doesn't track direct vs indirect
-			})
+		// Parse go.sum line: module/path v1.2.3 h1:hash=
+		// Fast path: use string operations instead of regex
+		sp1 := strings.IndexByte(line, ' ')
+		if sp1 < 0 {
+			continue
 		}
+		name := line[:sp1]
+
+		rest := line[sp1+1:]
+		sp2 := strings.IndexByte(rest, ' ')
+		if sp2 < 0 {
+			continue
+		}
+		version := rest[:sp2]
+		hash := rest[sp2+1:]
+
+		// Skip /go.mod entries, only keep actual module checksums
+		if strings.HasSuffix(version, "/go.mod") {
+			continue
+		}
+
+		// Only accept h1: hashes
+		if !strings.HasPrefix(hash, "h1:") {
+			continue
+		}
+
+		// Deduplicate (go.sum can have multiple entries per module)
+		key := goSumKey{name, version}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		deps = append(deps, core.Dependency{
+			Name:      name,
+			Version:   version,
+			Scope:     core.Runtime,
+			Integrity: hash,
+			Direct:    false, // go.sum doesn't track direct vs indirect
+		})
 	}
 
 	return deps, nil
