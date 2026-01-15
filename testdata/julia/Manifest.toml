@@ -1,0 +1,17 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.8.5"
+manifest_format = "2.0"
+
+[[deps.Dates]]
+uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
+version = "1.8.5+0"
+
+[[deps.HTTP]]
+deps = ["JSON", "Dates"]
+uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+version = "1.5.0"
+
+[[deps.JSON]]
+uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+version = "0.21.4"
