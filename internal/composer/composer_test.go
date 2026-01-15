@@ -19,8 +19,8 @@ func TestComposerJSON(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -28,24 +28,28 @@ func TestComposerJSON(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check runtime dependency
-	if laravel, ok := depMap["laravel/framework"]; !ok {
-		t.Error("expected laravel/framework dependency")
-	} else {
-		if laravel.Version != "5.0.*" {
-			t.Errorf("laravel/framework version = %q, want %q", laravel.Version, "5.0.*")
-		}
-		if laravel.Scope != core.Runtime {
-			t.Errorf("laravel/framework scope = %q, want %q", laravel.Scope, core.Runtime)
-		}
+	// All 4 packages with exact versions and scopes
+	expected := map[string]struct {
+		version string
+		scope   core.Scope
+	}{
+		"laravel/framework": {"5.0.*", core.Runtime},
+		"drupal/address":    {"^1.0", core.Runtime},
+		"phpunit/phpunit":   {"~4.0", core.Development},
+		"phpspec/phpspec":   {"~2.1", core.Development},
 	}
 
-	// Check dev dependency
-	if phpunit, ok := depMap["phpunit/phpunit"]; !ok {
-		t.Error("expected phpunit/phpunit dependency")
-	} else {
-		if phpunit.Scope != core.Development {
-			t.Errorf("phpunit/phpunit scope = %q, want %q", phpunit.Scope, core.Development)
+	for name, exp := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", name, dep.Scope, exp.scope)
 		}
 	}
 }
@@ -62,19 +66,43 @@ func TestComposerLock(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 10 {
+		t.Fatalf("expected 10 dependencies, got %d", len(deps))
 	}
 
-	// Check for version information
-	hasVersion := false
+	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
-		if d.Version != "" {
-			hasVersion = true
-			break
-		}
+		depMap[d.Name] = d
 	}
-	if !hasVersion {
-		t.Error("expected at least one dependency with version")
+
+	// All 10 packages with versions and scopes
+	expected := map[string]struct {
+		version string
+		scope   core.Scope
+	}{
+		"doctrine/annotations":      {"v1.2.1", core.Runtime},
+		"doctrine/cache":            {"v1.3.1", core.Runtime},
+		"doctrine/collections":      {"v1.2", core.Runtime},
+		"drupal/address":            {"1.9.0", core.Runtime},
+		"symfony/monolog-bundle":    {"v2.6.1", core.Runtime},
+		"symfony/swiftmailer-bundle": {"v2.3.8", core.Runtime},
+		"symfony/symfony":           {"v2.6.1", core.Runtime},
+		"twig/extensions":           {"v1.2.0", core.Runtime},
+		"twig/twig":                 {"v1.16.2", core.Runtime},
+		"sensio/generator-bundle":   {"v2.5.0", core.Development},
+	}
+
+	for name, exp := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", name, dep.Scope, exp.scope)
+		}
 	}
 }

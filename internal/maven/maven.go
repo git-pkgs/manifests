@@ -1,13 +1,18 @@
 package maven
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/xml"
+	"regexp"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
 	core.Register("maven", core.Manifest, &pomXMLParser{}, core.ExactMatch("pom.xml"))
+
+	// maven-resolved-dependencies.txt - lockfile (mvn dependency:list output)
+	core.Register("maven", core.Lockfile, &mavenResolvedDepsParser{}, core.ExactMatch("maven-resolved-dependencies.txt"))
 }
 
 // pomXMLParser parses pom.xml files.
@@ -66,4 +71,61 @@ func (p *pomXMLParser) Parse(filename string, content []byte) ([]core.Dependency
 	}
 
 	return deps, nil
+}
+
+// mavenResolvedDepsParser parses maven-resolved-dependencies.txt files (mvn dependency:list output).
+type mavenResolvedDepsParser struct{}
+
+// Match lines like: org.group:artifact:jar:version:scope
+// Format: group:artifact:type:version:scope or group:artifact:type:classifier:version:scope
+var mavenResolvedDepRegex = regexp.MustCompile(`^\s*([a-zA-Z0-9._-]+):([a-zA-Z0-9._-]+):[a-z-]+:([^:]+):([a-z]+)`)
+
+func (p *mavenResolvedDepsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var deps []core.Dependency
+	seen := make(map[string]bool)
+	lines := strings.Split(string(content), "\n")
+
+	for _, line := range lines {
+		// Strip ANSI escape codes
+		line = stripANSI(line)
+
+		if match := mavenResolvedDepRegex.FindStringSubmatch(line); match != nil {
+			groupID := match[1]
+			artifactID := match[2]
+			version := match[3]
+			scopeStr := match[4]
+
+			name := groupID + ":" + artifactID
+
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+
+			scope := core.Runtime
+			switch scopeStr {
+			case "test":
+				scope = core.Test
+			case "provided":
+				scope = core.Runtime
+			case "runtime":
+				scope = core.Runtime
+			}
+
+			deps = append(deps, core.Dependency{
+				Name:    name,
+				Version: version,
+				Scope:   scope,
+				Direct:  false,
+			})
+		}
+	}
+
+	return deps, nil
+}
+
+// stripANSI removes ANSI escape codes from a string.
+func stripANSI(s string) string {
+	ansiEscapeRegex := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return ansiEscapeRegex.ReplaceAllString(s, "")
 }

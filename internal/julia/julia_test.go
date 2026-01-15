@@ -110,8 +110,8 @@ func TestJuliaRequire(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 21 {
+		t.Fatalf("expected 21 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -119,37 +119,29 @@ func TestJuliaRequire(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check julia (base runtime requirement)
-	if dep, ok := depMap["julia"]; !ok {
-		t.Error("expected julia dependency")
-	} else if dep.Version != "0.3" {
-		t.Errorf("julia version = %q, want %q", dep.Version, "0.3")
+	// Sample of packages with versions
+	expected := map[string]string{
+		"julia":          "0.3",
+		"Colors":         "0.3.4",
+		"Codecs":         "",
+		"Compose":        "0.3.11",
+		"DataFrames":     "0.4.2",
+		"Gadfly":         "0.7-",
+		"Iterators":      "0.1.5",
+		"Plots":          "0.12 0.15",
+		"Showoff":        "0.0.3",
+		"Homebrew":       "",
 	}
 
-	// Check Colors with version
-	if dep, ok := depMap["Colors"]; !ok {
-		t.Error("expected Colors dependency")
-	} else if dep.Version != "0.3.4" {
-		t.Errorf("Colors version = %q, want %q", dep.Version, "0.3.4")
-	}
-
-	// Check Codecs without version
-	if dep, ok := depMap["Codecs"]; !ok {
-		t.Error("expected Codecs dependency")
-	} else if dep.Version != "" {
-		t.Errorf("Codecs version = %q, want empty", dep.Version)
-	}
-
-	// Check Plots with version range
-	if dep, ok := depMap["Plots"]; !ok {
-		t.Error("expected Plots dependency")
-	} else if dep.Version != "0.12 0.15" {
-		t.Errorf("Plots version = %q, want %q", dep.Version, "0.12 0.15")
-	}
-
-	// Check platform-specific dep (Homebrew from @osx)
-	if _, ok := depMap["Homebrew"]; !ok {
-		t.Error("expected Homebrew dependency (platform-specific)")
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 
 	// Verify commented packages are excluded

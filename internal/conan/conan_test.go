@@ -118,16 +118,28 @@ func TestConanLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Lockfile strips #revision suffix
-	if dep, ok := depMap["zlib"]; !ok {
-		t.Error("expected zlib dependency")
-	} else if dep.Version != "1.2.11" {
-		t.Errorf("expected zlib version 1.2.11, got %s", dep.Version)
+	// All 3 packages with versions
+	expected := []struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		{"zlib", "1.2.11", core.Runtime},
+		{"boost", "1.76.0", core.Runtime},
+		{"cmake", "3.21.0", core.Build},
 	}
 
-	if dep, ok := depMap["cmake"]; !ok {
-		t.Error("expected cmake dependency")
-	} else if dep.Scope != core.Build {
-		t.Errorf("expected cmake scope Build, got %v", dep.Scope)
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
+		}
 	}
 }

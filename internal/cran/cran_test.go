@@ -19,8 +19,8 @@ func TestDescription(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 26 {
+		t.Fatalf("expected 26 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -28,42 +28,52 @@ func TestDescription(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check runtime dependency from Imports with version constraint
-	if dep, ok := depMap["gtable"]; !ok {
-		t.Error("expected gtable dependency")
-	} else {
-		if dep.Scope != core.Runtime {
-			t.Errorf("expected gtable scope Runtime, got %v", dep.Scope)
-		}
-		if dep.Version != ">= 0.1.1" {
-			t.Errorf("expected gtable version >= 0.1.1, got %s", dep.Version)
-		}
+	// All 26 packages with versions and scopes
+	expected := []struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		{"digest", "", core.Runtime},
+		{"grid", "", core.Runtime},
+		{"gtable", ">= 0.1.1", core.Runtime},
+		{"MASS", "", core.Runtime},
+		{"plyr", ">= 1.7.1", core.Runtime},
+		{"reshape2", "", core.Runtime},
+		{"scales", ">= 0.3.0", core.Runtime},
+		{"stats", "", core.Runtime},
+		{"covr", "", core.Development},
+		{"ggplot2movies", "", core.Development},
+		{"hexbin", "", core.Development},
+		{"Hmisc", "", core.Development},
+		{"lattice", "", core.Development},
+		{"mapproj", "", core.Development},
+		{"maps", "", core.Development},
+		{"maptools", "", core.Development},
+		{"mgcv", "", core.Development},
+		{"multcomp", "", core.Development},
+		{"nlme", "", core.Development},
+		{"testthat", ">= 0.11.0", core.Development},
+		{"quantreg", "", core.Development},
+		{"knitr", "", core.Development},
+		{"rpart", "", core.Development},
+		{"rmarkdown", "", core.Development},
+		{"svglite", "", core.Development},
+		{"sp", "", core.Optional},
 	}
 
-	// Check runtime dependency from Imports without version
-	if dep, ok := depMap["digest"]; !ok {
-		t.Error("expected digest dependency")
-	} else if dep.Scope != core.Runtime {
-		t.Errorf("expected digest scope Runtime, got %v", dep.Scope)
-	}
-
-	// Check development dependency from Suggests
-	if dep, ok := depMap["testthat"]; !ok {
-		t.Error("expected testthat dependency")
-	} else {
-		if dep.Scope != core.Development {
-			t.Errorf("expected testthat scope Development, got %v", dep.Scope)
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
 		}
-		if dep.Version != ">= 0.11.0" {
-			t.Errorf("expected testthat version >= 0.11.0, got %s", dep.Version)
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
 		}
-	}
-
-	// Check optional dependency from Enhances
-	if dep, ok := depMap["sp"]; !ok {
-		t.Error("expected sp dependency")
-	} else if dep.Scope != core.Optional {
-		t.Errorf("expected sp scope Optional, got %v", dep.Scope)
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
+		}
 	}
 
 	// R itself should be excluded
@@ -84,8 +94,8 @@ func TestRenvLock(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -93,29 +103,93 @@ func TestRenvLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check dplyr
-	if dep, ok := depMap["dplyr"]; !ok {
-		t.Error("expected dplyr dependency")
-	} else {
-		if dep.Version != "1.1.4" {
-			t.Errorf("expected dplyr version 1.1.4, got %s", dep.Version)
-		}
-		if dep.Integrity != "md5-597b74c671d8bffb59c3aa51e8f7db53" {
-			t.Errorf("expected dplyr integrity md5-597b74c671d8bffb59c3aa51e8f7db53, got %s", dep.Integrity)
-		}
+	// All 5 packages with versions and integrities
+	expected := []struct {
+		name      string
+		version   string
+		integrity string
+	}{
+		{"ggplot2", "3.4.4", "md5-e3c4d693c5c82602ea6c9ff5583c32ad"},
+		{"tidyr", "1.3.0", "md5-8fdd7c61b8f83a8b1a5a1cec8e1d7dcc"},
+		{"rmarkdown", "2.25", "md5-88a70f9d3e5e5b3e5e5e5e5e5e5e5e5e"},
+		{"localpackage", "0.1.0", ""},
+		{"dplyr", "1.1.4", "md5-597b74c671d8bffb59c3aa51e8f7db53"},
 	}
 
-	// Check ggplot2
-	if dep, ok := depMap["ggplot2"]; !ok {
-		t.Error("expected ggplot2 dependency")
-	} else if dep.Version != "3.4.4" {
-		t.Errorf("expected ggplot2 version 3.4.4, got %s", dep.Version)
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Integrity != exp.integrity {
+			t.Errorf("%s integrity = %q, want %q", exp.name, dep.Integrity, exp.integrity)
+		}
+	}
+}
+
+func TestDescription2(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/cran/DESCRIPTION2")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
 	}
 
-	// Check local package (no hash means no integrity)
-	if dep, ok := depMap["localpackage"]; !ok {
-		t.Error("expected localpackage dependency")
-	} else if dep.Integrity != "" {
-		t.Errorf("expected localpackage to have no integrity, got %s", dep.Integrity)
+	parser := &descriptionParser{}
+	deps, err := parser.Parse("DESCRIPTION", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 19 {
+		t.Fatalf("expected 19 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All 19 packages with versions and scopes
+	expected := []struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		{"methods", "", core.Runtime},
+		{"chron", "", core.Runtime},
+		{"ggplot2", ">= 0.9.0", core.Development},
+		{"plyr", "", core.Development},
+		{"reshape", "", core.Development},
+		{"reshape2", "", core.Development},
+		{"testthat", ">= 0.4", core.Development},
+		{"hexbin", "", core.Development},
+		{"fastmatch", "", core.Development},
+		{"nlme", "", core.Development},
+		{"xts", "", core.Development},
+		{"bit64", "", core.Development},
+		{"gdata", "", core.Development},
+		{"GenomicRanges", "", core.Development},
+		{"caret", "", core.Development},
+		{"knitr", "", core.Development},
+		{"curl", "", core.Development},
+		{"zoo", "", core.Development},
+		{"plm", "", core.Development},
+	}
+
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
+		}
 	}
 }

@@ -58,19 +58,19 @@ func main() {
 | elm | elm.json, elm-package.json | |
 | gem | Gemfile, gems.rb, *.gemspec | Gemfile.lock, gems.locked |
 | github-actions | .github/workflows/*.yml | |
-| golang | go.mod | go.sum |
+| golang | go.mod, Godeps, glide.yaml, Gopkg.toml | go.sum, Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
 | haxelib | haxelib.json | |
 | hex | mix.exs, gleam.toml | mix.lock, rebar.lock |
-| julia | Project.toml | Manifest.toml |
+| julia | Project.toml, REQUIRE | Manifest.toml |
 | luarocks | *.rockspec | |
-| maven | pom.xml, ivy.xml, build.gradle, build.gradle.kts, build.sbt | gradle.lockfile |
+| maven | pom.xml, ivy.xml, build.gradle, build.gradle.kts, build.sbt | gradle.lockfile, gradle-dependencies-q.txt, maven-resolved-dependencies.txt, verification-metadata.xml |
 | nimble | *.nimble | |
-| nix | flake.nix | flake.lock |
-| npm | package.json | package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock |
-| nuget | *.csproj, *.vbproj, *.fsproj, *.nuspec, packages.config | packages.lock.json, paket.lock |
+| nix | flake.nix | flake.lock, sources.json |
+| npm | package.json, bower.json | package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock, npm-ls.json |
+| nuget | *.csproj, *.vbproj, *.fsproj, *.nuspec, packages.config, Project.json | packages.lock.json, paket.lock, project.assets.json, *.deps.json, Project.lock.json |
 | pub | pubspec.yaml | pubspec.lock |
-| pypi | requirements.txt, Pipfile, pyproject.toml | Pipfile.lock, poetry.lock |
+| pypi | requirements.txt, Pipfile, pyproject.toml, setup.py | Pipfile.lock, poetry.lock, pdm.lock, uv.lock, pip-dependency-graph.json, pip-resolved-dependencies.txt, pylock.toml |
 | rpm | *.spec | |
 | swift | Package.swift | Package.resolved |
 | vcpkg | vcpkg.json | |

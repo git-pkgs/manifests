@@ -19,8 +19,8 @@ func TestRPMSpec(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -28,42 +28,32 @@ func TestRPMSpec(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check build dependency
-	if dep, ok := depMap["gcc"]; !ok {
-		t.Error("expected gcc build dependency")
-	} else if dep.Scope != core.Build {
-		t.Errorf("expected gcc scope Build, got %v", dep.Scope)
+	// All 7 packages with versions and scopes
+	expected := []struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		{"gcc", "", core.Build},
+		{"make", "", core.Build},
+		{"gettext", ">= 0.19", core.Build},
+		{"autoconf", "", core.Build},
+		{"automake", "", core.Build},
+		{"glibc", ">= 2.17", core.Runtime},
+		{"info", "", core.Runtime},
 	}
 
-	// Check build dependency with version
-	if dep, ok := depMap["gettext"]; !ok {
-		t.Error("expected gettext dependency")
-	} else {
-		if dep.Version != ">= 0.19" {
-			t.Errorf("expected gettext version >= 0.19, got %s", dep.Version)
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
 		}
-		if dep.Scope != core.Build {
-			t.Errorf("expected gettext scope Build, got %v", dep.Scope)
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
 		}
-	}
-
-	// Check runtime dependency
-	if dep, ok := depMap["glibc"]; !ok {
-		t.Error("expected glibc runtime dependency")
-	} else {
-		if dep.Scope != core.Runtime {
-			t.Errorf("expected glibc scope Runtime, got %v", dep.Scope)
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
 		}
-		if dep.Version != ">= 2.17" {
-			t.Errorf("expected glibc version >= 2.17, got %s", dep.Version)
-		}
-	}
-
-	// Check autoconf, automake (comma-separated)
-	if _, ok := depMap["autoconf"]; !ok {
-		t.Error("expected autoconf dependency")
-	}
-	if _, ok := depMap["automake"]; !ok {
-		t.Error("expected automake dependency")
 	}
 }

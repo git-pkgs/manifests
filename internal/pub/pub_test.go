@@ -28,24 +28,28 @@ func TestPubspecYAML(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check runtime dependency
-	if dep, ok := depMap["analyzer"]; !ok {
-		t.Error("expected analyzer dependency")
-	} else {
-		if dep.Version != ">=0.22.0 <0.25.0" {
-			t.Errorf("expected analyzer version >=0.22.0 <0.25.0, got %s", dep.Version)
-		}
-		if dep.Scope != core.Runtime {
-			t.Errorf("expected analyzer scope Runtime, got %v", dep.Scope)
-		}
+	// All 4 packages with versions and scopes
+	expected := map[string]struct {
+		version string
+		scope   core.Scope
+	}{
+		"analyzer":          {">=0.22.0 <0.25.0", core.Runtime},
+		"args":              {">=0.12.0 <0.13.0", core.Runtime},
+		"benchmark_harness": {">=1.0.0 <2.0.0", core.Development},
+		"guinness":          {">=0.1.9 <0.2.0", core.Development},
 	}
 
-	// Check dev dependency
-	if dep, ok := depMap["benchmark_harness"]; !ok {
-		t.Error("expected benchmark_harness dependency")
-	} else {
-		if dep.Scope != core.Development {
-			t.Errorf("expected benchmark_harness scope Development, got %v", dep.Scope)
+	for name, exp := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", name, dep.Scope, exp.scope)
 		}
 	}
 }
@@ -71,17 +75,22 @@ func TestPubspecLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check analyzer
-	if dep, ok := depMap["analyzer"]; !ok {
-		t.Error("expected analyzer dependency")
-	} else if dep.Version != "0.24.6" {
-		t.Errorf("expected analyzer version 0.24.6, got %s", dep.Version)
+	// All 4 packages with versions
+	expected := map[string]string{
+		"analyzer": "0.24.6",
+		"args":     "0.12.2+6",
+		"barback":  "0.15.2+7",
+		"which":    "0.1.3",
 	}
 
-	// Check args
-	if dep, ok := depMap["args"]; !ok {
-		t.Error("expected args dependency")
-	} else if dep.Version != "0.12.2+6" {
-		t.Errorf("expected args version 0.12.2+6, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }

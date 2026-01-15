@@ -12,6 +12,9 @@ func init() {
 
 	// package-lock.json - lockfile
 	core.Register("npm", core.Lockfile, &npmPackageLockParser{}, core.ExactMatch("package-lock.json", "npm-shrinkwrap.json"))
+
+	// npm-ls.json - lockfile (output from npm ls --json)
+	core.Register("npm", core.Lockfile, &npmLsParser{}, core.ExactMatch("npm-ls.json"))
 }
 
 // npmPackageJSONParser parses package.json files.
@@ -257,4 +260,60 @@ func extractPackageName(path string) string {
 		return path[:idx]
 	}
 	return path
+}
+
+// npmLsParser parses npm-ls.json files (output from npm ls --json).
+type npmLsParser struct{}
+
+type npmLsJSON struct {
+	Dependencies map[string]npmLsDep `json:"dependencies"`
+}
+
+type npmLsDep struct {
+	Version      string                 `json:"version"`
+	Resolved     string                 `json:"resolved"`
+	Integrity    string                 `json:"integrity"`
+	Dev          bool                   `json:"dev"`
+	Dependencies map[string]npmLsDep    `json:"dependencies"`
+}
+
+func (p *npmLsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var ls npmLsJSON
+	if err := json.Unmarshal(content, &ls); err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	return parseNpmLsDeps(ls.Dependencies, make(map[string]bool)), nil
+}
+
+func parseNpmLsDeps(deps map[string]npmLsDep, seen map[string]bool) []core.Dependency {
+	var result []core.Dependency
+
+	for name, dep := range deps {
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+
+		scope := core.Runtime
+		if dep.Dev {
+			scope = core.Development
+		}
+
+		result = append(result, core.Dependency{
+			Name:      name,
+			Version:   dep.Version,
+			Scope:     scope,
+			Integrity: dep.Integrity,
+			Direct:    false,
+		})
+
+		// Recursively add nested dependencies
+		if len(dep.Dependencies) > 0 {
+			nested := parseNpmLsDeps(dep.Dependencies, seen)
+			result = append(result, nested...)
+		}
+	}
+
+	return result
 }

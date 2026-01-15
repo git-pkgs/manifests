@@ -28,24 +28,28 @@ func TestGleamToml(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check runtime dependency
-	if dep, ok := depMap["gleam_stdlib"]; !ok {
-		t.Error("expected gleam_stdlib dependency")
-	} else {
-		if dep.Version != ">= 0.53.0 and < 2.0.0" {
-			t.Errorf("expected gleam_stdlib version >= 0.53.0 and < 2.0.0, got %s", dep.Version)
-		}
-		if dep.Scope != core.Runtime {
-			t.Errorf("expected gleam_stdlib scope Runtime, got %v", dep.Scope)
-		}
+	// All 3 packages with versions and scopes
+	expected := []struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		{"gleam_stdlib", ">= 0.53.0 and < 2.0.0", core.Runtime},
+		{"gleam_http", "~> 3.0", core.Runtime},
+		{"gleeunit", ">= 1.3.0 and < 2.0.0", core.Development},
 	}
 
-	// Check dev dependency
-	if dep, ok := depMap["gleeunit"]; !ok {
-		t.Error("expected gleeunit dependency")
-	} else {
-		if dep.Scope != core.Development {
-			t.Errorf("expected gleeunit scope Development, got %v", dep.Scope)
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
 		}
 	}
 }

@@ -19,8 +19,8 @@ func TestCabal(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 19 {
+		t.Fatalf("expected 19 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -28,18 +28,28 @@ func TestCabal(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check dependency with version constraint
-	if dep, ok := depMap["aeson"]; !ok {
-		t.Error("expected aeson dependency")
-	} else if dep.Version != "== 1.1.*" {
-		t.Errorf("expected aeson version == 1.1.*, got %s", dep.Version)
+	// Sample of packages with versions (parser also picks up extensions)
+	expected := map[string]string{
+		"aeson":          "== 1.1.*",
+		"base":           ">= 4.9 && < 4.11",
+		"Cabal":          "== 2.0.*",
+		"envy":           "== 1.3.*",
+		"servant-server": "== 0.11.*",
+		"text":           "== 1.2.*",
+		"warp":           "== 3.2.*",
+		"hspec":          "== 2.4.*",
+		"bytestring":     "== 0.10.*",
 	}
 
-	// Check dependency with range constraint
-	if dep, ok := depMap["base"]; !ok {
-		t.Error("expected base dependency")
-	} else if dep.Version != ">= 4.9 && < 4.11" {
-		t.Errorf("expected base version >= 4.9 && < 4.11, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }
 
@@ -64,18 +74,22 @@ func TestStackLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check aeson
-	if dep, ok := depMap["aeson"]; !ok {
-		t.Error("expected aeson dependency")
-	} else if dep.Version != "2.1.2.1" {
-		t.Errorf("expected aeson version 2.1.2.1, got %s", dep.Version)
+	// All 3 packages with versions
+	expected := map[string]string{
+		"aeson":      "2.1.2.1",
+		"text":       "2.0.2",
+		"bytestring": "0.11.5.3",
 	}
 
-	// Check text
-	if dep, ok := depMap["text"]; !ok {
-		t.Error("expected text dependency")
-	} else if dep.Version != "2.0.2" {
-		t.Errorf("expected text version 2.0.2, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }
 
@@ -91,8 +105,8 @@ func TestCabalConfig(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -100,18 +114,25 @@ func TestCabalConfig(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check a constraint
-	if dep, ok := depMap["aeson"]; !ok {
-		t.Error("expected aeson dependency")
-	} else if dep.Version != "1.1.2.0" {
-		t.Errorf("expected aeson version 1.1.2.0, got %s", dep.Version)
+	// Sample of packages with versions
+	samples := map[string]string{
+		"aeson":      "1.1.2.0",
+		"bytestring": "0.10.8.2",
+		"base":       "4.10.1.0",
+		"text":       "1.2.3.0",
+		"warp":       "3.2.13",
+		"Cabal":      "2.0.1.0",
 	}
 
-	// Check bytestring
-	if dep, ok := depMap["bytestring"]; !ok {
-		t.Error("expected bytestring dependency")
-	} else if dep.Version != "0.10.8.2" {
-		t.Errorf("expected bytestring version 0.10.8.2, got %s", dep.Version)
+	for name, wantVer := range samples {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }
 
@@ -127,7 +148,32 @@ func TestCabalProjectFreeze(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All 5 packages with versions
+	expected := map[string]string{
+		"Cabal":      "3.12.0.0",
+		"aeson":      "2.2.3.0",
+		"base":       "4.18.2.1",
+		"bytestring": "0.11.5.3",
+		"text":       "2.0.2",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }

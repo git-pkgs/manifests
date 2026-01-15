@@ -35,6 +35,18 @@ func init() {
 
 	// uv.lock - lockfile
 	core.Register("pypi", core.Lockfile, &uvLockParser{}, core.ExactMatch("uv.lock"))
+
+	// pip-dependency-graph.json - lockfile (pipdeptree --json output)
+	core.Register("pypi", core.Lockfile, &pipDependencyGraphParser{}, core.ExactMatch("pip-dependency-graph.json"))
+
+	// pip-resolved-dependencies.txt - lockfile (pip freeze output)
+	core.Register("pypi", core.Lockfile, &pipResolvedDepsParser{}, core.ExactMatch("pip-resolved-dependencies.txt"))
+
+	// setup.py - manifest
+	core.Register("pypi", core.Manifest, &setupPyParser{}, core.ExactMatch("setup.py"))
+
+	// pylock.toml - lockfile (PEP 665)
+	core.Register("pypi", core.Lockfile, &pylockTomlParser{}, core.ExactMatch("pylock.toml"))
 }
 
 // requirementsTxtParser parses requirements.txt files.
@@ -482,6 +494,221 @@ func (p *uvLockParser) Parse(filename string, content []byte) ([]core.Dependency
 			integrity = convertPythonHash(pkg.Sdist.Hash)
 		} else if len(pkg.Wheels) > 0 && pkg.Wheels[0].Hash != "" {
 			integrity = convertPythonHash(pkg.Wheels[0].Hash)
+		}
+
+		deps = append(deps, core.Dependency{
+			Name:      pkg.Name,
+			Version:   pkg.Version,
+			Scope:     core.Runtime,
+			Integrity: integrity,
+			Direct:    false,
+		})
+	}
+
+	return deps, nil
+}
+
+// pipDependencyGraphParser parses pip-dependency-graph.json files (pipdeptree --json output).
+type pipDependencyGraphParser struct{}
+
+type pipDepGraph struct {
+	Package struct {
+		Key              string `json:"key"`
+		PackageName      string `json:"package_name"`
+		InstalledVersion string `json:"installed_version"`
+	} `json:"package"`
+	Dependencies []struct {
+		Key              string `json:"key"`
+		PackageName      string `json:"package_name"`
+		InstalledVersion string `json:"installed_version"`
+	} `json:"dependencies"`
+}
+
+func (p *pipDependencyGraphParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var graph []pipDepGraph
+	if err := json.Unmarshal(content, &graph); err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	var deps []core.Dependency
+	seen := make(map[string]bool)
+
+	for _, entry := range graph {
+		// Add the main package
+		name := entry.Package.PackageName
+		if name == "" {
+			name = entry.Package.Key
+		}
+		if name != "" && !seen[name] {
+			seen[name] = true
+			deps = append(deps, core.Dependency{
+				Name:    name,
+				Version: entry.Package.InstalledVersion,
+				Scope:   core.Runtime,
+				Direct:  false,
+			})
+		}
+	}
+
+	return deps, nil
+}
+
+// pipResolvedDepsParser parses pip-resolved-dependencies.txt files (pip freeze output).
+type pipResolvedDepsParser struct{}
+
+func (p *pipResolvedDepsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var deps []core.Dependency
+	lines := strings.Split(string(content), "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "-") {
+			continue
+		}
+
+		// Parse package==version format
+		parts := strings.SplitN(line, "==", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		name := strings.TrimSpace(parts[0])
+		version := strings.TrimSpace(parts[1])
+
+		deps = append(deps, core.Dependency{
+			Name:    name,
+			Version: version,
+			Scope:   core.Runtime,
+			Direct:  false,
+		})
+	}
+
+	return deps, nil
+}
+
+// setupPyParser parses setup.py files.
+type setupPyParser struct{}
+
+var (
+	// Match install_requires list items
+	installRequiresRegex = regexp.MustCompile(`install_requires\s*=\s*\[([^\]]*)\]`)
+	// Match extras_require dict
+	extrasRequireRegex = regexp.MustCompile(`extras_require\s*=\s*\{([^}]*)\}`)
+	// Match quoted string
+	quotedStringRegex = regexp.MustCompile(`['"]([^'"]+)['"]`)
+)
+
+func (p *setupPyParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var deps []core.Dependency
+	contentStr := string(content)
+
+	// Parse install_requires
+	if match := installRequiresRegex.FindStringSubmatch(contentStr); match != nil {
+		for _, req := range quotedStringRegex.FindAllStringSubmatch(match[1], -1) {
+			if len(req) >= 2 {
+				name, version := parseSetupRequirement(req[1])
+				deps = append(deps, core.Dependency{
+					Name:    name,
+					Version: version,
+					Scope:   core.Runtime,
+					Direct:  true,
+				})
+			}
+		}
+	}
+
+	// Parse extras_require
+	if match := extrasRequireRegex.FindStringSubmatch(contentStr); match != nil {
+		// Find the group names and their requirements
+		groupContent := match[1]
+		// Simple parsing: find all quoted strings that look like requirements
+		for _, req := range quotedStringRegex.FindAllStringSubmatch(groupContent, -1) {
+			if len(req) >= 2 {
+				reqStr := req[1]
+				// Skip group names (they don't contain version specifiers)
+				if strings.ContainsAny(reqStr, ">=<~!=") || !strings.ContainsAny(reqStr, "-_.") {
+					continue
+				}
+				// This is a potential group name, skip
+				if !strings.Contains(reqStr, ">=") && !strings.Contains(reqStr, "==") &&
+					!strings.Contains(reqStr, "<=") && !strings.Contains(reqStr, "~=") {
+					// Check if it looks like a package name
+					if len(reqStr) < 20 && strings.ContainsAny(reqStr, "abcdefghijklmnopqrstuvwxyz") {
+						name, version := parseSetupRequirement(reqStr)
+						deps = append(deps, core.Dependency{
+							Name:    name,
+							Version: version,
+							Scope:   core.Development,
+							Direct:  true,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	return deps, nil
+}
+
+func parseSetupRequirement(req string) (string, string) {
+	// Parse "package>=1.0,<2.0" or "package==1.0" etc.
+	req = strings.TrimSpace(req)
+
+	for i, c := range req {
+		if c == '>' || c == '<' || c == '=' || c == '~' || c == '!' {
+			name := strings.TrimSpace(req[:i])
+			version := strings.TrimSpace(req[i:])
+			return name, version
+		}
+	}
+
+	return req, ""
+}
+
+// pylockTomlParser parses pylock.toml files (PEP 665).
+type pylockTomlParser struct{}
+
+type pylockToml struct {
+	Packages []pylockPackage `toml:"packages"`
+}
+
+type pylockPackage struct {
+	Name    string `toml:"name"`
+	Version string `toml:"version"`
+	Wheels  []struct {
+		Name   string `toml:"name"`
+		URL    string `toml:"url"`
+		Hashes struct {
+			SHA256 string `toml:"sha256"`
+		} `toml:"hashes"`
+	} `toml:"wheels"`
+	Archive struct {
+		URL    string `toml:"url"`
+		Hashes struct {
+			SHA256 string `toml:"sha256"`
+		} `toml:"hashes"`
+	} `toml:"archive"`
+}
+
+func (p *pylockTomlParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var lock pylockToml
+	if _, err := toml.Decode(string(content), &lock); err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	var deps []core.Dependency
+
+	for _, pkg := range lock.Packages {
+		if pkg.Name == "" {
+			continue
+		}
+
+		integrity := ""
+		// Get hash from first wheel or archive
+		if len(pkg.Wheels) > 0 && pkg.Wheels[0].Hashes.SHA256 != "" {
+			integrity = "sha256-" + pkg.Wheels[0].Hashes.SHA256
+		} else if pkg.Archive.Hashes.SHA256 != "" {
+			integrity = "sha256-" + pkg.Archive.Hashes.SHA256
 		}
 
 		deps = append(deps, core.Dependency{

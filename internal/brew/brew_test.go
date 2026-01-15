@@ -19,8 +19,8 @@ func TestBrewfile(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -28,30 +28,19 @@ func TestBrewfile(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check brew formula
-	if shellcheck, ok := depMap["shellcheck"]; !ok {
-		t.Error("expected shellcheck dependency")
-	} else {
-		if shellcheck.Scope != core.Runtime {
-			t.Errorf("shellcheck scope = %q, want %q", shellcheck.Scope, core.Runtime)
-		}
+	// All 6 packages
+	expected := []string{
+		"markdownlint-cli",
+		"shellcheck",
+		"shfmt",
+		"swiftformat",
+		"peripheryapp/periphery", // tap
+		"periphery",              // cask
 	}
 
-	// Check tap
-	if tap, ok := depMap["peripheryapp/periphery"]; !ok {
-		t.Error("expected peripheryapp/periphery tap")
-	} else {
-		if tap.Scope != core.Runtime {
-			t.Errorf("tap scope = %q, want %q", tap.Scope, core.Runtime)
-		}
-	}
-
-	// Check cask
-	if periphery, ok := depMap["periphery"]; !ok {
-		t.Error("expected periphery cask")
-	} else {
-		if periphery.Scope != core.Runtime {
-			t.Errorf("periphery scope = %q, want %q", periphery.Scope, core.Runtime)
+	for _, name := range expected {
+		if _, ok := depMap[name]; !ok {
+			t.Errorf("expected %s dependency", name)
 		}
 	}
 
@@ -73,20 +62,32 @@ func TestBrewfileLock(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(deps))
 	}
 
-	// Check that we have version information
-	hasVersion := false
+	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
-		if d.Version != "" {
-			hasVersion = true
-			break
-		}
+		depMap[d.Name] = d
 	}
 
-	if !hasVersion {
-		t.Error("expected at least one dependency with version")
+	// All 5 packages with versions
+	expected := map[string]string{
+		"markdownlint-cli": "0.32.2",
+		"shellcheck":       "0.8.0",
+		"shfmt":            "3.5.1",
+		"swiftformat":      "0.49.18",
+		"periphery":        "2.9.0",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }

@@ -28,23 +28,26 @@ func TestElmPackageJSON(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check elm-markdown with version range
-	if dep, ok := depMap["evancz/elm-markdown"]; !ok {
-		t.Error("expected evancz/elm-markdown dependency")
-	} else {
-		if dep.Version != "1.1.0 <= v < 2.0.0" {
-			t.Errorf("expected version 1.1.0 <= v < 2.0.0, got %s", dep.Version)
-		}
-		if !dep.Direct {
-			t.Error("expected direct dependency")
-		}
+	// All 4 packages with versions
+	expected := map[string]string{
+		"elm-lang/core":         "1.0.0 <= v < 2.0.0",
+		"evancz/elm-markdown":   "1.1.0 <= v < 2.0.0",
+		"evancz/elm-html":       "1.0.0 <= v < 2.0.0",
+		"evancz/local-channel":  "1.0.0 <= v < 2.0.0",
 	}
 
-	// Check elm-lang/core
-	if dep, ok := depMap["elm-lang/core"]; !ok {
-		t.Error("expected elm-lang/core dependency")
-	} else if dep.Version != "1.0.0 <= v < 2.0.0" {
-		t.Errorf("expected version 1.0.0 <= v < 2.0.0, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if !dep.Direct {
+			t.Errorf("%s should be direct dependency", name)
+		}
 	}
 }
 
@@ -70,9 +73,20 @@ func TestElmLegacyJSON(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	if dep, ok := depMap["johnpmayer/elm-webgl"]; !ok {
-		t.Error("expected johnpmayer/elm-webgl dependency")
-	} else if dep.Version != "0.1.1" {
-		t.Errorf("expected version 0.1.1, got %s", dep.Version)
+	// All 2 packages with versions
+	expected := map[string]string{
+		"johnpmayer/elm-webgl":         "0.1.1",
+		"johnpmayer/elm-linear-algebra": "1.0.1",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }

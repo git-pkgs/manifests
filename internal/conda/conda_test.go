@@ -19,8 +19,8 @@ func TestCondaEnvironment(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 11 {
+		t.Fatalf("expected 11 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -28,23 +28,30 @@ func TestCondaEnvironment(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check dependency with version=build format
-	if dep, ok := depMap["beautifulsoup4"]; !ok {
-		t.Error("expected beautifulsoup4 dependency")
-	} else if dep.Version != "4.7.1" {
-		t.Errorf("expected beautifulsoup4 version 4.7.1, got %s", dep.Version)
+	// All 11 packages with versions
+	expected := map[string]string{
+		"beautifulsoup4": "4.7.1",
+		"biopython":      "1.74",
+		"certifi":        "2019.6.16",
+		"ncurses":        "6.1",
+		"numpy":          "1.16.4",
+		"openssl":        "1.1.1c",
+		"pip":            "",
+		"python":         "3.7.3",
+		"readline":       "7.0",
+		"setuptools":     "",
+		"sqlite":         "3.29.0",
 	}
 
-	// Check dependency with just name
-	if _, ok := depMap["pip"]; !ok {
-		t.Error("expected pip dependency")
-	}
-
-	// Check dependency with version
-	if dep, ok := depMap["numpy"]; !ok {
-		t.Error("expected numpy dependency")
-	} else if dep.Version != "1.16.4" {
-		t.Errorf("expected numpy version 1.16.4, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }
 
@@ -60,18 +67,30 @@ func TestCondaEnvironmentWithPip(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	// Should only include conda dependencies, not pip dependencies
+	if len(deps) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	}
+
 	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
 		depMap[d.Name] = d
 	}
 
-	// pip and sqlite are conda deps
-	if _, ok := depMap["pip"]; !ok {
-		t.Error("expected pip dependency")
+	// All 2 conda dependencies
+	expected := map[string]string{
+		"pip":    "",
+		"sqlite": "3.29.0",
 	}
-	if _, ok := depMap["sqlite"]; !ok {
-		t.Error("expected sqlite dependency")
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 
 	// Django and urllib3 are pip deps, should not be included

@@ -1,14 +1,23 @@
 package maven
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
+	"encoding/xml"
+	"regexp"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
 	core.Register("maven", core.Manifest, &gradleParser{}, core.ExactMatch("build.gradle"))
 	core.Register("maven", core.Manifest, &gradleParser{}, core.ExactMatch("build.gradle.kts"))
 	core.Register("maven", core.Lockfile, &gradleLockfileParser{}, core.ExactMatch("gradle.lockfile"))
+
+	// gradle-dependencies-q.txt - lockfile (gradle dependencies -q output)
+	core.Register("maven", core.Lockfile, &gradleDependenciesParser{}, core.ExactMatch("gradle-dependencies-q.txt"))
+
+	// verification-metadata.xml - lockfile (gradle dependency verification)
+	core.Register("maven", core.Lockfile, &gradleVerificationParser{}, core.ExactMatch("verification-metadata.xml"))
 }
 
 // gradleParser parses build.gradle and build.gradle.kts files.
@@ -208,6 +217,108 @@ func (p *gradleLockfileParser) Parse(filename string, content []byte) ([]core.De
 		})
 		return true
 	})
+
+	return deps, nil
+}
+
+// gradleDependenciesParser parses gradle-dependencies-q.txt files (gradle dependencies -q output).
+type gradleDependenciesParser struct{}
+
+// Match lines like: +--- org.group:artifact:version or \--- org.group:artifact:version
+// Also matches lines with version resolution: org.group:artifact:1.0 -> 2.0
+var gradleDepLineRegex = regexp.MustCompile(`[+\\]---\s+([a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+):([^\s]+)`)
+
+func (p *gradleDependenciesParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var deps []core.Dependency
+	seen := make(map[string]bool)
+	lines := strings.Split(string(content), "\n")
+
+	inTestConfig := false
+
+	for _, line := range lines {
+		// Detect configuration headers
+		lower := strings.ToLower(line)
+		if strings.HasPrefix(lower, "test") && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "\\") && !strings.HasPrefix(line, "|") {
+			inTestConfig = true
+		} else if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "\\") && !strings.HasPrefix(line, "|") && len(strings.TrimSpace(line)) > 0 {
+			inTestConfig = false
+		}
+
+		if match := gradleDepLineRegex.FindStringSubmatch(line); match != nil {
+			name := match[1]
+			version := match[2]
+
+			// Handle version resolution: 1.0 -> 2.0
+			if strings.Contains(version, " -> ") {
+				parts := strings.Split(version, " -> ")
+				version = strings.TrimSpace(parts[len(parts)-1])
+			}
+
+			// Skip (*) which indicates already shown
+			if strings.HasSuffix(version, "(*)") {
+				continue
+			}
+			// Clean up version
+			version = strings.TrimSuffix(version, " (*)")
+			version = strings.TrimSuffix(version, " (n)")
+
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+
+			scope := core.Runtime
+			if inTestConfig {
+				scope = core.Test
+			}
+
+			deps = append(deps, core.Dependency{
+				Name:    name,
+				Version: version,
+				Scope:   scope,
+				Direct:  false,
+			})
+		}
+	}
+
+	return deps, nil
+}
+
+// gradleVerificationParser parses verification-metadata.xml files.
+type gradleVerificationParser struct{}
+
+type verificationMetadata struct {
+	Components struct {
+		Component []struct {
+			Group   string `xml:"group,attr"`
+			Name    string `xml:"name,attr"`
+			Version string `xml:"version,attr"`
+		} `xml:"component"`
+	} `xml:"components"`
+}
+
+func (p *gradleVerificationParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var metadata verificationMetadata
+	if err := xml.Unmarshal(content, &metadata); err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	var deps []core.Dependency
+
+	for _, comp := range metadata.Components.Component {
+		if comp.Group == "" || comp.Name == "" {
+			continue
+		}
+
+		name := comp.Group + ":" + comp.Name
+
+		deps = append(deps, core.Dependency{
+			Name:    name,
+			Version: comp.Version,
+			Scope:   core.Runtime,
+			Direct:  false,
+		})
+	}
 
 	return deps, nil
 }

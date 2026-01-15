@@ -19,23 +19,25 @@ func TestDockerfile(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(deps))
 	}
 
-	// Check ruby base image
-	found := false
+	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
-		if d.Name == "ruby" && d.Version == "3.1.2-alpine" {
-			found = true
-			if d.Scope != core.Runtime {
-				t.Errorf("ruby scope = %q, want %q", d.Scope, core.Runtime)
-			}
-			break
-		}
+		depMap[d.Name] = d
 	}
-	if !found {
-		t.Error("expected ruby:3.1.2-alpine dependency")
+
+	// The 1 package with version and scope
+	dep, ok := depMap["ruby"]
+	if !ok {
+		t.Fatal("expected ruby dependency")
+	}
+	if dep.Version != "3.1.2-alpine" {
+		t.Errorf("ruby version = %q, want %q", dep.Version, "3.1.2-alpine")
+	}
+	if dep.Scope != core.Runtime {
+		t.Errorf("ruby scope = %v, want %v", dep.Scope, core.Runtime)
 	}
 }
 
@@ -51,19 +53,32 @@ func TestDockerCompose(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(deps))
 	}
 
-	// Check that we have at least one image dependency
-	hasImage := false
+	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
-		if d.Name != "" {
-			hasImage = true
-			break
-		}
+		depMap[d.Name] = d
 	}
-	if !hasImage {
-		t.Error("expected at least one image dependency")
+
+	// All 2 packages with versions
+	expected := map[string]string{
+		"postgres": "9.6-alpine",
+		"redis":    "4.0-alpine",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want %v", name, dep.Scope, core.Runtime)
+		}
 	}
 }

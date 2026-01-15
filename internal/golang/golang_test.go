@@ -74,8 +74,10 @@ func TestGoSum(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	// go.sum has 6 unique packages with h1: hashes
+	// kr/pty only has /go.mod entry (no h1: hash) so it's excluded
+	if len(deps) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -83,25 +85,30 @@ func TestGoSum(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check dependency with integrity hash
-	if gocheck, ok := depMap["github.com/go-check/check"]; !ok {
-		t.Error("expected github.com/go-check/check dependency")
-	} else {
-		if gocheck.Version != "v0.0.0-20180628173108-788fd7840127" {
-			t.Errorf("go-check version = %q", gocheck.Version)
-		}
-		if gocheck.Integrity == "" {
-			t.Error("expected go-check to have integrity hash")
-		}
-		if gocheck.Integrity != "h1:0gkP6mzaMqkmpcJYCFOLkIBwI7xFExG03bbkOkCvUPI=" {
-			t.Errorf("go-check integrity = %q", gocheck.Integrity)
-		}
+	// Verify all packages with exact versions and integrities
+	expected := map[string]struct {
+		version   string
+		integrity string
+	}{
+		"github.com/go-check/check":        {"v0.0.0-20180628173108-788fd7840127", "h1:0gkP6mzaMqkmpcJYCFOLkIBwI7xFExG03bbkOkCvUPI="},
+		"github.com/gomodule/redigo":       {"v2.0.0+incompatible", "h1:K/R+8tc58AaqLkqG2Ol3Qk+DR/TlNuhuh457pBFPtt0="},
+		"github.com/kr/pretty":             {"v0.1.0", "h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI="},
+		"github.com/kr/text":               {"v0.1.0", "h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE="},
+		"github.com/replicon/fast-archiver": {"v0.0.0-20121220195659-060bf9adec25", "h1:aq3XSz9htmdvrxpK6eBIbjs3SaN8G1D9RuKkDo4PRnw="},
+		"gopkg.in/yaml.v1":                 {"v1.0.0-20140924161607-9f9df34309c0", "h1:POO/ycCATvegFmVuPpQzZFJ+pGZeX22Ufu6fibxDVjU="},
 	}
 
-	// Verify we don't have /go.mod entries
-	for name := range depMap {
-		if name != "github.com/kr/pty" && depMap[name].Version == "v1.1.1/go.mod" {
-			t.Errorf("should not have /go.mod entries, found %s %s", name, depMap[name].Version)
+	for name, exp := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, exp.version)
+		}
+		if dep.Integrity != exp.integrity {
+			t.Errorf("%s integrity = %q, want %q", name, dep.Integrity, exp.integrity)
 		}
 	}
 }
@@ -118,8 +125,8 @@ func TestGodepsJSON(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 14 {
+		t.Fatalf("expected 14 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -127,16 +134,36 @@ func TestGodepsJSON(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check BurntSushi/toml with version comment
-	if dep, ok := depMap["github.com/BurntSushi/toml"]; !ok {
-		t.Error("expected github.com/BurntSushi/toml dependency")
-	} else if dep.Version != "v0.1.0-9-g3883ac1" {
-		t.Errorf("toml version = %q, want %q", dep.Version, "v0.1.0-9-g3883ac1")
+	// All 14 packages with expected versions (Comment if present, else Rev)
+	expected := map[string]string{
+		"github.com/BurntSushi/toml":             "v0.1.0-9-g3883ac1",
+		"github.com/Sirupsen/logrus":             "v0.8.7",
+		"github.com/ayufan/golang-kardianos-service": "9ce7ccf10c81705a8880170bbf506bd539bc69b2",
+		"github.com/codegangsta/cli":             "1.2.0-139-g142e6cd",
+		"github.com/fsouza/go-dockerclient":      "163268693e2cf8be2920158b59ef438fc77b85e2",
+		"github.com/golang/mock/gomock":          "06883d979f10cc178f2716846215c8cf90f9e363",
+		"github.com/kardianos/osext":             "efacde03154693404c65e7aa7d461ac9014acd0c",
+		"github.com/ramr/go-reaper":              "1a6cbc07ef2f7e248769ef4efd80aaa16f97ec12",
+		"github.com/stretchr/objx":               "cbeaeb16a013161a98496fad62933b1d21786672",
+		"github.com/stretchr/testify/assert":     "1297dc01ed0a819ff634c89707081a4df43baf6b",
+		"github.com/stretchr/testify/mock":       "1297dc01ed0a819ff634c89707081a4df43baf6b",
+		"gitlab.com/ayufan/golang-cli-helpers":   "0a14b63a7466ee44de4a90f998fad73afa8482bf",
+		"golang.org/x/crypto/ssh":                "1351f936d976c60a0a48d728281922cf63eafb8d",
+		"gopkg.in/yaml.v1":                       "9f9df34309c04878acc86042b16630b0f696e1de",
 	}
 
-	// Check gopkg.in/yaml.v1
-	if _, ok := depMap["gopkg.in/yaml.v1"]; !ok {
-		t.Error("expected gopkg.in/yaml.v1 dependency")
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want Runtime", name, dep.Scope)
+		}
 	}
 }
 
@@ -161,18 +188,29 @@ func TestGlideYAML(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check Masterminds/vcs with version
-	if dep, ok := depMap["github.com/Masterminds/vcs"]; !ok {
-		t.Error("expected github.com/Masterminds/vcs dependency")
-	} else if dep.Version != "^1.4.0" {
-		t.Errorf("vcs version = %q, want %q", dep.Version, "^1.4.0")
+	// All 4 packages with expected versions
+	expected := map[string]string{
+		"gopkg.in/yaml.v2":            "",       // no version specified
+		"github.com/Masterminds/vcs":  "^1.4.0",
+		"github.com/codegangsta/cli":  "",       // no version specified
+		"github.com/Masterminds/semver": "^1.0.0",
 	}
 
-	// Check gopkg.in/yaml.v2 (no version)
-	if dep, ok := depMap["gopkg.in/yaml.v2"]; !ok {
-		t.Error("expected gopkg.in/yaml.v2 dependency")
-	} else if dep.Version != "" {
-		t.Errorf("yaml version = %q, want empty", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want Runtime", name, dep.Scope)
+		}
+		if !dep.Direct {
+			t.Errorf("%s should be direct dependency", name)
+		}
 	}
 }
 
@@ -197,11 +235,26 @@ func TestGlideLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check codegangsta/cli with commit hash
-	if dep, ok := depMap["github.com/codegangsta/cli"]; !ok {
-		t.Error("expected github.com/codegangsta/cli dependency")
-	} else if dep.Version != "c31a7975863e7810c92e2e288a9ab074f9a88f29" {
-		t.Errorf("cli version = %q", dep.Version)
+	// All 4 packages with exact commit hashes
+	expected := map[string]string{
+		"github.com/codegangsta/cli":    "c31a7975863e7810c92e2e288a9ab074f9a88f29",
+		"github.com/Masterminds/semver": "513f3dcb3ecfb1248831fb5cb06a23a3cd5935dc",
+		"github.com/Masterminds/vcs":    "9c0db6583837118d5df7c2ae38ab1c194e434b35",
+		"gopkg.in/yaml.v2":              "f7716cbe52baa25d2e9b0d0da546fcf909fc16b4",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want Runtime", name, dep.Scope)
+		}
 	}
 }
 
@@ -217,8 +270,8 @@ func TestGopkgTOML(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 8 {
+		t.Fatalf("expected 8 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -226,18 +279,33 @@ func TestGopkgTOML(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check Masterminds/vcs with version
-	if dep, ok := depMap["github.com/Masterminds/vcs"]; !ok {
-		t.Error("expected github.com/Masterminds/vcs dependency")
-	} else if dep.Version != "1.11.0" {
-		t.Errorf("vcs version = %q, want %q", dep.Version, "1.11.0")
+	// All 8 packages with expected versions (version or branch)
+	expected := map[string]string{
+		"github.com/Masterminds/semver":  "parse-constraints-with-dash-in-pre", // branch
+		"github.com/Masterminds/vcs":     "1.11.0",
+		"github.com/go-yaml/yaml":        "v2",     // branch
+		"github.com/pelletier/go-toml":   "master", // branch
+		"github.com/pkg/errors":          "0.8.0",
+		"github.com/boltdb/bolt":         "1.0.0",
+		"github.com/jmank88/nuts":        "0.2.0",
+		"github.com/golang/protobuf":     "master", // branch
 	}
 
-	// Check branch constraint
-	if dep, ok := depMap["github.com/pelletier/go-toml"]; !ok {
-		t.Error("expected github.com/pelletier/go-toml dependency")
-	} else if dep.Version != "master" {
-		t.Errorf("go-toml version = %q, want %q", dep.Version, "master")
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want Runtime", name, dep.Scope)
+		}
+		if !dep.Direct {
+			t.Errorf("%s should be direct dependency", name)
+		}
 	}
 }
 
@@ -253,8 +321,8 @@ func TestGopkgLock(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 14 {
+		t.Fatalf("expected 14 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -262,18 +330,36 @@ func TestGopkgLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check boltdb/bolt with version
-	if dep, ok := depMap["github.com/boltdb/bolt"]; !ok {
-		t.Error("expected github.com/boltdb/bolt dependency")
-	} else if dep.Version != "v1.3.1" {
-		t.Errorf("bolt version = %q, want %q", dep.Version, "v1.3.1")
+	// All 14 packages with expected versions (version tag if present, else revision)
+	expected := map[string]string{
+		"github.com/Masterminds/semver":  "a93e51b5a57ef416dac8bb02d11407b6f55d8929", // no version, use revision
+		"github.com/Masterminds/vcs":     "v1.11.1",
+		"github.com/armon/go-radix":      "4239b77079c7b5d1243b7b4736304ce8ddb6f0f2",
+		"github.com/boltdb/bolt":         "v1.3.1",
+		"github.com/go-yaml/yaml":        "cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b",
+		"github.com/golang/protobuf":     "5afd06f9d81a86d6e3bb7dc702d6bd148ea3ff23",
+		"github.com/jmank88/nuts":        "v0.2.0",
+		"github.com/nightlyone/lockfile": "e83dc5e7bba095e8d32fb2124714bf41f2a30cb5",
+		"github.com/pelletier/go-toml":   "b8b5e7696574464b2f9bf303a7b37781bb52889f",
+		"github.com/pkg/errors":          "v0.8.0",
+		"github.com/sdboyer/constext":    "836a144573533ea4da4e6929c235fd348aed1c80",
+		"golang.org/x/net":               "66aacef3dd8a676686c7ae3716979581e8b03c47",
+		"golang.org/x/sync":              "f52d1811a62927559de87708c8913c1650ce4f26",
+		"golang.org/x/sys":               "bb24a47a89eac6c1227fbcb2ae37a8b9ed323366",
 	}
 
-	// Check pkg/errors with version
-	if dep, ok := depMap["github.com/pkg/errors"]; !ok {
-		t.Error("expected github.com/pkg/errors dependency")
-	} else if dep.Version != "v0.8.0" {
-		t.Errorf("errors version = %q, want %q", dep.Version, "v0.8.0")
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want Runtime", name, dep.Scope)
+		}
 	}
 }
 
@@ -289,8 +375,8 @@ func TestVendorJSON(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -298,15 +384,193 @@ func TestVendorJSON(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check pkg/errors
-	if dep, ok := depMap["github.com/pkg/errors"]; !ok {
-		t.Error("expected github.com/pkg/errors dependency")
-	} else if dep.Version != "a2d6902c6d2a2f194eb3fb474981ab7867c81505" {
-		t.Errorf("errors version = %q", dep.Version)
+	// All 5 packages with exact revisions
+	// Note: golang.org/x/tools/go/vcs is truncated to golang.org/x/tools by extractBasePackage
+	expected := map[string]string{
+		"github.com/Bowery/prompt":   "d43c2707a6c5a152a344c64bb4fed657e2908a81",
+		"github.com/dchest/safefile": "855e8d98f1852d48dde521e0522408d1fe7e836a",
+		"github.com/google/shlex":    "6f45313302b9c56850fc17f99e40caebce98c716",
+		"github.com/pkg/errors":      "a2d6902c6d2a2f194eb3fb474981ab7867c81505",
+		"golang.org/x/tools":         "1727758746e7a08feaaceb9366d1468498ac2ac2",
 	}
 
-	// Check Bowery/prompt
-	if _, ok := depMap["github.com/Bowery/prompt"]; !ok {
-		t.Error("expected github.com/Bowery/prompt dependency")
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want Runtime", name, dep.Scope)
+		}
+	}
+}
+
+func TestGoSingleRequireMod(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/golang/go.single-require.mod")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &goModParser{}
+	deps, err := parser.Parse("go.mod", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	}
+
+	dep := deps[0]
+	if dep.Name != "github.com/go-check/check" {
+		t.Errorf("name = %q, want %q", dep.Name, "github.com/go-check/check")
+	}
+	if dep.Version != "v0.0.0-20180628173108-788fd7840127" {
+		t.Errorf("version = %q, want %q", dep.Version, "v0.0.0-20180628173108-788fd7840127")
+	}
+	if dep.Direct {
+		t.Error("expected indirect dependency")
+	}
+}
+
+func TestGoResolvedDepsJSON(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/golang/go-resolved-dependencies.json")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &goResolvedDepsParser{}
+	deps, err := parser.Parse("go-resolved-dependencies.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Should have 15 dependencies (excluding main module and local replacements)
+	if len(deps) != 15 {
+		t.Fatalf("expected 15 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify some key packages
+	expected := map[string]struct {
+		version string
+		direct  bool
+		scope   core.Scope
+	}{
+		"cloud.google.com/go":              {"v0.36.0", false, core.Runtime},
+		"github.com/BurntSushi/toml":       {"v0.3.1", false, core.Runtime},
+		"github.com/Masterminds/semver":    {"v1.5.0", false, core.Runtime},
+		"github.com/Masterminds/semver/v3": {"v3.0.3", false, core.Runtime},
+		"github.com/stretchr/testify":      {"v1.7.0", true, core.Test},
+		"golang.org/x/net":                 {"v1.2.3", true, core.Runtime},
+	}
+
+	for name, exp := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, exp.version)
+		}
+		if dep.Direct != exp.direct {
+			t.Errorf("%s direct = %v, want %v", name, dep.Direct, exp.direct)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", name, dep.Scope, exp.scope)
+		}
+	}
+
+	// Verify main module and local replacement are excluded
+	if _, ok := depMap["main"]; ok {
+		t.Error("main module should be excluded")
+	}
+	if _, ok := depMap["bad/thing"]; ok {
+		t.Error("local replacement should be excluded")
+	}
+}
+
+func TestGbManifest(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/golang/gb_manifest")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &gbManifestParser{}
+	deps, err := parser.Parse("vendor/manifest", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	}
+
+	dep := deps[0]
+	if dep.Name != "github.com/gorilla/mux" {
+		t.Errorf("name = %q, want %q", dep.Name, "github.com/gorilla/mux")
+	}
+	if dep.Version != "9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e" {
+		t.Errorf("version = %q, want %q", dep.Version, "9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e")
+	}
+	if dep.Scope != core.Runtime {
+		t.Errorf("scope = %v, want Runtime", dep.Scope)
+	}
+}
+
+func TestGodepsText(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/golang/Godeps")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &godepsTextParser{}
+	deps, err := parser.Parse("Godeps", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All 5 packages with expected versions
+	expected := map[string]string{
+		"github.com/nu7hatch/gotrail":         "v0.0.2",
+		"github.com/replicon/fast-archiver":   "v1.02",
+		"github.com/garyburd/redigo/redis":    "a6a0a737c00caf4d4c2bb589941ace0d688168bb",
+		"launchpad.net/gocheck":               "r2013.03.03",
+		"code.google.com/p/go.example/hello/...": "ae081cd1d6cc",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want Runtime", name, dep.Scope)
+		}
+		if !dep.Direct {
+			t.Errorf("%s should be direct dependency", name)
+		}
 	}
 }

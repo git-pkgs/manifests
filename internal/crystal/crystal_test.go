@@ -28,34 +28,30 @@ func TestShardYML(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check runtime dependency with branch
-	if dep, ok := depMap["frost"]; !ok {
-		t.Error("expected frost dependency")
-	} else {
-		if dep.Version != "master" {
-			t.Errorf("expected frost version master (from branch), got %s", dep.Version)
-		}
-		if dep.Scope != core.Runtime {
-			t.Errorf("expected frost scope Runtime, got %v", dep.Scope)
-		}
+	// All 5 packages with versions and scopes
+	expected := []struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		{"frost", "master", core.Runtime},
+		{"shards", "", core.Runtime},
+		{"common_mark", "", core.Runtime},
+		{"minitest", ">= 0.2.0", core.Development},
+		{"selenium-webdriver", "", core.Development},
 	}
 
-	// Check runtime dependency with no version
-	if dep, ok := depMap["shards"]; !ok {
-		t.Error("expected shards dependency")
-	} else if dep.Version != "" {
-		t.Errorf("expected shards version empty, got %s", dep.Version)
-	}
-
-	// Check development dependency with version constraint
-	if dep, ok := depMap["minitest"]; !ok {
-		t.Error("expected minitest dependency")
-	} else {
-		if dep.Version != ">= 0.2.0" {
-			t.Errorf("expected minitest version >= 0.2.0, got %s", dep.Version)
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
 		}
-		if dep.Scope != core.Development {
-			t.Errorf("expected minitest scope Development, got %v", dep.Scope)
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
 		}
 	}
 }
@@ -81,24 +77,25 @@ func TestShardLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check dependency with version
-	if dep, ok := depMap["common_mark"]; !ok {
-		t.Error("expected common_mark dependency")
-	} else if dep.Version != "0.1.0" {
-		t.Errorf("expected common_mark version 0.1.0, got %s", dep.Version)
+	// All 7 packages with versions
+	expected := map[string]string{
+		"common_mark":       "0.1.0",
+		"frost":             "4042fc55a0865df8cbcb9a389527e9557aa8f280",
+		"minitest":          "0.3.1",
+		"pg":                "0.5.0",
+		"pool":              "0.2.1",
+		"selenium-webdriver": "0.1.0",
+		"shards":            "0.6.0",
 	}
 
-	// Check dependency with commit (no version)
-	if dep, ok := depMap["frost"]; !ok {
-		t.Error("expected frost dependency")
-	} else if dep.Version != "4042fc55a0865df8cbcb9a389527e9557aa8f280" {
-		t.Errorf("expected frost commit hash, got %s", dep.Version)
-	}
-
-	// Check minitest has version
-	if dep, ok := depMap["minitest"]; !ok {
-		t.Error("expected minitest dependency")
-	} else if dep.Version != "0.3.1" {
-		t.Errorf("expected minitest version 0.3.1, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }

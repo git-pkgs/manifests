@@ -19,14 +19,25 @@ func TestPackageSwift(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(deps))
 	}
 
-	// Check that dependencies have names
+	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
-		if d.Name == "" {
-			t.Error("expected all dependencies to have names")
+		depMap[d.Name] = d
+	}
+
+	// All 3 packages (extracted from git URLs)
+	expected := []string{
+		"vapor",
+		"Tasks",
+		"Environment",
+	}
+
+	for _, name := range expected {
+		if _, ok := depMap[name]; !ok {
+			t.Errorf("expected %s dependency", name)
 		}
 	}
 }
@@ -43,8 +54,8 @@ func TestPackageResolved(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -52,16 +63,13 @@ func TestPackageResolved(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check for version information
-	hasVersion := false
-	for _, d := range deps {
-		if d.Version != "" {
-			hasVersion = true
-			break
+	// Check Yams
+	if dep, ok := depMap["Yams"]; !ok {
+		t.Error("expected Yams dependency")
+	} else {
+		if dep.Version != "5.0.1" {
+			t.Errorf("Yams version = %q, want %q", dep.Version, "5.0.1")
 		}
-	}
-	if !hasVersion {
-		t.Error("expected at least one dependency with version")
 	}
 }
 
@@ -77,7 +85,29 @@ func TestPackageResolvedV2(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All 2 packages with versions
+	expected := map[string]string{
+		"cryptoswift":       "1.6.0",
+		"swift-docc-plugin": "1.0.0",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }

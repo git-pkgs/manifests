@@ -28,18 +28,27 @@ func TestCsproj(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check PackageReference with Version attribute
-	if dep, ok := depMap["Microsoft.AspNetCore"]; !ok {
-		t.Error("expected Microsoft.AspNetCore dependency")
-	} else if dep.Version != "1.1.1" {
-		t.Errorf("expected version 1.1.1, got %s", dep.Version)
+	// All 8 packages with exact versions
+	expected := map[string]string{
+		"Microsoft.AspNetCore":                   "1.1.1",
+		"Microsoft.AspNetCore.Mvc":               "1.1.2",
+		"Microsoft.AspNetCore.StaticFiles":       "1.1.1",
+		"Microsoft.Extensions.Logging.Debug":     "1.1.1",
+		"Microsoft.Extensions.DependencyInjection": "1.1.1",
+		"Microsoft.VisualStudio.Web.BrowserLink": "1.1.0",
+		"System.Resources.Extensions":            "4.7.0",
+		"Contoso.Utility.UsefulStuff":            "3.6.0",
 	}
 
-	// Check PackageReference with Version element
-	if dep, ok := depMap["System.Resources.Extensions"]; !ok {
-		t.Error("expected System.Resources.Extensions dependency")
-	} else if dep.Version != "4.7.0" {
-		t.Errorf("expected version 4.7.0, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }
 
@@ -64,19 +73,27 @@ func TestNuspec(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check dependency with version
-	if dep, ok := depMap["FubuCore"]; !ok {
-		t.Error("expected FubuCore dependency")
-	} else if dep.Version != "3.2.0.3001" {
-		t.Errorf("expected version 3.2.0.3001, got %s", dep.Version)
+	// All 4 packages with exact versions
+	expected := map[string]string{
+		"FubuCore":               "3.2.0.3001",
+		"HtmlTags":               "[3.2.0.3001]",
+		"DotNetZip":              "",
+		"DevelopmentOnlyPackage": "1.2.3",
 	}
 
-	// Check dependency without version
-	if dep, ok := depMap["DotNetZip"]; !ok {
-		t.Error("expected DotNetZip dependency")
-	} else if dep.Version != "" {
-		t.Errorf("expected version empty, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
+
+	// Note: nuspec parser doesn't currently detect developmentDependency attribute
+	// All dependencies are marked as Runtime
 }
 
 func TestPackagesConfig(t *testing.T) {
@@ -100,18 +117,33 @@ func TestPackagesConfig(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check regular dependency
-	if dep, ok := depMap["AutoMapper"]; !ok {
-		t.Error("expected AutoMapper dependency")
-	} else if dep.Version != "2.1.267" {
-		t.Errorf("expected version 2.1.267, got %s", dep.Version)
+	// All 7 packages with exact versions
+	expected := map[string]string{
+		"AutoMapper":                 "2.1.267",
+		"Microsoft.Web.Infrastructure": "1.0.0.0",
+		"Mvc3Futures":                "3.0.20105.0",
+		"Ninject":                    "3.0.1.10",
+		"Ninject.Web.Common":         "3.0.0.7",
+		"WebActivator":               "1.5",
+		"Microsoft.Net.Compilers":    "1.0.0",
 	}
 
-	// Check development dependency
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+
+	// Check development dependency scope
 	if dep, ok := depMap["Microsoft.Net.Compilers"]; !ok {
 		t.Error("expected Microsoft.Net.Compilers dependency")
 	} else if dep.Scope != core.Development {
-		t.Errorf("expected scope Development, got %v", dep.Scope)
+		t.Errorf("Microsoft.Net.Compilers scope = %v, want Development", dep.Scope)
 	}
 }
 
@@ -175,8 +207,8 @@ func TestPaketLock(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
-		t.Fatal("expected dependencies, got none")
+	if len(deps) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -184,17 +216,333 @@ func TestPaketLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check Argu
-	if dep, ok := depMap["Argu"]; !ok {
-		t.Error("expected Argu dependency")
-	} else if dep.Version != "2.1" {
-		t.Errorf("expected version 2.1, got %s", dep.Version)
+	// All 5 packages with versions
+	expected := map[string]string{
+		"Argu":           "2.1",
+		"Mono.Cecil":     "0.9.6.1",
+		"Chessie":        "0.5.1",
+		"FSharp.Core":    "4.0.0.1",
+		"Newtonsoft.Json": "9.0.1",
 	}
 
-	// Check Newtonsoft.Json
-	if dep, ok := depMap["Newtonsoft.Json"]; !ok {
-		t.Error("expected Newtonsoft.Json dependency")
-	} else if dep.Version != "9.0.1" {
-		t.Errorf("expected version 9.0.1, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}
+
+func TestExampleNoVersionCsproj(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/nuget/example-no-version.csproj")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &csprojParser{}
+	deps, err := parser.Parse("example-no-version.csproj", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All 2 packages
+	expected := map[string]string{
+		"Microsoft.AspNetCore.App":          "",
+		"Microsoft.AspNetCore.Razor.Design": "2.2.0",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}
+
+func TestExampleUpdateCsproj(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/nuget/example-update.csproj")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &csprojParser{}
+	deps, err := parser.Parse("example-update.csproj", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All 2 packages
+	expected := map[string]string{
+		"Microsoft.AspNetCore":             "1.1.1",
+		"Microsoft.AspNetCore.StaticFiles": "2.2.0",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}
+
+func TestPackagesLockJson(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/nuget/packages.lock.json")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &packagesLockParser{}
+	deps, err := parser.Parse("packages.lock.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 284 {
+		t.Fatalf("expected 284 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Sample of packages with versions
+	samples := map[string]string{
+		"System.IO.Pipelines":                        "4.5.2",
+		"System.Reflection.Metadata":                 "1.6.0",
+		"Microsoft.AspNetCore.Http.Abstractions":    "2.2.0",
+		"Microsoft.AspNetCore.Identity.UI":          "2.2.0",
+		"Microsoft.EntityFrameworkCore.Design":       "2.2.0",
+		"Microsoft.NETCore.Platforms":                "2.2.0",
+		"System.IdentityModel.Tokens.Jwt":            "5.3.0",
+		"Microsoft.NETCore.App":                      "2.2.0",
+	}
+
+	for name, wantVer := range samples {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}
+
+func TestProjectLockJson(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/nuget/Project.lock.json")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &projectAssetsParser{}
+	deps, err := parser.Parse("Project.lock.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 162 {
+		t.Fatalf("expected 162 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Sample of packages with versions
+	samples := map[string]string{
+		"EntityFramework.InMemory":               "7.0.0-beta7",
+		"System.ComponentModel.Annotations":     "4.0.11-beta-23225",
+		"Microsoft.AspNet.Mvc.Cors":              "6.0.0-beta7",
+		"Newtonsoft.Json":                        "6.0.6",
+		"System.Diagnostics.Process":             "4.0.0-beta-23225",
+		"Microsoft.AspNet.Hosting.Abstractions":  "1.0.0-beta7",
+		"Microsoft.AspNet.Routing":               "1.0.0-beta7",
+		"Microsoft.AspNet.StaticFiles":           "1.0.0-beta7",
+	}
+
+	for name, wantVer := range samples {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}
+
+func TestProjectJSON(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/nuget/Project.json")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &projectJSONParser{}
+	deps, err := parser.Parse("Project.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 13 {
+		t.Fatalf("expected 13 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All packages with expected versions
+	expected := map[string]string{
+		"Microsoft.AspNet.Server.Kestrel":                   "1.0.0-beta7",
+		"Microsoft.AspNet.Server.IIS":                       "1.0.0-beta7",
+		"Microsoft.AspNet.Mvc":                              "6.0.0-beta7",
+		"Microsoft.AspNet.Server.WebListener":               "1.0.0-beta7",
+		"Microsoft.AspNet.StaticFiles":                      "1.0.0-beta7",
+		"EntityFramework.InMemory":                          "7.0.0-beta7",
+		"EntityFramework.SqlServer":                         "7.0.0-beta7",
+		"Microsoft.AspNet.Authentication.Cookies":           "1.0.0-beta7",
+		"Microsoft.AspNet.Identity.EntityFramework":         "3.0.0-beta7",
+		"Microsoft.Framework.Configuration":                 "1.0.0-beta7",
+		"Microsoft.Framework.Configuration.EnvironmentVariables": "1.0.0-beta7",
+		"Microsoft.Framework.Configuration.Json":            "1.0.0-beta7",
+		"AutoMapper":                                        "4.0.0-alpha1",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if !dep.Direct {
+			t.Errorf("%s should be direct dependency", name)
+		}
+	}
+}
+
+func TestDepsJSON(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/nuget/example.deps.json")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &depsJSONParser{}
+	deps, err := parser.Parse("example.deps.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All packages with expected versions
+	expected := map[string]string{
+		"Newtonsoft.Json":                     "13.0.1",
+		"Microsoft.Extensions.DependencyInjection": "6.0.0",
+		"Serilog":                             "2.10.0",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}
+
+func TestCsprojReferences(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/nuget/example-references-tag.csproj")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &csprojParser{}
+	deps, err := parser.Parse("example-references-tag.csproj", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Should have 3 non-system dependencies (System.Runtime.* is filtered as system)
+	if len(deps) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// All packages with expected versions
+	expected := map[string]string{
+		"FluentCommandLineParser":       "1.0.25.0",
+		"log4net":                        "2.0.15.0",
+		"Sequel.Core.Cryptography":       "1.0.0.0",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+
+	// Verify system assemblies are excluded
+	systemAssemblies := []string{"System", "System.Core", "System.Web", "Microsoft.CSharp", "WindowsBase", "PresentationCore", "System.Runtime.SomethingInternal"}
+	for _, name := range systemAssemblies {
+		if _, ok := depMap[name]; ok {
+			t.Errorf("system assembly %s should be excluded", name)
+		}
 	}
 }

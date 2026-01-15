@@ -28,24 +28,21 @@ func TestRebarLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// Check hex_core
-	if dep, ok := depMap["hex_core"]; !ok {
-		t.Error("expected hex_core dependency")
-	} else if dep.Version != "0.10.3" {
-		t.Errorf("expected hex_core version 0.10.3, got %s", dep.Version)
+	// All 3 packages with versions
+	expected := map[string]string{
+		"hex_core":       "0.10.3",
+		"verl":           "1.1.1",
+		"ssl_verify_fun": "1.1.7",
 	}
 
-	// Check verl
-	if dep, ok := depMap["verl"]; !ok {
-		t.Error("expected verl dependency")
-	} else if dep.Version != "1.1.1" {
-		t.Errorf("expected verl version 1.1.1, got %s", dep.Version)
-	}
-
-	// Check ssl_verify_fun
-	if dep, ok := depMap["ssl_verify_fun"]; !ok {
-		t.Error("expected ssl_verify_fun dependency")
-	} else if dep.Version != "1.1.7" {
-		t.Errorf("expected ssl_verify_fun version 1.1.7, got %s", dep.Version)
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
 	}
 }
