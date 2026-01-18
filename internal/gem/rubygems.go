@@ -186,6 +186,7 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 	directDeps := make(map[string]bool)
 
 	section := ""
+	currentRemote := ""
 
 	core.ForEachLine(text, func(line string) bool {
 		trimmed := strings.TrimSpace(line)
@@ -193,7 +194,8 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 		// Detect section headers
 		switch trimmed {
 		case "GEM", "PATH", "GIT":
-			section = "specs"
+			section = "source"
+			currentRemote = ""
 			return true
 		case "PLATFORMS":
 			section = "platforms"
@@ -209,13 +211,26 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 			return true
 		}
 
+		// In source sections, look for remote: line
+		if section == "source" {
+			if strings.HasPrefix(trimmed, "remote:") {
+				currentRemote = strings.TrimSpace(trimmed[7:])
+				return true
+			}
+			if trimmed == "specs:" {
+				section = "specs"
+				return true
+			}
+		}
+
 		if section == "specs" {
 			if name, version, ok := extractGemSpec(line); ok {
 				deps = append(deps, core.Dependency{
-					Name:    name,
-					Version: version,
-					Scope:   core.Runtime,
-					Direct:  false,
+					Name:        name,
+					Version:     version,
+					Scope:       core.Runtime,
+					Direct:      false,
+					RegistryURL: currentRemote,
 				})
 			}
 		}

@@ -151,19 +151,37 @@ func extractPipfileVersion(value any) string {
 type pipfileLockParser struct{}
 
 type pipfileLock struct {
+	Meta    pipfileLockMeta           `json:"_meta"`
 	Default map[string]pipfileLockDep `json:"default"`
 	Develop map[string]pipfileLockDep `json:"develop"`
+}
+
+type pipfileLockMeta struct {
+	Sources []pipfileLockSource `json:"sources"`
+}
+
+type pipfileLockSource struct {
+	Name string `json:"name"`
+	URL  string `json:"url"`
 }
 
 type pipfileLockDep struct {
 	Version string   `json:"version"`
 	Hashes  []string `json:"hashes"`
+	Index   string   `json:"index"`
+	File    string   `json:"file"`
 }
 
 func (p *pipfileLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	var lock pipfileLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	// Build source name to URL map
+	sourceURLs := make(map[string]string)
+	for _, src := range lock.Meta.Sources {
+		sourceURLs[src.Name] = src.URL
 	}
 
 	var deps []core.Dependency
@@ -175,12 +193,20 @@ func (p *pipfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 			// Use first hash, convert to SRI format
 			integrity = convertPythonHash(dep.Hashes[0])
 		}
+
+		// Determine registry URL: prefer file URL, then lookup by index
+		registryURL := dep.File
+		if registryURL == "" && dep.Index != "" {
+			registryURL = sourceURLs[dep.Index]
+		}
+
 		deps = append(deps, core.Dependency{
-			Name:      name,
-			Version:   version,
-			Scope:   core.Runtime,
-			Integrity: integrity,
-			Direct:    false, // Pipfile.lock doesn't distinguish
+			Name:        name,
+			Version:     version,
+			Scope:       core.Runtime,
+			Integrity:   integrity,
+			Direct:      false, // Pipfile.lock doesn't distinguish
+			RegistryURL: registryURL,
 		})
 	}
 
@@ -190,12 +216,19 @@ func (p *pipfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 		if len(dep.Hashes) > 0 {
 			integrity = convertPythonHash(dep.Hashes[0])
 		}
+
+		registryURL := dep.File
+		if registryURL == "" && dep.Index != "" {
+			registryURL = sourceURLs[dep.Index]
+		}
+
 		deps = append(deps, core.Dependency{
-			Name:      name,
-			Version:   version,
-			Scope:   core.Development,
-			Integrity: integrity,
-			Direct:    false,
+			Name:        name,
+			Version:     version,
+			Scope:       core.Development,
+			Integrity:   integrity,
+			Direct:      false,
+			RegistryURL: registryURL,
 		})
 	}
 
@@ -366,6 +399,10 @@ type poetryLockPackage struct {
 		File string `toml:"file"`
 		Hash string `toml:"hash"`
 	} `toml:"files"`
+	Source struct {
+		Type string `toml:"type"`
+		URL  string `toml:"url"`
+	} `toml:"source"`
 }
 
 func (p *poetryLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
@@ -397,11 +434,12 @@ func (p *poetryLockParser) Parse(filename string, content []byte) ([]core.Depend
 		}
 
 		deps = append(deps, core.Dependency{
-			Name:      pkg.Name,
-			Version:   pkg.Version,
-			Scope:     scope,
-			Integrity: integrity,
-			Direct:    false, // poetry.lock doesn't distinguish direct
+			Name:        pkg.Name,
+			Version:     pkg.Version,
+			Scope:       scope,
+			Integrity:   integrity,
+			Direct:      false, // poetry.lock doesn't distinguish direct
+			RegistryURL: pkg.Source.URL,
 		})
 	}
 
@@ -471,7 +509,10 @@ type uvLockFile struct {
 type uvLockPackage struct {
 	Name    string `toml:"name"`
 	Version string `toml:"version"`
-	Sdist   struct {
+	Source  struct {
+		Registry string `toml:"registry"`
+	} `toml:"source"`
+	Sdist struct {
 		Hash string `toml:"hash"`
 	} `toml:"sdist"`
 	Wheels []struct {
@@ -497,11 +538,12 @@ func (p *uvLockParser) Parse(filename string, content []byte) ([]core.Dependency
 		}
 
 		deps = append(deps, core.Dependency{
-			Name:      pkg.Name,
-			Version:   pkg.Version,
-			Scope:     core.Runtime,
-			Integrity: integrity,
-			Direct:    false,
+			Name:        pkg.Name,
+			Version:     pkg.Version,
+			Scope:       core.Runtime,
+			Integrity:   integrity,
+			Direct:      false,
+			RegistryURL: pkg.Source.Registry,
 		})
 	}
 

@@ -24,6 +24,7 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 	var currentName string
 	var currentVersion string
 	var currentIntegrity string
+	var currentResolved string
 
 	for _, line := range lines {
 		// Skip empty lines
@@ -47,11 +48,12 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 			if currentName != "" && currentVersion != "" && !seen[currentName] {
 				seen[currentName] = true
 				deps = append(deps, core.Dependency{
-					Name:      currentName,
-					Version:   currentVersion,
-					Scope:     core.Runtime,
-					Direct:    false,
-					Integrity: currentIntegrity,
+					Name:        currentName,
+					Version:     currentVersion,
+					Scope:       core.Runtime,
+					Direct:      false,
+					Integrity:   currentIntegrity,
+					RegistryURL: currentResolved,
 				})
 			}
 
@@ -59,6 +61,7 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 			currentName = parseYarnHeader(line)
 			currentVersion = ""
 			currentIntegrity = ""
+			currentResolved = ""
 			continue
 		}
 
@@ -68,6 +71,22 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 		// Check for version line
 		if strings.HasPrefix(trimmed, "version") {
 			currentVersion = extractYarnValue(trimmed[7:])
+			continue
+		}
+
+		// Check for resolved line (v1)
+		if strings.HasPrefix(trimmed, "resolved ") {
+			currentResolved = extractYarnValue(trimmed[9:])
+			continue
+		}
+
+		// Check for resolution line (v4)
+		if isV4 && strings.HasPrefix(trimmed, "resolution:") {
+			res := extractYarnValue(trimmed[11:])
+			// v4 resolution can be "pkg@npm:version" or a URL
+			if strings.HasPrefix(res, "http") {
+				currentResolved = res
+			}
 			continue
 		}
 
@@ -95,11 +114,12 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 		// Skip workspace packages
 		if !strings.HasPrefix(currentVersion, "0.0.0-use.local") {
 			deps = append(deps, core.Dependency{
-				Name:      currentName,
-				Version:   currentVersion,
-				Scope:     core.Runtime,
-				Direct:    false,
-				Integrity: currentIntegrity,
+				Name:        currentName,
+				Version:     currentVersion,
+				Scope:       core.Runtime,
+				Direct:      false,
+				Integrity:   currentIntegrity,
+				RegistryURL: currentResolved,
 			})
 		}
 	}

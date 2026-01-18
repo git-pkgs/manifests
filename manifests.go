@@ -16,11 +16,73 @@
 package manifests
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
 	"github.com/package-url/packageurl-go"
 )
+
+// defaultRegistryHosts maps ecosystems to their default registry hosts.
+// Based on https://github.com/andrew/purl/blob/main/purl-types.json
+var defaultRegistryHosts = map[string][]string{
+	"npm":        {"registry.npmjs.org", "registry.yarnpkg.com"},
+	"pypi":       {"pypi.org", "files.pythonhosted.org"},
+	"cargo":      {"crates.io", "index.crates.io", "static.crates.io"},
+	"gem":        {"rubygems.org"},
+	"composer":   {"packagist.org", "repo.packagist.org"},
+	"maven":      {"repo.maven.apache.org", "repo1.maven.org", "central.maven.org"},
+	"golang":     {"pkg.go.dev", "proxy.golang.org"},
+	"nuget":      {"nuget.org", "api.nuget.org"},
+	"cocoapods":  {"cdn.cocoapods.org", "cocoapods.org"},
+	"hex":        {"repo.hex.pm", "hex.pm"},
+	"pub":        {"pub.dartlang.org", "pub.dev"},
+	"hackage":    {"hackage.haskell.org"},
+	"cran":       {"cran.r-project.org"},
+	"cpan":       {"cpan.org", "metacpan.org"},
+	"luarocks":   {"luarocks.org"},
+	"conda":      {"repo.anaconda.com", "anaconda.org"},
+	"conan":      {"conan.io"},
+	"swift":      {"swiftpackageindex.com"},
+	"clojars":    {"clojars.org"},
+	"elm":        {"package.elm-lang.org"},
+	"deno":       {"deno.land"},
+	"homebrew":   {"formulae.brew.sh"},
+	"docker":     {"hub.docker.com", "docker.io", "registry-1.docker.io"},
+	"github":     {"github.com"},
+	"bitbucket":  {"bitbucket.org"},
+	"huggingface": {"huggingface.co"},
+}
+
+// isNonDefaultRegistry returns true if the registryURL is not a default registry for the ecosystem.
+func isNonDefaultRegistry(ecosystem, registryURL string) bool {
+	if registryURL == "" {
+		return false
+	}
+
+	defaults, ok := defaultRegistryHosts[ecosystem]
+	if !ok {
+		return true
+	}
+
+	parsed, err := url.Parse(registryURL)
+	if err != nil {
+		return true
+	}
+
+	host := parsed.Host
+	if host == "" {
+		host = registryURL
+	}
+
+	for _, defaultHost := range defaults {
+		if host == defaultHost || strings.HasSuffix(host, "."+defaultHost) {
+			return false
+		}
+	}
+
+	return true
+}
 
 // Re-export types from internal/core for public API.
 type (
@@ -66,7 +128,7 @@ func Parse(filename string, content []byte) (*ParseResult, error) {
 		if kind == Lockfile {
 			version = deps[i].Version
 		}
-		deps[i].PURL = makePURL(eco, deps[i].Name, version)
+		deps[i].PURL = makePURL(eco, deps[i].Name, version, deps[i].RegistryURL)
 	}
 
 	return &ParseResult{
@@ -77,7 +139,7 @@ func Parse(filename string, content []byte) (*ParseResult, error) {
 }
 
 // makePURL creates a Package URL for a dependency.
-func makePURL(ecosystem, name, version string) string {
+func makePURL(ecosystem, name, version, registryURL string) string {
 	purlType := ecosystem
 	namespace := ""
 	pkgName := name
@@ -124,7 +186,12 @@ func makePURL(ecosystem, name, version string) string {
 		cleanVersion = strings.TrimSpace(cleanVersion)
 	}
 
-	purl := packageurl.NewPackageURL(purlType, namespace, pkgName, cleanVersion, nil, "")
+	var qualifiers packageurl.Qualifiers
+	if registryURL != "" && isNonDefaultRegistry(ecosystem, registryURL) {
+		qualifiers = packageurl.Qualifiers{{Key: "repository_url", Value: registryURL}}
+	}
+
+	purl := packageurl.NewPackageURL(purlType, namespace, pkgName, cleanVersion, qualifiers, "")
 	return purl.ToString()
 }
 

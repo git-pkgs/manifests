@@ -75,6 +75,46 @@ func main() {
 | swift | Package.swift | Package.resolved |
 | vcpkg | vcpkg.json | |
 
+## Lockfile Feature Support
+
+| Lockfile | Registry URL | Integrity | Scope | Direct |
+|----------|:------------:|:---------:|:-----:|:------:|
+| package-lock.json | ✓ | ✓ | ✓ | ✓ |
+| npm-shrinkwrap.json | ✓ | ✓ | ✓ | ✓ |
+| yarn.lock | ✓ | ✓ | | |
+| pnpm-lock.yaml | ✓ | ✓ | ✓ | |
+| bun.lock | ✓ | ✓ | | |
+| npm-ls.json | ✓ | ✓ | ✓ | |
+| deno.lock | | ✓ | | |
+| Gemfile.lock | ✓ | ✓ | | ✓ |
+| Cargo.lock | ✓ | ✓ | | |
+| go.sum | | ✓ | | |
+| poetry.lock | ✓ | ✓ | ✓ | |
+| Pipfile.lock | ✓ | ✓ | ✓ | |
+| pdm.lock | | ✓ | ✓ | |
+| uv.lock | ✓ | ✓ | | |
+| pylock.toml | | ✓ | | |
+| pip-resolved-dependencies.txt | | | | |
+| pip-dependency-graph.json | | | | |
+| composer.lock | ✓ | ✓ | ✓ | |
+| Podfile.lock | | ✓ | | ✓ |
+| mix.lock | | ✓ | | |
+| rebar.lock | | | | |
+| pubspec.lock | | | | |
+| conan.lock | | | ✓ | |
+| packages.lock.json | | | | ✓ |
+| paket.lock | | | | |
+| project.assets.json | | | | |
+| *.deps.json | | ✓ | | |
+| Project.lock.json | | ✓ | | |
+| stack.yaml.lock | | | | |
+| cabal.config | | | | |
+| cabal.project.freeze | | | | |
+| renv.lock | | ✓ | | |
+| shard.lock | | | | |
+| flake.lock | | | | |
+| Brewfile.lock.json | | ✓ | | ✓ |
+
 ## API
 
 ### Parse
@@ -115,14 +155,17 @@ func Ecosystems() []string
 
 ```go
 type Dependency struct {
-    Name      string // Package name
-    Version   string // Version constraint or resolved version
-    Scope     Scope  // runtime, development, test, build, optional
-    Integrity string // SRI hash (sha256-..., sha512-...)
-    Direct    bool   // True if declared directly, false if transitive
-    PURL      string // Package URL (pkg:ecosystem/name@version)
+    Name        string // Package name
+    Version     string // Version constraint or resolved version
+    Scope       Scope  // runtime, development, test, build, optional
+    Integrity   string // SRI hash (sha256-..., sha512-...)
+    Direct      bool   // True if declared directly, false if transitive
+    PURL        string // Package URL (pkg:ecosystem/name@version)
+    RegistryURL string // Source registry URL (if non-default)
 }
 ```
+
+When a dependency comes from a non-default registry, the PURL includes a `repository_url` qualifier (e.g., `pkg:npm/foo@1.0.0?repository_url=https://npm.mycompany.com/`). Default registries like registry.npmjs.org, pypi.org, and rubygems.org are not included in the PURL.
 
 ### ParseResult
 

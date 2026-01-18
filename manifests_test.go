@@ -3,6 +3,7 @@ package manifests
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -199,4 +200,249 @@ func TestPURL(t *testing.T) {
 		}
 	}
 	t.Error("express dependency not found")
+}
+
+func TestRegistryURLNotIncludedForDefaultRegistry(t *testing.T) {
+	// Test that default registry URLs don't add repository_url qualifier
+	testCases := []struct {
+		name        string
+		content     string
+		filename    string
+		wantInPURL  bool
+	}{
+		{
+			name: "npm default registry",
+			content: `{
+				"lockfileVersion": 3,
+				"packages": {
+					"node_modules/lodash": {
+						"version": "4.17.21",
+						"resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz"
+					}
+				}
+			}`,
+			filename:   "package-lock.json",
+			wantInPURL: false,
+		},
+		{
+			name: "npm yarn registry (also default)",
+			content: `{
+				"lockfileVersion": 3,
+				"packages": {
+					"node_modules/lodash": {
+						"version": "4.17.21",
+						"resolved": "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz"
+					}
+				}
+			}`,
+			filename:   "package-lock.json",
+			wantInPURL: false,
+		},
+		{
+			name: "npm private registry",
+			content: `{
+				"lockfileVersion": 3,
+				"packages": {
+					"node_modules/lodash": {
+						"version": "4.17.21",
+						"resolved": "https://npm.mycompany.com/lodash/-/lodash-4.17.21.tgz"
+					}
+				}
+			}`,
+			filename:   "package-lock.json",
+			wantInPURL: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := Parse(tc.filename, []byte(tc.content))
+			if err != nil {
+				t.Fatalf("Parse failed: %v", err)
+			}
+
+			if len(result.Dependencies) == 0 {
+				t.Fatal("expected dependencies")
+			}
+
+			dep := result.Dependencies[0]
+			hasRepositoryURL := strings.Contains(dep.PURL, "repository_url=")
+
+			if hasRepositoryURL != tc.wantInPURL {
+				t.Errorf("PURL = %q, wantInPURL = %v", dep.PURL, tc.wantInPURL)
+			}
+		})
+	}
+}
+
+func TestRegistryURLQualifier(t *testing.T) {
+	// Test that private registry URLs are encoded in PURL
+	content := `{
+		"lockfileVersion": 3,
+		"packages": {
+			"node_modules/@mycompany/sdk": {
+				"version": "1.0.0",
+				"resolved": "https://npm.mycompany.com/@mycompany/sdk/-/sdk-1.0.0.tgz"
+			}
+		}
+	}`
+
+	result, err := Parse("package-lock.json", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(result.Dependencies) == 0 {
+		t.Fatal("expected dependencies")
+	}
+
+	dep := result.Dependencies[0]
+
+	// Should have repository_url qualifier
+	if !strings.Contains(dep.PURL, "repository_url=") {
+		t.Errorf("expected repository_url qualifier in PURL, got %q", dep.PURL)
+	}
+
+	// Should have the private registry URL (URL-encoded)
+	if !strings.Contains(dep.PURL, "npm.mycompany.com") {
+		t.Errorf("expected private registry URL in PURL, got %q", dep.PURL)
+	}
+}
+
+func TestIsNonDefaultRegistry(t *testing.T) {
+	testCases := []struct {
+		ecosystem   string
+		registryURL string
+		want        bool
+	}{
+		{"npm", "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz", false},
+		{"npm", "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz", false},
+		{"npm", "https://npm.mycompany.com/lodash/-/lodash-4.17.21.tgz", true},
+		{"npm", "", false},
+		{"pypi", "https://pypi.org/packages/foo.whl", false},
+		{"pypi", "https://files.pythonhosted.org/packages/foo.whl", false},
+		{"pypi", "https://private.pypi.company.com/foo.whl", true},
+		{"cargo", "https://crates.io/api/v1/crates/foo", false},
+		{"cargo", "https://index.crates.io/foo", false},
+		{"cargo", "https://private.cargo.company.com/foo", true},
+		{"gem", "https://rubygems.org/gems/foo.gem", false},
+		{"gem", "https://private.gems.company.com/foo.gem", true},
+		{"composer", "https://packagist.org/packages/foo", false},
+		{"composer", "https://repo.packagist.org/packages/foo", false},
+		{"composer", "https://private.packagist.company.com/foo", true},
+		{"unknown", "https://example.com/foo", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.ecosystem+"_"+tc.registryURL, func(t *testing.T) {
+			got := isNonDefaultRegistry(tc.ecosystem, tc.registryURL)
+			if got != tc.want {
+				t.Errorf("isNonDefaultRegistry(%q, %q) = %v, want %v", tc.ecosystem, tc.registryURL, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestGemRegistryURL(t *testing.T) {
+	content := `GEM
+  remote: https://rubygems.org/
+  specs:
+    rails (7.0.0)
+
+GEM
+  remote: https://gems.mycompany.com/
+  specs:
+    private-gem (1.0.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rails
+  private-gem
+`
+
+	result, err := Parse("Gemfile.lock", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	deps := make(map[string]Dependency)
+	for _, d := range result.Dependencies {
+		deps[d.Name] = d
+	}
+
+	// Rails from default registry should not have repository_url
+	if rails, ok := deps["rails"]; ok {
+		if strings.Contains(rails.PURL, "repository_url=") {
+			t.Errorf("rails PURL should not have repository_url, got %q", rails.PURL)
+		}
+	} else {
+		t.Error("rails dependency not found")
+	}
+
+	// Private gem should have repository_url
+	if privateGem, ok := deps["private-gem"]; ok {
+		if !strings.Contains(privateGem.PURL, "repository_url=") {
+			t.Errorf("private-gem PURL should have repository_url, got %q", privateGem.PURL)
+		}
+	} else {
+		t.Error("private-gem dependency not found")
+	}
+}
+
+func TestPipfileLockRegistryURL(t *testing.T) {
+	content := `{
+    "_meta": {
+        "sources": [
+            {"name": "pypi", "url": "https://pypi.org/simple"},
+            {"name": "private", "url": "https://private.pypi.company.com/simple"}
+        ]
+    },
+    "default": {
+        "requests": {
+            "version": "==2.31.0",
+            "index": "pypi"
+        },
+        "private-pkg": {
+            "version": "==1.0.0",
+            "index": "private"
+        },
+        "direct-file": {
+            "file": "https://github.com/user/repo/releases/download/v1.0.0/pkg.whl"
+        }
+    },
+    "develop": {}
+}`
+
+	result, err := Parse("Pipfile.lock", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	deps := make(map[string]Dependency)
+	for _, d := range result.Dependencies {
+		deps[d.Name] = d
+	}
+
+	// requests from pypi should not have repository_url
+	if requests, ok := deps["requests"]; ok {
+		if strings.Contains(requests.PURL, "repository_url=") {
+			t.Errorf("requests PURL should not have repository_url, got %q", requests.PURL)
+		}
+	}
+
+	// private-pkg should have repository_url
+	if privatePkg, ok := deps["private-pkg"]; ok {
+		if !strings.Contains(privatePkg.PURL, "repository_url=") {
+			t.Errorf("private-pkg PURL should have repository_url, got %q", privatePkg.PURL)
+		}
+	}
+
+	// direct-file should have repository_url (github is not a default pypi registry)
+	if directFile, ok := deps["direct-file"]; ok {
+		if !strings.Contains(directFile.PURL, "repository_url=") {
+			t.Errorf("direct-file PURL should have repository_url, got %q", directFile.PURL)
+		}
+	}
 }

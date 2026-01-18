@@ -76,6 +76,18 @@ func (p *bunLockParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 		seen[name] = true
 
+		// Extract second element (URL) - it follows the first element after ", "
+		var registryURL string
+		firstElemEnd := arrayStart + 1 + endQuote + 1 // position after closing quote
+		rest := line[firstElemEnd:]
+		// Look for next quoted string after comma
+		if commaIdx := strings.Index(rest, `, "`); commaIdx >= 0 {
+			urlStart := commaIdx + 3 // skip `, "`
+			if urlEnd := strings.IndexByte(rest[urlStart:], '"'); urlEnd > 0 {
+				registryURL = rest[urlStart : urlStart+urlEnd]
+			}
+		}
+
 		// Look for integrity hash (sha256- or sha512-)
 		var integrity string
 		if shaIdx := strings.Index(line, `"sha`); shaIdx > 0 {
@@ -87,11 +99,12 @@ func (p *bunLockParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 
 		deps = append(deps, core.Dependency{
-			Name:      name,
-			Version:   version,
-			Scope:     core.Runtime,
-			Direct:    false,
-			Integrity: integrity,
+			Name:        name,
+			Version:     version,
+			Scope:       core.Runtime,
+			Direct:      false,
+			Integrity:   integrity,
+			RegistryURL: registryURL,
 		})
 	}
 

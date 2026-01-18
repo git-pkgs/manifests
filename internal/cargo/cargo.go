@@ -1,8 +1,10 @@
 package cargo
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
+	"strings"
+
 	"github.com/BurntSushi/toml"
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -124,11 +126,12 @@ func (p *cargoLockParser) Parse(filename string, content []byte) ([]core.Depende
 					integrity = "sha256-" + currentChecksum
 				}
 				deps = append(deps, core.Dependency{
-					Name:      currentName,
-					Version:   currentVersion,
-					Scope:   core.Runtime,
-					Integrity: integrity,
-					Direct:    false,
+					Name:        currentName,
+					Version:     currentVersion,
+					Scope:       core.Runtime,
+					Integrity:   integrity,
+					Direct:      false,
+					RegistryURL: extractCargoRegistryURL(currentSource),
 				})
 			}
 			currentName = ""
@@ -162,13 +165,27 @@ func (p *cargoLockParser) Parse(filename string, content []byte) ([]core.Depende
 			integrity = "sha256-" + currentChecksum
 		}
 		deps = append(deps, core.Dependency{
-			Name:      currentName,
-			Version:   currentVersion,
-			Scope:   core.Runtime,
-			Integrity: integrity,
-			Direct:    false,
+			Name:        currentName,
+			Version:     currentVersion,
+			Scope:       core.Runtime,
+			Integrity:   integrity,
+			Direct:      false,
+			RegistryURL: extractCargoRegistryURL(currentSource),
 		})
 	}
 
 	return deps, nil
+}
+
+// extractCargoRegistryURL extracts the registry URL from Cargo's source field.
+// Format: "registry+https://github.com/rust-lang/crates.io-index"
+func extractCargoRegistryURL(source string) string {
+	if strings.HasPrefix(source, "registry+") {
+		return strings.TrimPrefix(source, "registry+")
+	}
+	// For sparse registries: "sparse+https://index.crates.io/"
+	if strings.HasPrefix(source, "sparse+") {
+		return strings.TrimPrefix(source, "sparse+")
+	}
+	return source
 }

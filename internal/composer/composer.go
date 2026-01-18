@@ -72,6 +72,7 @@ type composerPackage struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 	Dist    struct {
+		URL     string `json:"url"`
 		SHA     string `json:"shasum"`
 		SHA256  string `json:"sha256"`
 	} `json:"dist"`
@@ -94,11 +95,12 @@ func (p *composerLockParser) Parse(filename string, content []byte) ([]core.Depe
 		}
 
 		deps = append(deps, core.Dependency{
-			Name:      pkg.Name,
-			Version:   pkg.Version,
-			Scope:   core.Runtime,
-			Integrity: integrity,
-			Direct:    false, // composer.lock doesn't distinguish
+			Name:        pkg.Name,
+			Version:     pkg.Version,
+			Scope:       core.Runtime,
+			Integrity:   integrity,
+			Direct:      false, // composer.lock doesn't distinguish
+			RegistryURL: pkg.Dist.URL,
 		})
 	}
 
@@ -111,11 +113,12 @@ func (p *composerLockParser) Parse(filename string, content []byte) ([]core.Depe
 		}
 
 		deps = append(deps, core.Dependency{
-			Name:      pkg.Name,
-			Version:   pkg.Version,
-			Scope:   core.Development,
-			Integrity: integrity,
-			Direct:    false,
+			Name:        pkg.Name,
+			Version:     pkg.Version,
+			Scope:       core.Development,
+			Integrity:   integrity,
+			Direct:      false,
+			RegistryURL: pkg.Dist.URL,
 		})
 	}
 

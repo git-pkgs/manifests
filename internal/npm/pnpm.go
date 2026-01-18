@@ -47,6 +47,22 @@ func extractPnpmIntegrity(line string) (string, bool) {
 	return rest[:end], true
 }
 
+// extractPnpmTarball extracts tarball URL from "tarball: <url>" pattern
+func extractPnpmTarball(line string) (string, bool) {
+	// Check for "tarball:" pattern (v6+ format)
+	if idx := strings.Index(line, "tarball:"); idx >= 0 {
+		rest := strings.TrimSpace(line[idx+8:])
+		// Remove surrounding quotes if present
+		if len(rest) >= 2 && (rest[0] == '\'' || rest[0] == '"') {
+			rest = rest[1 : len(rest)-1]
+		}
+		if strings.HasPrefix(rest, "http") {
+			return rest, true
+		}
+	}
+	return "", false
+}
+
 // pnpmLockParser parses pnpm-lock.yaml files using regex for speed.
 type pnpmLockParser struct{}
 
@@ -58,6 +74,7 @@ func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependen
 	inPackages := false
 	var currentKey string
 	var currentIntegrity string
+	var currentTarball string
 	var currentDev bool
 
 	core.ForEachLine(text, func(line string) bool {
@@ -89,24 +106,29 @@ func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependen
 						scope = core.Development
 					}
 					deps = append(deps, core.Dependency{
-						Name:      name,
-						Version:   version,
-						Scope:     scope,
-						Direct:    false,
-						Integrity: currentIntegrity,
+						Name:        name,
+						Version:     version,
+						Scope:       scope,
+						Direct:      false,
+						Integrity:   currentIntegrity,
+						RegistryURL: currentTarball,
 					})
 				}
 			}
 			currentKey = key
 			currentIntegrity = ""
+			currentTarball = ""
 			currentDev = false
 			return true
 		}
 
-		// Look for integrity and dev within package block
+		// Look for integrity, tarball, and dev within package block
 		if currentKey != "" {
 			if integrity, ok := extractPnpmIntegrity(line); ok {
 				currentIntegrity = integrity
+			}
+			if tarball, ok := extractPnpmTarball(line); ok {
+				currentTarball = tarball
 			}
 			if strings.Contains(line, "dev: true") {
 				currentDev = true
@@ -125,11 +147,12 @@ func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependen
 				scope = core.Development
 			}
 			deps = append(deps, core.Dependency{
-				Name:      name,
-				Version:   version,
-				Scope:     scope,
-				Direct:    false,
-				Integrity: currentIntegrity,
+				Name:        name,
+				Version:     version,
+				Scope:       scope,
+				Direct:      false,
+				Integrity:   currentIntegrity,
+				RegistryURL: currentTarball,
 			})
 		}
 	}

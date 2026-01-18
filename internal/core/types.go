@@ -22,12 +22,13 @@ const (
 
 // Dependency represents a parsed dependency from a manifest or lockfile.
 type Dependency struct {
-	Name      string
-	Version   string
-	Scope     Scope
-	Integrity string
-	Direct    bool
-	PURL      string
+	Name        string
+	Version     string
+	Scope       Scope
+	Integrity   string
+	Direct      bool
+	PURL        string
+	RegistryURL string
 }
 
 // Parser is the interface implemented by all manifest parsers.

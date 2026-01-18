@@ -176,11 +176,12 @@ func parsePackageLockV1(deps map[string]packageLockDep) []core.Dependency {
 		}
 
 		result = append(result, core.Dependency{
-			Name:      name,
-			Version:   dep.Version,
-			Scope:     scope,
-			Integrity: dep.Integrity,
-			Direct:    false,
+			Name:        name,
+			Version:     dep.Version,
+			Scope:       scope,
+			Integrity:   dep.Integrity,
+			Direct:      false,
+			RegistryURL: dep.Resolved,
 		})
 
 		// Recursively add nested dependencies
@@ -202,6 +203,7 @@ func parsePackageLockV3Lines(content []byte) []core.Dependency {
 	var currentPath string
 	var currentVersion string
 	var currentIntegrity string
+	var currentResolved string
 	var currentDev bool
 	var currentOptional bool
 	var currentDevOptional bool
@@ -240,11 +242,12 @@ func parsePackageLockV3Lines(content []byte) []core.Dependency {
 					}
 					direct := !strings.Contains(strings.TrimPrefix(currentPath, "node_modules/"), "node_modules/")
 					deps = append(deps, core.Dependency{
-						Name:      name,
-						Version:   currentVersion,
-						Scope:     scope,
-						Integrity: currentIntegrity,
-						Direct:    direct,
+						Name:        name,
+						Version:     currentVersion,
+						Scope:       scope,
+						Integrity:   currentIntegrity,
+						Direct:      direct,
+						RegistryURL: currentResolved,
 					})
 				}
 			}
@@ -256,6 +259,7 @@ func parsePackageLockV3Lines(content []byte) []core.Dependency {
 			}
 			currentVersion = ""
 			currentIntegrity = ""
+			currentResolved = ""
 			currentDev = false
 			currentOptional = false
 			currentDevOptional = false
@@ -275,6 +279,14 @@ func parsePackageLockV3Lines(content []byte) []core.Dependency {
 		if strings.HasPrefix(trimmed, `"integrity"`) {
 			if v := extractJSONStringValue(trimmed); v != "" {
 				currentIntegrity = v
+			}
+			continue
+		}
+
+		// Resolved line
+		if strings.HasPrefix(trimmed, `"resolved"`) {
+			if v := extractJSONStringValue(trimmed); v != "" {
+				currentResolved = v
 			}
 			continue
 		}
@@ -306,11 +318,12 @@ func parsePackageLockV3Lines(content []byte) []core.Dependency {
 			}
 			direct := !strings.Contains(strings.TrimPrefix(currentPath, "node_modules/"), "node_modules/")
 			deps = append(deps, core.Dependency{
-				Name:      name,
-				Version:   currentVersion,
-				Scope:     scope,
-				Integrity: currentIntegrity,
-				Direct:    direct,
+				Name:        name,
+				Version:     currentVersion,
+				Scope:       scope,
+				Integrity:   currentIntegrity,
+				Direct:      direct,
+				RegistryURL: currentResolved,
 			})
 		}
 	}
@@ -404,11 +417,12 @@ func parseNpmLsDeps(deps map[string]npmLsDep, seen map[string]bool) []core.Depen
 		}
 
 		result = append(result, core.Dependency{
-			Name:      name,
-			Version:   dep.Version,
-			Scope:     scope,
-			Integrity: dep.Integrity,
-			Direct:    false,
+			Name:        name,
+			Version:     dep.Version,
+			Scope:       scope,
+			Integrity:   dep.Integrity,
+			Direct:      false,
+			RegistryURL: dep.Resolved,
 		})
 
 		// Recursively add nested dependencies
