@@ -78,13 +78,3 @@ func extractCljSection(text string) string {
 	}
 	return ""
 }
-
-// normalizeClojureName converts Clojure dep names to Maven format.
-// Clojure uses group/artifact or just artifact (which means group=artifact).
-func normalizeClojureName(name string) (group, artifact string) {
-	if strings.Contains(name, "/") {
-		parts := strings.SplitN(name, "/", 2)
-		return parts[0], parts[1]
-	}
-	return name, name
-}

@@ -1,10 +1,10 @@
 package cran
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
-	"regexp"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -14,11 +14,6 @@ func init() {
 
 // descriptionParser parses R DESCRIPTION files.
 type descriptionParser struct{}
-
-var (
-	// Package (>= 1.0) or Package
-	rPackageRegex = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9.]*(?:\s*\([^)]+\))?)`)
-)
 
 func (p *descriptionParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	var deps []core.Dependency

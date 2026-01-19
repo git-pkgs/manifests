@@ -182,12 +182,3 @@ func extractYarnValue(s string) string {
 	}
 	return s
 }
-
-// extractYarnPackageName extracts the package name from yarn header patterns
-func extractYarnPackageName(header string) string {
-	// Handle npm: alias pattern like "alias@npm:@scope/pkg"
-	if idx := strings.Index(header, "@npm:"); idx > 0 {
-		return strings.TrimPrefix(header[idx:], "@npm:")
-	}
-	return header
-}

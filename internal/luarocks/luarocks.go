@@ -38,9 +38,10 @@ func (p *rockspecParser) Parse(filename string, content []byte) ([]core.Dependen
 	braceEnd := -1
 	start := depsStart + braceStart + 1
 	for i := start; i < len(text) && braceCount > 0; i++ {
-		if text[i] == '{' {
+		switch text[i] {
+		case '{':
 			braceCount++
-		} else if text[i] == '}' {
+		case '}':
 			braceCount--
 			if braceCount == 0 {
 				braceEnd = i

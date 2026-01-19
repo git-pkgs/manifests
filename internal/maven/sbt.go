@@ -39,11 +39,14 @@ func (p *sbtParser) Parse(filename string, content []byte) ([]core.Dependency, e
 		}
 		seen[name] = true
 
-		scope := core.Runtime
-		if scopeStr == "test" {
+		var scope core.Scope
+		switch scopeStr {
+		case "test":
 			scope = core.Test
-		} else if scopeStr == "provided" {
+		case "provided":
 			scope = core.Optional
+		default:
+			scope = core.Runtime
 		}
 
 		deps = append(deps, core.Dependency{

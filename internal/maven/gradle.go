@@ -57,11 +57,14 @@ func extractGradleCoords(line string, keywordEnd int) (group, artifact, version 
 	}
 
 	opener := rest[start]
-	closer := byte('\'')
-	if opener == '"' {
+	var closer byte
+	switch opener {
+	case '"':
 		closer = '"'
-	} else if opener == '(' {
+	case '(':
 		closer = ')'
+	default:
+		closer = '\''
 	}
 
 	// Find closing quote

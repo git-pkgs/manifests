@@ -13,11 +13,7 @@ func init() {
 // nimbleParser parses *.nimble files (Nim).
 type nimbleParser struct{}
 
-var (
-	// Match: requires "pkg >= version" or requires "pkg"
-	nimbleRequiresRegex = regexp.MustCompile(`requires\s+"([^"]+)"(?:\s*,\s*"([^"]+)")*`)
-	nimbleDepRegex      = regexp.MustCompile(`"([^"]+)"`)
-)
+var nimbleDepRegex = regexp.MustCompile(`"([^"]+)"`)
 
 func (p *nimbleParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	var deps []core.Dependency

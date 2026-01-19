@@ -298,11 +298,14 @@ func (p *pyprojectParser) Parse(filename string, content []byte) ([]core.Depende
 
 	// Poetry group dependencies
 	for groupName, group := range pyproject.Tool.Poetry.Group {
-		scope := core.Runtime
-		if groupName == "dev" || groupName == "development" {
+		var scope core.Scope
+		switch groupName {
+		case "dev", "development":
 			scope = core.Development
-		} else if groupName == "test" {
+		case "test":
 			scope = core.Test
+		default:
+			scope = core.Runtime
 		}
 
 		for name, value := range group.Dependencies {
