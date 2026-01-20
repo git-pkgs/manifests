@@ -10,6 +10,47 @@ type gemDepKey struct {
 	version string
 }
 
+// stripPlatformSuffix removes Ruby platform suffixes from version strings.
+// e.g., "2.4.0-x86_64-linux" -> "2.4.0"
+// Based on Gem::Platform from RubyGems source.
+func stripPlatformSuffix(version string) string {
+	idx := strings.IndexByte(version, '-')
+	if idx < 1 {
+		return version
+	}
+
+	suffix := version[idx+1:]
+	if isPlatformSuffix(suffix) {
+		return version[:idx]
+	}
+
+	return version
+}
+
+// isPlatformSuffix checks if a string is a Ruby platform suffix.
+// Platform suffixes are either cpu-os (like x86_64-linux) or
+// platform-only names (like java, jruby).
+func isPlatformSuffix(suffix string) bool {
+	// CPU-based platforms start with arch + hyphen
+	cpuPrefixes := []string{
+		"x86_64-", "x86-", "x64-",
+		"i386-", "i486-", "i586-", "i686-",
+		"arm64-", "aarch64-", "arm-", "armv",
+		"powerpc64-", "powerpc-", "ppc64-", "ppc64le-",
+		"sparc-", "s390-", "s390x-",
+		"universal-",
+	}
+	for _, prefix := range cpuPrefixes {
+		if strings.HasPrefix(suffix, prefix) {
+			return true
+		}
+	}
+
+	// Platform-only names (no CPU prefix)
+	return suffix == "java" || suffix == "jruby" ||
+		suffix == "dalvik" || suffix == "dotnet"
+}
+
 func init() {
 	// Gemfile and gems.rb - manifests
 	core.Register("gem", core.Manifest, &gemfileParser{}, core.ExactMatch("Gemfile", "gems.rb"))
@@ -147,7 +188,7 @@ func extractGemSpec(line string) (name, version string, ok bool) {
 	}
 
 	name = strings.TrimSpace(line[4:parenStart])
-	version = line[parenStart+1 : parenStart+parenEnd]
+	version = stripPlatformSuffix(line[parenStart+1 : parenStart+parenEnd])
 
 	return name, version, true
 }
@@ -167,7 +208,7 @@ func extractChecksum(line string) (name, version, hash string, ok bool) {
 	}
 
 	name = trimmed[:parenStart-1]
-	version = trimmed[parenStart+1 : parenStart+parenEnd]
+	version = stripPlatformSuffix(trimmed[parenStart+1 : parenStart+parenEnd])
 
 	// Find sha256=
 	shaIdx := strings.Index(trimmed, "sha256=")
@@ -184,6 +225,7 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 	checksums := make(map[gemDepKey]string)
 	directDeps := make(map[string]bool)
+	seen := make(map[gemDepKey]bool)
 
 	section := ""
 	currentRemote := ""
@@ -225,13 +267,17 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 
 		if section == "specs" {
 			if name, version, ok := extractGemSpec(line); ok {
-				deps = append(deps, core.Dependency{
-					Name:        name,
-					Version:     version,
-					Scope:       core.Runtime,
-					Direct:      false,
-					RegistryURL: currentRemote,
-				})
+				key := gemDepKey{name, version}
+				if !seen[key] {
+					seen[key] = true
+					deps = append(deps, core.Dependency{
+						Name:        name,
+						Version:     version,
+						Scope:       core.Runtime,
+						Direct:      false,
+						RegistryURL: currentRemote,
+					})
+				}
 			}
 		}
 

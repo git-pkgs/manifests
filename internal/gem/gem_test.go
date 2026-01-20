@@ -353,18 +353,63 @@ func TestMastodonGemfileLock(t *testing.T) {
 
 	// Sample of packages with exact versions
 	expected := map[string]string{
-		"actioncable":             "8.0.3",
-		"actionmailer":            "8.0.3",
-		"actionpack":              "8.0.3",
-		"activemodel":             "8.0.3",
-		"activerecord":            "8.0.3",
-		"activesupport":           "8.0.3",
-		"addressable":             "2.8.8",
-		"nokogiri":                "1.18.10",
-		"rack":                    "3.2.4",
-		"rails":                   "8.0.3",
-		"webpush":                 "1.1.0", // GIT source
+		"actioncable":              "8.0.3",
+		"actionmailer":             "8.0.3",
+		"actionpack":               "8.0.3",
+		"activemodel":              "8.0.3",
+		"activerecord":             "8.0.3",
+		"activesupport":            "8.0.3",
+		"addressable":              "2.8.8",
+		"nokogiri":                 "1.18.10",
+		"rack":                     "3.2.4",
+		"rails":                    "8.0.3",
+		"webpush":                  "1.1.0", // GIT source
 		"active_model_serializers": "0.10.16",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}
+
+func TestGemfileLockWithPlatforms(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/gem/GemfileWithPlatforms.lock")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &gemfileLockParser{}
+	deps, err := parser.Parse("Gemfile.lock", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Should deduplicate platform variants: 7 unique packages
+	if len(deps) != 7 {
+		t.Fatalf("expected 7 dependencies (deduplicated), got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Versions should have platform suffixes stripped
+	expected := map[string]string{
+		"commonmarker":    "2.4.0",
+		"nokogiri":        "1.18.0",
+		"sassc":           "2.4.0",
+		"google-protobuf": "4.30.0",
+		"ffi":             "1.17.0",
+		"grpc":            "1.70.0",
+		"prerelease-gem":  "1.0.0-beta", // pre-release suffix should be preserved
 	}
 
 	for name, wantVer := range expected {

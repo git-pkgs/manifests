@@ -1,0 +1,41 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    commonmarker (2.4.0)
+    commonmarker (2.4.0-arm64-darwin)
+    commonmarker (2.4.0-x86_64-darwin)
+    commonmarker (2.4.0-x86_64-linux)
+    nokogiri (1.18.0)
+    nokogiri (1.18.0-aarch64-linux)
+    nokogiri (1.18.0-arm64-darwin)
+    nokogiri (1.18.0-x86_64-darwin)
+    nokogiri (1.18.0-x86_64-linux)
+    sassc (2.4.0)
+    sassc (2.4.0-x86_64-linux-gnu)
+    google-protobuf (4.30.0)
+    google-protobuf (4.30.0-x86_64-linux)
+    ffi (1.17.0)
+    ffi (1.17.0-java)
+    grpc (1.70.0)
+    grpc (1.70.0-x86_64-linux-musl)
+    prerelease-gem (1.0.0-beta)
+
+PLATFORMS
+  arm64-darwin
+  ruby
+  x86_64-darwin
+  x86_64-linux
+  x86_64-linux-gnu
+  x86_64-linux-musl
+
+DEPENDENCIES
+  commonmarker
+  nokogiri
+  sassc
+  google-protobuf
+  ffi
+  grpc
+  prerelease-gem
+
+BUNDLED WITH
+   2.5.0
