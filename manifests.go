@@ -16,73 +16,9 @@
 package manifests
 
 import (
-	"net/url"
-	"strings"
-
 	"github.com/git-pkgs/manifests/internal/core"
-	"github.com/package-url/packageurl-go"
+	"github.com/git-pkgs/purl"
 )
-
-// defaultRegistryHosts maps ecosystems to their default registry hosts.
-// Based on https://github.com/andrew/purl/blob/main/purl-types.json
-var defaultRegistryHosts = map[string][]string{
-	"npm":        {"registry.npmjs.org", "registry.yarnpkg.com"},
-	"pypi":       {"pypi.org", "files.pythonhosted.org"},
-	"cargo":      {"crates.io", "index.crates.io", "static.crates.io"},
-	"gem":        {"rubygems.org"},
-	"composer":   {"packagist.org", "repo.packagist.org"},
-	"maven":      {"repo.maven.apache.org", "repo1.maven.org", "central.maven.org"},
-	"golang":     {"pkg.go.dev", "proxy.golang.org"},
-	"nuget":      {"nuget.org", "api.nuget.org"},
-	"cocoapods":  {"cdn.cocoapods.org", "cocoapods.org"},
-	"hex":        {"repo.hex.pm", "hex.pm"},
-	"pub":        {"pub.dartlang.org", "pub.dev"},
-	"hackage":    {"hackage.haskell.org"},
-	"cran":       {"cran.r-project.org"},
-	"cpan":       {"cpan.org", "metacpan.org"},
-	"luarocks":   {"luarocks.org"},
-	"conda":      {"repo.anaconda.com", "anaconda.org"},
-	"conan":      {"conan.io"},
-	"swift":      {"swiftpackageindex.com"},
-	"clojars":    {"clojars.org"},
-	"elm":        {"package.elm-lang.org"},
-	"deno":       {"deno.land"},
-	"homebrew":   {"formulae.brew.sh"},
-	"docker":     {"hub.docker.com", "docker.io", "registry-1.docker.io"},
-	"github":     {"github.com"},
-	"bitbucket":  {"bitbucket.org"},
-	"huggingface": {"huggingface.co"},
-}
-
-// isNonDefaultRegistry returns true if the registryURL is not a default registry for the ecosystem.
-func isNonDefaultRegistry(ecosystem, registryURL string) bool {
-	if registryURL == "" {
-		return false
-	}
-
-	defaults, ok := defaultRegistryHosts[ecosystem]
-	if !ok {
-		return true
-	}
-
-	parsed, err := url.Parse(registryURL)
-	if err != nil {
-		return true
-	}
-
-	host := parsed.Host
-	if host == "" {
-		host = registryURL
-	}
-
-	for _, defaultHost := range defaults {
-		if host == defaultHost || strings.HasSuffix(host, "."+defaultHost) {
-			return false
-		}
-	}
-
-	return true
-}
 
 // Re-export types from internal/core for public API.
 type (
@@ -140,59 +76,19 @@ func Parse(filename string, content []byte) (*ParseResult, error) {
 
 // makePURL creates a Package URL for a dependency.
 func makePURL(ecosystem, name, version, registryURL string) string {
-	purlType := ecosystem
-	namespace := ""
-	pkgName := name
+	// Clean the version using the purl package
+	purlType := purl.EcosystemToPURLType(ecosystem)
+	cleanVersion := purl.CleanVersion(version, purlType)
 
-	switch ecosystem {
-	case "npm":
-		if strings.HasPrefix(name, "@") {
-			parts := strings.SplitN(name, "/", 2)
-			if len(parts) == 2 {
-				namespace = strings.TrimPrefix(parts[0], "@")
-				pkgName = parts[1]
-			}
-		}
-	case "golang":
-		if idx := strings.LastIndex(name, "/"); idx > 0 {
-			namespace = name[:idx]
-			pkgName = name[idx+1:]
-		}
-	case "maven":
-		if strings.Contains(name, ":") {
-			parts := strings.SplitN(name, ":", 2)
-			namespace = parts[0]
-			pkgName = parts[1]
-		}
-	case "alpine":
-		purlType = "apk"
-		namespace = "alpine"
-	case "arch":
-		purlType = "alpm"
-		namespace = "arch"
+	// Create the base PURL using the purl package
+	p := purl.MakePURL(ecosystem, name, cleanVersion)
+
+	// Add repository_url qualifier if non-default registry
+	if registryURL != "" && purl.IsNonDefaultRegistry(purlType, registryURL) {
+		p = p.WithQualifier("repository_url", registryURL)
 	}
 
-	cleanVersion := version
-	if cleanVersion != "" {
-		cleanVersion = strings.TrimPrefix(cleanVersion, "^")
-		cleanVersion = strings.TrimPrefix(cleanVersion, "~")
-		cleanVersion = strings.TrimPrefix(cleanVersion, ">=")
-		cleanVersion = strings.TrimPrefix(cleanVersion, "<=")
-		cleanVersion = strings.TrimPrefix(cleanVersion, ">")
-		cleanVersion = strings.TrimPrefix(cleanVersion, "<")
-		cleanVersion = strings.TrimPrefix(cleanVersion, "==")
-		cleanVersion = strings.TrimPrefix(cleanVersion, "=")
-		cleanVersion = strings.TrimPrefix(cleanVersion, "~>")
-		cleanVersion = strings.TrimSpace(cleanVersion)
-	}
-
-	var qualifiers packageurl.Qualifiers
-	if registryURL != "" && isNonDefaultRegistry(ecosystem, registryURL) {
-		qualifiers = packageurl.Qualifiers{{Key: "repository_url", Value: registryURL}}
-	}
-
-	purl := packageurl.NewPackageURL(purlType, namespace, pkgName, cleanVersion, qualifiers, "")
-	return purl.ToString()
+	return p.String()
 }
 
 // Identify returns the ecosystem and kind for a filename without parsing.

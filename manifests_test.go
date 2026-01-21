@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/git-pkgs/purl"
 )
 
 func TestParseAllEcosystems(t *testing.T) {
@@ -225,7 +227,7 @@ func TestRegistryURLNotIncludedForDefaultRegistry(t *testing.T) {
 			wantInPURL: false,
 		},
 		{
-			name: "npm yarn registry (also default)",
+			name: "npm yarn registry (non-canonical)",
 			content: `{
 				"lockfileVersion": 3,
 				"packages": {
@@ -236,7 +238,7 @@ func TestRegistryURLNotIncludedForDefaultRegistry(t *testing.T) {
 				}
 			}`,
 			filename:   "package-lock.json",
-			wantInPURL: false,
+			wantInPURL: true, // yarn is not the canonical npm registry
 		},
 		{
 			name: "npm private registry",
@@ -310,34 +312,37 @@ func TestRegistryURLQualifier(t *testing.T) {
 }
 
 func TestIsNonDefaultRegistry(t *testing.T) {
+	// Tests use purl.IsNonDefaultRegistry which checks against types.json default_registry.
+	// Only the canonical registry is considered "default" - mirrors and alternatives are non-default.
 	testCases := []struct {
 		ecosystem   string
 		registryURL string
 		want        bool
 	}{
 		{"npm", "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz", false},
-		{"npm", "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz", false},
+		{"npm", "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz", true}, // yarn is not the canonical npm registry
 		{"npm", "https://npm.mycompany.com/lodash/-/lodash-4.17.21.tgz", true},
 		{"npm", "", false},
 		{"pypi", "https://pypi.org/packages/foo.whl", false},
-		{"pypi", "https://files.pythonhosted.org/packages/foo.whl", false},
+		{"pypi", "https://files.pythonhosted.org/packages/foo.whl", true}, // pythonhosted is a CDN, not the canonical registry
 		{"pypi", "https://private.pypi.company.com/foo.whl", true},
 		{"cargo", "https://crates.io/api/v1/crates/foo", false},
-		{"cargo", "https://index.crates.io/foo", false},
+		{"cargo", "https://index.crates.io/foo", false}, // subdomain of crates.io
 		{"cargo", "https://private.cargo.company.com/foo", true},
 		{"gem", "https://rubygems.org/gems/foo.gem", false},
 		{"gem", "https://private.gems.company.com/foo.gem", true},
 		{"composer", "https://packagist.org/packages/foo", false},
-		{"composer", "https://repo.packagist.org/packages/foo", false},
+		{"composer", "https://repo.packagist.org/packages/foo", false}, // subdomain of packagist.org
 		{"composer", "https://private.packagist.company.com/foo", true},
 		{"unknown", "https://example.com/foo", true},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.ecosystem+"_"+tc.registryURL, func(t *testing.T) {
-			got := isNonDefaultRegistry(tc.ecosystem, tc.registryURL)
+			purlType := purl.EcosystemToPURLType(tc.ecosystem)
+			got := purl.IsNonDefaultRegistry(purlType, tc.registryURL)
 			if got != tc.want {
-				t.Errorf("isNonDefaultRegistry(%q, %q) = %v, want %v", tc.ecosystem, tc.registryURL, got, tc.want)
+				t.Errorf("purl.IsNonDefaultRegistry(%q, %q) = %v, want %v", purlType, tc.registryURL, got, tc.want)
 			}
 		})
 	}

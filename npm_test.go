@@ -57,10 +57,10 @@ func TestPURLGeneration(t *testing.T) {
 		}
 	}
 
-	// Check PURL for scoped package
+	// Check PURL for scoped package (@ is URL-encoded in PURL)
 	if actual, ok := deps["@some-scope/actual-package"]; ok {
-		if actual.PURL != "pkg:npm/some-scope/actual-package" {
-			t.Errorf("alias PURL = %q, want %q", actual.PURL, "pkg:npm/some-scope/actual-package")
+		if actual.PURL != "pkg:npm/%40some-scope/actual-package" {
+			t.Errorf("alias PURL = %q, want %q", actual.PURL, "pkg:npm/%40some-scope/actual-package")
 		}
 	}
 
