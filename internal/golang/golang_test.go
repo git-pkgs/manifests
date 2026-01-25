@@ -574,3 +574,76 @@ func TestGodepsText(t *testing.T) {
 		}
 	}
 }
+
+func TestGoGraph(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/golang/go.graph")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &goGraphParser{}
+	deps, err := parser.Parse("go.graph", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Should have 8 unique dependencies
+	if len(deps) != 8 {
+		t.Fatalf("expected 8 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify direct dependencies (from main module)
+	directDeps := []struct {
+		name    string
+		version string
+	}{
+		{"golang.org/x/text", "v0.14.0"},
+		{"github.com/google/uuid", "v1.4.0"},
+		{"github.com/stretchr/testify", "v1.8.4"},
+	}
+
+	for _, exp := range directDeps {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if !dep.Direct {
+			t.Errorf("%s should be direct dependency", exp.name)
+		}
+	}
+
+	// Verify transitive dependencies
+	transitiveDeps := []struct {
+		name    string
+		version string
+	}{
+		{"golang.org/x/tools", "v0.0.0-20180917221912-90fa682c2a6e"},
+		{"github.com/davecgh/go-spew", "v1.1.1"},
+		{"github.com/pmezard/go-difflib", "v1.0.0"},
+		{"github.com/stretchr/objx", "v0.5.0"},
+		{"gopkg.in/yaml.v3", "v3.0.1"},
+	}
+
+	for _, exp := range transitiveDeps {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Direct {
+			t.Errorf("%s should be transitive (indirect) dependency", exp.name)
+		}
+	}
+}

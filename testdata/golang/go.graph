@@ -1,0 +1,8 @@
+example.com/myproject golang.org/x/text@v0.14.0
+example.com/myproject github.com/google/uuid@v1.4.0
+example.com/myproject github.com/stretchr/testify@v1.8.4
+golang.org/x/text@v0.14.0 golang.org/x/tools@v0.0.0-20180917221912-90fa682c2a6e
+github.com/stretchr/testify@v1.8.4 github.com/davecgh/go-spew@v1.1.1
+github.com/stretchr/testify@v1.8.4 github.com/pmezard/go-difflib@v1.0.0
+github.com/stretchr/testify@v1.8.4 github.com/stretchr/objx@v0.5.0
+github.com/stretchr/testify@v1.8.4 gopkg.in/yaml.v3@v3.0.1
