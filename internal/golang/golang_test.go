@@ -60,6 +60,28 @@ func TestGoMod(t *testing.T) {
 			t.Errorf("net version = %q, want %q", net.Version, "v1.2.3")
 		}
 	}
+
+	// Check tool dependencies are marked as Development scope
+	if report, ok := depMap["github.com/jstemmer/go-junit-report"]; !ok {
+		t.Error("expected github.com/jstemmer/go-junit-report dependency")
+	} else {
+		if report.Scope != core.Development {
+			t.Errorf("go-junit-report scope = %v, want Development", report.Scope)
+		}
+	}
+
+	if reportV2, ok := depMap["github.com/jstemmer/go-junit-report/v2"]; !ok {
+		t.Error("expected github.com/jstemmer/go-junit-report/v2 dependency")
+	} else {
+		if reportV2.Scope != core.Development {
+			t.Errorf("go-junit-report/v2 scope = %v, want Development", reportV2.Scope)
+		}
+	}
+
+	// Non-tool dependencies should be Runtime scope
+	if depMap["github.com/gomodule/redigo"].Scope != core.Runtime {
+		t.Errorf("redigo scope = %v, want Runtime", depMap["github.com/gomodule/redigo"].Scope)
+	}
 }
 
 func TestGoSum(t *testing.T) {
@@ -434,6 +456,62 @@ func TestGoSingleRequireMod(t *testing.T) {
 	}
 	if dep.Direct {
 		t.Error("expected indirect dependency")
+	}
+}
+
+func TestGoModToolDependencies(t *testing.T) {
+	// Test that tool dependencies are marked as Development scope
+	content := []byte(`module test
+
+go 1.24
+
+require (
+	example.com/runtime-pkg v1.0.0
+	example.com/tool-pkg v2.0.0
+	golang.org/x/tools v0.20.0
+)
+
+tool example.com/tool-pkg/cmd/mytool
+
+tool (
+	golang.org/x/tools/cmd/stringer
+)
+`)
+
+	parser := &goModParser{}
+	deps, err := parser.Parse("go.mod", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Runtime dependency should be Runtime scope
+	if runtime, ok := depMap["example.com/runtime-pkg"]; !ok {
+		t.Error("expected example.com/runtime-pkg dependency")
+	} else if runtime.Scope != core.Runtime {
+		t.Errorf("runtime-pkg scope = %v, want Runtime", runtime.Scope)
+	}
+
+	// Tool dependency (exact match) should be Development scope
+	if tool, ok := depMap["example.com/tool-pkg"]; !ok {
+		t.Error("expected example.com/tool-pkg dependency")
+	} else if tool.Scope != core.Development {
+		t.Errorf("tool-pkg scope = %v, want Development", tool.Scope)
+	}
+
+	// Tool dependency (module is prefix of tool path) should be Development scope
+	if tools, ok := depMap["golang.org/x/tools"]; !ok {
+		t.Error("expected golang.org/x/tools dependency")
+	} else if tools.Scope != core.Development {
+		t.Errorf("golang.org/x/tools scope = %v, want Development", tools.Scope)
 	}
 }
 
