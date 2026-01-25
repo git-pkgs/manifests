@@ -1,0 +1,68 @@
+{
+  "groupId": "com.example",
+  "artifactId": "myproject",
+  "version": "1.0.0",
+  "type": "jar",
+  "scope": "compile",
+  "children": [
+    {
+      "groupId": "org.springframework",
+      "artifactId": "spring-core",
+      "version": "5.3.23",
+      "type": "jar",
+      "scope": "compile",
+      "children": [
+        {
+          "groupId": "org.springframework",
+          "artifactId": "spring-jcl",
+          "version": "5.3.23",
+          "type": "jar",
+          "scope": "compile",
+          "children": []
+        }
+      ]
+    },
+    {
+      "groupId": "com.google.guava",
+      "artifactId": "guava",
+      "version": "31.1-jre",
+      "type": "jar",
+      "scope": "compile",
+      "children": [
+        {
+          "groupId": "com.google.guava",
+          "artifactId": "failureaccess",
+          "version": "1.0.1",
+          "type": "jar",
+          "scope": "compile",
+          "children": []
+        },
+        {
+          "groupId": "com.google.guava",
+          "artifactId": "listenablefuture",
+          "version": "9999.0-empty-to-avoid-conflict-with-guava",
+          "type": "jar",
+          "scope": "compile",
+          "children": []
+        }
+      ]
+    },
+    {
+      "groupId": "junit",
+      "artifactId": "junit",
+      "version": "4.13.2",
+      "type": "jar",
+      "scope": "test",
+      "children": [
+        {
+          "groupId": "org.hamcrest",
+          "artifactId": "hamcrest-core",
+          "version": "1.3",
+          "type": "jar",
+          "scope": "test",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "compileClasspath": {
+    "com.google.guava:guava": {
+      "locked": "31.1-jre",
+      "requested": "31.+"
+    },
+    "com.google.guava:failureaccess": {
+      "locked": "1.0.1",
+      "firstLevelTransitive": ["com.google.guava:guava"]
+    },
+    "org.springframework:spring-core": {
+      "locked": "5.3.23",
+      "requested": "5.3.+"
+    },
+    "org.springframework:spring-jcl": {
+      "locked": "5.3.23",
+      "firstLevelTransitive": ["org.springframework:spring-core"]
+    }
+  },
+  "runtimeClasspath": {
+    "com.google.guava:guava": {
+      "locked": "31.1-jre",
+      "requested": "31.+"
+    },
+    "com.google.guava:failureaccess": {
+      "locked": "1.0.1",
+      "firstLevelTransitive": ["com.google.guava:guava"]
+    },
+    "org.springframework:spring-core": {
+      "locked": "5.3.23",
+      "requested": "5.3.+"
+    },
+    "org.springframework:spring-jcl": {
+      "locked": "5.3.23",
+      "firstLevelTransitive": ["org.springframework:spring-core"]
+    }
+  },
+  "testCompileClasspath": {
+    "junit:junit": {
+      "locked": "4.13.2",
+      "requested": "4.13.+"
+    },
+    "org.hamcrest:hamcrest-core": {
+      "locked": "1.3",
+      "firstLevelTransitive": ["junit:junit"]
+    }
+  },
+  "testRuntimeClasspath": {
+    "junit:junit": {
+      "locked": "4.13.2",
+      "requested": "4.13.+"
+    },
+    "org.hamcrest:hamcrest-core": {
+      "locked": "1.3",
+      "firstLevelTransitive": ["junit:junit"]
+    }
+  }
+}
