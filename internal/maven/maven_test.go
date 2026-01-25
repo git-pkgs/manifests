@@ -770,3 +770,163 @@ func TestGradleHtmlReport(t *testing.T) {
 		}
 	}
 }
+
+func TestIvyReportCompile(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/ivy_reports/com.example-hello_2.12-compile.xml")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &ivyReportParser{}
+	deps, err := parser.Parse("com.example-hello_2.12-compile.xml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	}
+
+	dep := deps[0]
+	if dep.Name != "org.scala-lang:scala-library" {
+		t.Errorf("name = %q, want %q", dep.Name, "org.scala-lang:scala-library")
+	}
+	if dep.Version != "2.12.5" {
+		t.Errorf("version = %q, want %q", dep.Version, "2.12.5")
+	}
+	if dep.Scope != core.Runtime {
+		t.Errorf("scope = %v, want Runtime", dep.Scope)
+	}
+}
+
+func TestIvyReportTest(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/ivy_reports/com.example-hello_2.12-test.xml")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &ivyReportParser{}
+	deps, err := parser.Parse("com.example-hello_2.12-test.xml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify some dependencies and that they have test scope
+	expectedTest := map[string]string{
+		"org.scala-lang:scala-reflect":           "2.12.5",
+		"org.scalatest:scalatest_2.12":           "3.0.5",
+		"org.scala-lang.modules:scala-xml_2.12": "1.0.6",
+		"org.scalactic:scalactic_2.12":           "3.0.5",
+		"org.scala-lang:scala-library":           "2.12.5",
+	}
+
+	for name, wantVer := range expectedTest {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Test {
+			t.Errorf("%s scope = %v, want Test", name, dep.Scope)
+		}
+	}
+}
+
+func TestIvyReportMatcher(t *testing.T) {
+	tests := []struct {
+		filename string
+		match    bool
+	}{
+		{"com.example-hello_2.12-compile.xml", true},
+		{"com.example-hello_2.12-test.xml", true},
+		{"com.example-hello_2.12-runtime.xml", true},
+		{"com.example-hello_2.12-provided.xml", true},
+		{"ivy.xml", false},
+		{"pom.xml", false},
+		{"build.gradle", false},
+	}
+
+	for _, tc := range tests {
+		if got := ivyReportMatcher(tc.filename); got != tc.match {
+			t.Errorf("ivyReportMatcher(%q) = %v, want %v", tc.filename, got, tc.match)
+		}
+	}
+}
+
+func TestSbtDot(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/dependencies-compile.dot")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &sbtDotParser{}
+	deps, err := parser.Parse("dependencies-compile.dot", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify dependencies
+	expected := map[string]string{
+		"com.example:myproject":          "1.0.0",
+		"org.scala-lang:scala-library":   "2.12.5",
+		"com.typesafe:config":            "1.3.4",
+		"ch.qos.logback:logback-classic": "1.2.3",
+		"ch.qos.logback:logback-core":    "1.2.3",
+		"org.slf4j:slf4j-api":            "1.7.25",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+		if dep.Scope != core.Runtime {
+			t.Errorf("%s scope = %v, want Runtime", name, dep.Scope)
+		}
+	}
+}
+
+func TestSbtDotMatcher(t *testing.T) {
+	tests := []struct {
+		filename string
+		match    bool
+	}{
+		{"dependencies-compile.dot", true},
+		{"dependencies-test.dot", true},
+		{"dependencies-runtime.dot", true},
+		{"build.sbt", false},
+		{"pom.xml", false},
+		{"graph.dot", false},
+	}
+
+	for _, tc := range tests {
+		if got := sbtDotMatcher(tc.filename); got != tc.match {
+			t.Errorf("sbtDotMatcher(%q) = %v, want %v", tc.filename, got, tc.match)
+		}
+	}
+}

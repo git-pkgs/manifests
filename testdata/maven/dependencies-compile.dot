@@ -1,0 +1,17 @@
+digraph "com.example:myproject:1.0.0" {
+    graph[rankdir="LR"]
+    node [
+        shape="record"
+    ]
+    "com.example:myproject:1.0.0"[label=<com.example<BR/><B>myproject</B><BR/>1.0.0>]
+    "com.example:myproject:1.0.0" -> "org.scala-lang:scala-library:2.12.5"
+    "org.scala-lang:scala-library:2.12.5"[label=<org.scala-lang<BR/><B>scala-library</B><BR/>2.12.5>]
+    "com.example:myproject:1.0.0" -> "com.typesafe:config:1.3.4"
+    "com.typesafe:config:1.3.4"[label=<com.typesafe<BR/><B>config</B><BR/>1.3.4>]
+    "com.example:myproject:1.0.0" -> "ch.qos.logback:logback-classic:1.2.3"
+    "ch.qos.logback:logback-classic:1.2.3"[label=<ch.qos.logback<BR/><B>logback-classic</B><BR/>1.2.3>]
+    "ch.qos.logback:logback-classic:1.2.3" -> "ch.qos.logback:logback-core:1.2.3"
+    "ch.qos.logback:logback-core:1.2.3"[label=<ch.qos.logback<BR/><B>logback-core</B><BR/>1.2.3>]
+    "ch.qos.logback:logback-classic:1.2.3" -> "org.slf4j:slf4j-api:1.7.25"
+    "org.slf4j:slf4j-api:1.7.25"[label=<org.slf4j<BR/><B>slf4j-api</B><BR/>1.7.25>]
+}
