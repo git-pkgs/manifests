@@ -12,6 +12,9 @@ func init() {
 
 	// go.sum - lockfile
 	core.Register("golang", core.Lockfile, &goSumParser{}, core.ExactMatch("go.sum"))
+
+	// go.graph - lockfile (go mod graph output)
+	core.Register("golang", core.Lockfile, &goGraphParser{}, core.ExactMatch("go.graph"))
 }
 
 // goModParser parses go.mod files.
@@ -201,6 +204,79 @@ func (p *goSumParser) Parse(filename string, content []byte) ([]core.Dependency,
 			Scope:     core.Runtime,
 			Integrity: hash,
 			Direct:    false, // go.sum doesn't track direct vs indirect
+		})
+	}
+
+	return deps, nil
+}
+
+// goGraphParser parses go.graph files (go mod graph output).
+type goGraphParser struct{}
+
+func (p *goGraphParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var deps []core.Dependency
+	seen := make(map[string]bool)
+	directDeps := make(map[string]bool)
+	lines := strings.Split(string(content), "\n")
+
+	// First pass: identify direct dependencies (those required by the main module)
+	// The main module appears without a version in the first column
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) != 2 {
+			continue
+		}
+
+		parent := parts[0]
+		dep := parts[1]
+
+		// If parent has no @version, it's the main module
+		if !strings.Contains(parent, "@") {
+			// Extract just the name from dep (before @)
+			if idx := strings.LastIndex(dep, "@"); idx > 0 {
+				directDeps[dep[:idx]] = true
+			}
+		}
+	}
+
+	// Second pass: collect all dependencies
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) != 2 {
+			continue
+		}
+
+		dep := parts[1]
+
+		// Parse name@version
+		idx := strings.LastIndex(dep, "@")
+		if idx <= 0 {
+			continue
+		}
+
+		name := dep[:idx]
+		version := dep[idx+1:]
+
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+
+		deps = append(deps, core.Dependency{
+			Name:    name,
+			Version: version,
+			Scope:   core.Runtime,
+			Direct:  directDeps[name],
 		})
 	}
 
