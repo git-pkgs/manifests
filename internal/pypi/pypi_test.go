@@ -925,3 +925,86 @@ func TestPylockToml(t *testing.T) {
 		}
 	}
 }
+
+func TestPipdeptreeJSON(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/pypi/pipdeptree.json")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &pipDependencyGraphParser{}
+	deps, err := parser.Parse("pipdeptree.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Same as pip-dependency-graph.json test since file is a copy
+	if len(deps) != 17 {
+		t.Fatalf("expected 17 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify some packages
+	samples := map[string]string{
+		"aiohttp": "3.9.5",
+		"black":   "23.12.0",
+		"click":   "8.1.7",
+	}
+
+	for name, wantVer := range samples {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}
+
+func TestPipenvGraphJSON(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/pypi/pipenv.graph.json")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &pipDependencyGraphParser{}
+	deps, err := parser.Parse("pipenv.graph.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify all packages
+	expected := map[string]string{
+		"requests":            "2.31.0",
+		"charset-normalizer":  "3.3.2",
+		"idna":                "3.7",
+		"urllib3":             "2.2.1",
+		"certifi":             "2024.2.2",
+	}
+
+	for name, wantVer := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		}
+	}
+}

@@ -36,8 +36,9 @@ func init() {
 	// uv.lock - lockfile
 	core.Register("pypi", core.Lockfile, &uvLockParser{}, core.ExactMatch("uv.lock"))
 
-	// pip-dependency-graph.json - lockfile (pipdeptree --json output)
-	core.Register("pypi", core.Lockfile, &pipDependencyGraphParser{}, core.ExactMatch("pip-dependency-graph.json"))
+	// pip-dependency-graph.json, pipdeptree.json, pipenv.graph.json - lockfile (pipdeptree --json output)
+	core.Register("pypi", core.Lockfile, &pipDependencyGraphParser{},
+		core.ExactMatch("pip-dependency-graph.json", "pipdeptree.json", "pipenv.graph.json"))
 
 	// pip-resolved-dependencies.txt - lockfile (pip freeze output)
 	core.Register("pypi", core.Lockfile, &pipResolvedDepsParser{}, core.ExactMatch("pip-resolved-dependencies.txt"))
