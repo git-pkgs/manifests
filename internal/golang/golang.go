@@ -23,56 +23,101 @@ var (
 
 	// Multi-line require block entry: example.com/pkg v1.2.3 // indirect
 	requireEntryRegex = regexp.MustCompile(`^\s*(\S+)\s+(\S+)(?:\s*//.*)?$`)
+
+	// Single-line tool: tool example.com/pkg/cmd/foo
+	singleToolRegex = regexp.MustCompile(`^\s*tool\s+(\S+)`)
+
+	// Multi-line tool block entry: example.com/pkg/cmd/foo
+	toolEntryRegex = regexp.MustCompile(`^\s*(\S+)\s*$`)
 )
 
 func (p *goModParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
-	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
+	// First pass: collect all tool paths
+	tools := make(map[string]bool)
+	inToolBlock := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "tool (") || trimmed == "tool (" {
+			inToolBlock = true
+			continue
+		}
+
+		if inToolBlock && trimmed == ")" {
+			inToolBlock = false
+			continue
+		}
+
+		if strings.HasPrefix(trimmed, "tool ") && !strings.Contains(trimmed, "(") {
+			if match := singleToolRegex.FindStringSubmatch(trimmed); match != nil {
+				tools[match[1]] = true
+			}
+			continue
+		}
+
+		if inToolBlock {
+			if match := toolEntryRegex.FindStringSubmatch(trimmed); match != nil {
+				tools[match[1]] = true
+			}
+		}
+	}
+
+	// Second pass: parse require directives and check against tools
+	var deps []core.Dependency
 	inRequireBlock := false
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Skip empty lines and comments
 		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
 			continue
 		}
 
-		// Detect require block start
 		if strings.HasPrefix(trimmed, "require (") || trimmed == "require (" {
 			inRequireBlock = true
 			continue
 		}
 
-		// Detect require block end
 		if inRequireBlock && trimmed == ")" {
 			inRequireBlock = false
 			continue
 		}
 
-		// Single-line require
 		if strings.HasPrefix(trimmed, "require ") && !strings.Contains(trimmed, "(") {
 			if match := singleRequireRegex.FindStringSubmatch(trimmed); match != nil {
 				direct := !strings.Contains(line, "// indirect")
+				scope := core.Runtime
+				if isToolModule(match[1], tools) {
+					scope = core.Development
+				}
 				deps = append(deps, core.Dependency{
 					Name:    match[1],
 					Version: match[2],
-					Scope:   core.Runtime,
+					Scope:   scope,
 					Direct:  direct,
 				})
 			}
 			continue
 		}
 
-		// Inside require block
 		if inRequireBlock {
 			if match := requireEntryRegex.FindStringSubmatch(trimmed); match != nil {
 				direct := !strings.Contains(line, "// indirect")
+				scope := core.Runtime
+				if isToolModule(match[1], tools) {
+					scope = core.Development
+				}
 				deps = append(deps, core.Dependency{
 					Name:    match[1],
 					Version: match[2],
-					Scope:   core.Runtime,
+					Scope:   scope,
 					Direct:  direct,
 				})
 			}
@@ -80,6 +125,22 @@ func (p *goModParser) Parse(filename string, content []byte) ([]core.Dependency,
 	}
 
 	return deps, nil
+}
+
+// isToolModule checks if a module is used by any tool.
+// A module matches if it equals a tool path or if a tool path starts with the module path.
+func isToolModule(module string, tools map[string]bool) bool {
+	if tools[module] {
+		return true
+	}
+	// Check if any tool path starts with this module
+	// e.g., module "golang.org/x/tools" matches tool "golang.org/x/tools/cmd/stringer"
+	for tool := range tools {
+		if strings.HasPrefix(tool, module+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // goSumParser parses go.sum files.

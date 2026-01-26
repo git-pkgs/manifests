@@ -1,7 +1,9 @@
 package maven
 
 import (
+	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"regexp"
 	"strings"
 
@@ -18,6 +20,12 @@ func init() {
 
 	// verification-metadata.xml - lockfile (gradle dependency verification)
 	core.Register("maven", core.Lockfile, &gradleVerificationParser{}, core.ExactMatch("verification-metadata.xml"))
+
+	// dependencies.lock - lockfile (Nebula dependency-lock plugin)
+	core.Register("maven", core.Lockfile, &nebulaLockParser{}, core.ExactMatch("dependencies.lock"))
+
+	// gradle-html-dependency-report.js - lockfile (gradle htmlDependencyReport task)
+	core.Register("maven", core.Lockfile, &gradleHtmlReportParser{}, core.ExactMatch("gradle-html-dependency-report.js"))
 }
 
 // gradleParser parses build.gradle and build.gradle.kts files.
@@ -323,4 +331,144 @@ func (p *gradleVerificationParser) Parse(filename string, content []byte) ([]cor
 	}
 
 	return deps, nil
+}
+
+// nebulaLockParser parses dependencies.lock files (Nebula gradle-dependency-lock-plugin).
+type nebulaLockParser struct{}
+
+func (p *nebulaLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	var lockfile map[string]map[string]nebulaLockEntry
+	if err := json.Unmarshal(content, &lockfile); err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	var deps []core.Dependency
+	seen := make(map[string]bool)
+
+	for config, entries := range lockfile {
+		isTest := strings.Contains(strings.ToLower(config), "test")
+
+		for name, entry := range entries {
+			if entry.Locked == "" || seen[name] {
+				continue
+			}
+			seen[name] = true
+
+			scope := core.Runtime
+			if isTest {
+				scope = core.Test
+			}
+
+			// Direct deps have "requested", transitive have "firstLevelTransitive"
+			direct := entry.Requested != ""
+
+			deps = append(deps, core.Dependency{
+				Name:    name,
+				Version: entry.Locked,
+				Scope:   scope,
+				Direct:  direct,
+			})
+		}
+	}
+
+	return deps, nil
+}
+
+type nebulaLockEntry struct {
+	Locked               string   `json:"locked"`
+	Requested            string   `json:"requested"`
+	FirstLevelTransitive []string `json:"firstLevelTransitive"`
+	Project              bool     `json:"project"`
+}
+
+// gradleHtmlReportParser parses gradle-html-dependency-report.js files.
+type gradleHtmlReportParser struct{}
+
+func (p *gradleHtmlReportParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	// Extract JSON from: window.project = { ... };
+	text := string(content)
+
+	// Find the start of the JSON object
+	start := strings.Index(text, "window.project = ")
+	if start < 0 {
+		start = strings.Index(text, "window.project=")
+		if start < 0 {
+			return nil, &core.ParseError{Filename: filename, Err: errors.New("missing window.project assignment")}
+		}
+		start += len("window.project=")
+	} else {
+		start += len("window.project = ")
+	}
+
+	// Find the end (last } or };)
+	end := strings.LastIndex(text, "}")
+	if end < 0 || end < start {
+		return nil, &core.ParseError{Filename: filename, Err: errors.New("invalid JSON structure")}
+	}
+
+	jsonContent := text[start : end+1]
+
+	var project gradleHtmlProject
+	if err := json.Unmarshal([]byte(jsonContent), &project); err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	var deps []core.Dependency
+	seen := make(map[string]bool)
+
+	for _, config := range project.Configurations {
+		isTest := strings.Contains(strings.ToLower(config.Name), "test")
+		collectGradleHtmlDeps(&deps, seen, config.Dependencies, isTest)
+	}
+
+	return deps, nil
+}
+
+type gradleHtmlProject struct {
+	Name           string                  `json:"name"`
+	Configurations []gradleHtmlConfig      `json:"configurations"`
+}
+
+type gradleHtmlConfig struct {
+	Name         string             `json:"name"`
+	Dependencies []gradleHtmlDep    `json:"dependencies"`
+}
+
+type gradleHtmlDep struct {
+	Module   string          `json:"module"`
+	Children []gradleHtmlDep `json:"children"`
+}
+
+func collectGradleHtmlDeps(deps *[]core.Dependency, seen map[string]bool, htmlDeps []gradleHtmlDep, isTest bool) {
+	for _, dep := range htmlDeps {
+		// Parse module: "group:artifact:version"
+		parts := strings.Split(dep.Module, ":")
+		if len(parts) < 3 {
+			continue
+		}
+
+		name := parts[0] + ":" + parts[1]
+		version := parts[2]
+
+		if !seen[name] {
+			seen[name] = true
+
+			scope := core.Runtime
+			if isTest {
+				scope = core.Test
+			}
+
+			*deps = append(*deps, core.Dependency{
+				Name:    name,
+				Version: version,
+				Scope:   scope,
+				Direct:  false,
+			})
+		}
+
+		// Recursively collect children
+		if len(dep.Children) > 0 {
+			collectGradleHtmlDeps(deps, seen, dep.Children, isTest)
+		}
+	}
 }

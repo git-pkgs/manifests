@@ -619,3 +619,154 @@ func TestGradleVerificationMetadata(t *testing.T) {
 		}
 	}
 }
+
+func TestMavenGraphJSON(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/maven.graph.json")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &mavenGraphJSONParser{}
+	deps, err := parser.Parse("maven.graph.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify dependencies with expected versions and scopes
+	expected := []struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		{"org.springframework:spring-core", "5.3.23", core.Runtime},
+		{"org.springframework:spring-jcl", "5.3.23", core.Runtime},
+		{"com.google.guava:guava", "31.1-jre", core.Runtime},
+		{"com.google.guava:failureaccess", "1.0.1", core.Runtime},
+		{"junit:junit", "4.13.2", core.Test},
+		{"org.hamcrest:hamcrest-core", "1.3", core.Test},
+	}
+
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
+		}
+	}
+}
+
+func TestNebulaLock(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/gradle/dependencies.lock")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &nebulaLockParser{}
+	deps, err := parser.Parse("dependencies.lock", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify dependencies
+	expected := []struct {
+		name    string
+		version string
+		direct  bool
+	}{
+		{"com.google.guava:guava", "31.1-jre", true},
+		{"com.google.guava:failureaccess", "1.0.1", false},
+		{"org.springframework:spring-core", "5.3.23", true},
+		{"org.springframework:spring-jcl", "5.3.23", false},
+		{"junit:junit", "4.13.2", true},
+		{"org.hamcrest:hamcrest-core", "1.3", false},
+	}
+
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Direct != exp.direct {
+			t.Errorf("%s direct = %v, want %v", exp.name, dep.Direct, exp.direct)
+		}
+	}
+}
+
+func TestGradleHtmlReport(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/gradle/gradle-html-dependency-report.js")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &gradleHtmlReportParser{}
+	deps, err := parser.Parse("gradle-html-dependency-report.js", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, d := range deps {
+		depMap[d.Name] = d
+	}
+
+	// Verify dependencies
+	expected := []struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		{"com.google.guava:guava", "31.1-jre", core.Runtime},
+		{"com.google.guava:failureaccess", "1.0.1", core.Runtime},
+		{"com.google.guava:listenablefuture", "9999.0-empty-to-avoid-conflict-with-guava", core.Runtime},
+		{"org.springframework:spring-core", "5.3.23", core.Runtime},
+		{"org.springframework:spring-jcl", "5.3.23", core.Runtime},
+		{"junit:junit", "4.13.2", core.Test},
+		{"org.hamcrest:hamcrest-core", "1.3", core.Test},
+	}
+
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.Version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.Version, exp.version)
+		}
+		if dep.Scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
+		}
+	}
+}
