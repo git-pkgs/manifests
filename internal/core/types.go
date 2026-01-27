@@ -5,8 +5,9 @@ package core
 type Kind string
 
 const (
-	Manifest Kind = "manifest"
-	Lockfile Kind = "lockfile"
+	Manifest   Kind = "manifest"
+	Lockfile   Kind = "lockfile"
+	Supplement Kind = "supplement"
 )
 
 // Scope indicates when a dependency is required.

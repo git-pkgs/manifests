@@ -29,8 +29,9 @@ type (
 
 // Re-export constants.
 const (
-	Manifest Kind = core.Manifest
-	Lockfile Kind = core.Lockfile
+	Manifest   Kind = core.Manifest
+	Lockfile   Kind = core.Lockfile
+	Supplement Kind = core.Supplement
 
 	Runtime     Scope = core.Runtime
 	Development Scope = core.Development
@@ -61,7 +62,7 @@ func Parse(filename string, content []byte) (*ParseResult, error) {
 	// Generate PURLs for all dependencies
 	for i := range deps {
 		version := ""
-		if kind == Lockfile {
+		if kind == Lockfile || kind == Supplement {
 			version = deps[i].Version
 		}
 		deps[i].PURL = makePURL(eco, deps[i].Name, version, deps[i].RegistryURL)
