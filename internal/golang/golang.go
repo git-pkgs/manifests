@@ -10,8 +10,8 @@ func init() {
 	// go.mod - manifest
 	core.Register("golang", core.Manifest, &goModParser{}, core.ExactMatch("go.mod"))
 
-	// go.sum - lockfile
-	core.Register("golang", core.Lockfile, &goSumParser{}, core.ExactMatch("go.sum"))
+	// go.sum - supplement (provides integrity hashes for go.mod dependencies)
+	core.Register("golang", core.Supplement, &goSumParser{}, core.ExactMatch("go.sum"))
 
 	// go.graph - lockfile (go mod graph output)
 	core.Register("golang", core.Lockfile, &goGraphParser{}, core.ExactMatch("go.graph"))

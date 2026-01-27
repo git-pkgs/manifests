@@ -24,7 +24,7 @@ func TestParseAllEcosystems(t *testing.T) {
 		{"cargo Cargo.toml", "testdata/cargo/Cargo.toml", "cargo", Manifest},
 		{"cargo Cargo.lock", "testdata/cargo/Cargo.lock", "cargo", Lockfile},
 		{"golang go.mod", "testdata/golang/go.mod", "golang", Manifest},
-		{"golang go.sum", "testdata/golang/go.sum", "golang", Lockfile},
+		{"golang go.sum", "testdata/golang/go.sum", "golang", Supplement},
 		{"pypi requirements.txt", "testdata/pypi/requirements.txt", "pypi", Manifest},
 		{"maven pom.xml", "testdata/maven/pom.xml", "maven", Manifest},
 		{"composer composer.json", "testdata/composer/composer.json", "composer", Manifest},
@@ -83,7 +83,7 @@ func TestIdentifyFiles(t *testing.T) {
 
 		// golang
 		{"go.mod", "golang", Manifest, true},
-		{"go.sum", "golang", Lockfile, true},
+		{"go.sum", "golang", Supplement, true},
 
 		// pypi
 		{"requirements.txt", "pypi", Manifest, true},

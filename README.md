@@ -58,7 +58,7 @@ func main() {
 | elm | elm.json, elm-package.json | |
 | gem | Gemfile, gems.rb, *.gemspec | Gemfile.lock, gems.locked |
 | github-actions | .github/workflows/*.yml | |
-| golang | go.mod, Godeps, glide.yaml, Gopkg.toml | go.sum, Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest |
+| golang | go.mod, Godeps, glide.yaml, Gopkg.toml | Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
 | haxelib | haxelib.json | |
 | hex | mix.exs, gleam.toml | mix.lock, rebar.lock |
@@ -88,7 +88,6 @@ func main() {
 | deno.lock | | ✓ | | |
 | Gemfile.lock | ✓ | ✓ | | ✓ |
 | Cargo.lock | ✓ | ✓ | | |
-| go.sum | | ✓ | | |
 | poetry.lock | ✓ | ✓ | ✓ | |
 | Pipfile.lock | ✓ | ✓ | ✓ | |
 | pdm.lock | | ✓ | ✓ | |
@@ -114,6 +113,8 @@ func main() {
 | shard.lock | | | | |
 | flake.lock | | | | |
 | Brewfile.lock.json | | ✓ | | ✓ |
+
+**Supplement files:** go.sum is parsed as a supplement rather than a lockfile. It provides integrity hashes that can be matched against go.mod dependencies by name and version, but it doesn't represent a standalone dependency tree.
 
 ## API
 
@@ -172,7 +173,7 @@ When a dependency comes from a non-default registry, the PURL includes a `reposi
 ```go
 type ParseResult struct {
     Ecosystem    string       // npm, gem, pypi, golang, cargo, etc.
-    Kind         Kind         // manifest or lockfile
+    Kind         Kind         // manifest, lockfile, or supplement
     Dependencies []Dependency
 }
 ```
@@ -181,8 +182,9 @@ type ParseResult struct {
 
 ```go
 const (
-    Manifest Kind = "manifest" // Declared dependencies with version constraints
-    Lockfile Kind = "lockfile" // Resolved dependencies with exact versions
+    Manifest   Kind = "manifest"   // Declared dependencies with version constraints
+    Lockfile   Kind = "lockfile"   // Resolved dependencies with exact versions
+    Supplement Kind = "supplement" // Provides extra data (e.g. integrity hashes) for a manifest's dependencies
 )
 ```
 
