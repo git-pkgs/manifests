@@ -4,6 +4,7 @@ package manifests
 import (
 	_ "github.com/git-pkgs/manifests/internal/alpine"
 	_ "github.com/git-pkgs/manifests/internal/arch"
+	_ "github.com/git-pkgs/manifests/internal/bazel"
 	_ "github.com/git-pkgs/manifests/internal/brew"
 	_ "github.com/git-pkgs/manifests/internal/cargo"
 	_ "github.com/git-pkgs/manifests/internal/carthage"

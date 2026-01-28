@@ -1,0 +1,9 @@
+module(name = "elemental2",
+    version = "1.3.0",
+)
+# Broken dependency with missing name
+bazel_dep(
+    name = "",
+    version = "1.9.4",
+    dev_dependency = True,
+)
