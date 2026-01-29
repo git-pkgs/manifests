@@ -73,7 +73,7 @@ func TestBazelModuleManifest_Parse_Error(t *testing.T) {
 		t.Fatalf("expected error, got nil.")
 	}
 
-	if err.Error() != "failed to parse MODULE.bazel: 5:bazel_dep missing required 'name' attribute" {
+	if err.Error() != `failed to parse MODULE.bazel: 5:bazel_dep 'name' "" has invalid format` {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

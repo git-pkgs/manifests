@@ -57,21 +57,21 @@ func (p *bazelModuleManifestParser) Parse(filename string, content []byte) ([]co
 	return deps, nil
 }
 
-type BazelDep struct {
+type bazelDep struct {
 	Name          string
 	Version       string
 	DevDependency bool
 }
 
-type BazelDepParsingError struct {
+type bazelDepParsingError struct {
 	Message string
 	Line    int
 }
 
 var moduleNameRegex = regexp.MustCompile(`^[a-z]([a-z0-9._-]*[a-z0-9])?$`)
 
-func parseBazelDep(callExperssion build.CallExpr) (*BazelDep, error) {
-	dep := &BazelDep{
+func parseBazelDep(callExperssion build.CallExpr) (*bazelDep, error) {
+	dep := &bazelDep{
 		DevDependency: false, // default
 	}
 
@@ -91,15 +91,15 @@ func parseBazelDep(callExperssion build.CallExpr) (*BazelDep, error) {
 		case "name":
 			nameExpr, ok := assign.RHS.(*build.StringExpr)
 			if !ok {
-				return nil, &BazelDepParsingError{
+				return nil, &bazelDepParsingError{
 					Line:    callExperssion.ListStart.Line,
 					Message: "bazel_dep 'name' attribute is not a string"}
 			}
 
 			if !moduleNameRegex.MatchString(nameExpr.Value) {
-				return nil, &BazelDepParsingError{
+				return nil, &bazelDepParsingError{
 					Line:    callExperssion.ListStart.Line,
-					Message: "bazel_dep missing required 'name' attribute"}
+					Message: fmt.Sprintf("bazel_dep 'name' %q has invalid format", nameExpr.Value)}
 			}
 			dep.Name = nameExpr.Value
 
@@ -116,7 +116,7 @@ func parseBazelDep(callExperssion build.CallExpr) (*BazelDep, error) {
 	return dep, nil
 }
 
-func (e *BazelDepParsingError) Error() string {
+func (e *bazelDepParsingError) Error() string {
 	return fmt.Sprintf(
 		"%d:%s",
 		e.Line,
