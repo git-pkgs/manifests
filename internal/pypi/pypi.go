@@ -13,9 +13,9 @@ func init() {
 	// requirements.txt variants - manifests
 	core.Register("pypi", core.Manifest, &requirementsTxtParser{},
 		core.AnyMatch(
-			core.ExactMatch("requirements.txt"),
-			core.SuffixMatch("-requirements.txt", "_requirements.txt", ".requirements.txt"),
-			core.PrefixMatch("requirements-", "requirements_", "requirements."),
+			core.ExactMatch("requirements.txt", "requirements.frozen"),
+			core.GlobMatch("*requirements*.txt"),
+			core.GlobMatch("requirements/*.txt"),
 		))
 
 	// Pipfile - manifest
