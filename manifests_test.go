@@ -87,6 +87,10 @@ func TestIdentifyFiles(t *testing.T) {
 
 		// pypi
 		{"requirements.txt", "pypi", Manifest, true},
+		{"requirements-dev.txt", "pypi", Manifest, true},
+		{"requirements/test.txt", "pypi", Manifest, true},
+		{"requirements.frozen", "pypi", Manifest, true},
+		{"requirements.rb", "", "", false},
 		{"Pipfile", "pypi", Manifest, true},
 		{"Pipfile.lock", "pypi", Lockfile, true},
 		{"pyproject.toml", "pypi", Manifest, true},
