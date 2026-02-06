@@ -1,0 +1,10 @@
+[submodule "lib/foo"]
+	path = lib/foo
+	url = https://github.com/example/foo.git
+[submodule "vendor/bar"]
+	path = vendor/bar
+	url = git@github.com:example/bar.git
+[submodule "tools/baz"]
+	path = tools/baz
+	url = https://gitlab.com/example/baz.git
+	branch = main
