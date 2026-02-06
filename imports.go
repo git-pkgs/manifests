@@ -21,6 +21,7 @@ import (
 	_ "github.com/git-pkgs/manifests/internal/dub"
 	_ "github.com/git-pkgs/manifests/internal/elm"
 	_ "github.com/git-pkgs/manifests/internal/gem"
+	_ "github.com/git-pkgs/manifests/internal/git"
 	_ "github.com/git-pkgs/manifests/internal/github_actions"
 	_ "github.com/git-pkgs/manifests/internal/gleam"
 	_ "github.com/git-pkgs/manifests/internal/golang"

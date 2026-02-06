@@ -59,6 +59,7 @@ func main() {
 | dub | dub.json, dub.sdl | |
 | elm | elm.json, elm-package.json | |
 | gem | Gemfile, gems.rb, *.gemspec | Gemfile.lock, gems.locked |
+| git | .gitmodules | |
 | github-actions | .github/workflows/*.yml | |
 | golang | go.mod, Godeps, glide.yaml, Gopkg.toml | Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
