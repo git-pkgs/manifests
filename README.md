@@ -40,6 +40,7 @@ func main() {
 |-----------|-----------|-----------|
 | alpine | APKBUILD | |
 | arch | PKGBUILD | |
+| asdf | .tool-versions | |
 | bazel | MODULE.json | |
 | bower | bower.json | |
 | brew | Brewfile | Brewfile.lock.json |
