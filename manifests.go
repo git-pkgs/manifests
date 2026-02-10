@@ -77,19 +77,7 @@ func Parse(filename string, content []byte) (*ParseResult, error) {
 
 // makePURL creates a Package URL for a dependency.
 func makePURL(ecosystem, name, version, registryURL string) string {
-	// Clean the version using the purl package
-	purlType := purl.EcosystemToPURLType(ecosystem)
-	cleanVersion := purl.CleanVersion(version, purlType)
-
-	// Create the base PURL using the purl package
-	p := purl.MakePURL(ecosystem, name, cleanVersion)
-
-	// Add repository_url qualifier if non-default registry
-	if registryURL != "" && purl.IsNonDefaultRegistry(purlType, registryURL) {
-		p = p.WithQualifier("repository_url", registryURL)
-	}
-
-	return p.String()
+	return purl.BuildPURLString(ecosystem, name, version, registryURL)
 }
 
 // Identify returns the ecosystem and kind for a filename without parsing.

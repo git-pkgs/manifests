@@ -5,7 +5,7 @@ go 1.25.6
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bazelbuild/buildtools v0.0.0-20260121081817-bbf01ec6cb49
-	github.com/git-pkgs/purl v0.1.6
+	github.com/git-pkgs/purl v0.1.8
 	gopkg.in/yaml.v3 v3.0.1
 )
 

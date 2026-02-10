@@ -4,8 +4,8 @@ github.com/bazelbuild/buildtools v0.0.0-20260121081817-bbf01ec6cb49 h1:dW8MipfRf
 github.com/bazelbuild/buildtools v0.0.0-20260121081817-bbf01ec6cb49/go.mod h1:PLNUetjLa77TCCziPsz0EI8a6CUxgC+1jgmWv0H25tg=
 github.com/git-pkgs/packageurl-go v0.2.1 h1:j6VnjJiYS9b1nTLfJGsG6SLaA7Nk6Io+ta8grOyTa4o=
 github.com/git-pkgs/packageurl-go v0.2.1/go.mod h1:rcIxiG37BlQLB6FZfgdj9Fm7yjhRQd3l+5o7J0QPAk4=
-github.com/git-pkgs/purl v0.1.6 h1:WDganE1yjSA2BYjXPpz9NVdsh/YRrGj2CkZ6ScyzIKs=
-github.com/git-pkgs/purl v0.1.6/go.mod h1:ihlHw3bnSLXat+9Nl9MsJZBYiG7s3NkwmvE3L/Es/sI=
+github.com/git-pkgs/purl v0.1.8 h1:iyjEHM2WIZUL9A3+q9ylrabqILsN4nOay9X6jfEjmzQ=
+github.com/git-pkgs/purl v0.1.8/go.mod h1:ihlHw3bnSLXat+9Nl9MsJZBYiG7s3NkwmvE3L/Es/sI=
 github.com/git-pkgs/vers v0.2.2 h1:42QkiIURhGN2wM8AuYYU+FbzS1YV6jmdGd1RiFp7gXs=
 github.com/git-pkgs/vers v0.2.2/go.mod h1:biTbSQK1qdbrsxDEKnqe3Jzclxz8vW6uDcwKjfUGcOo=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
