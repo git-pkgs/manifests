@@ -967,6 +967,107 @@ func TestPipdeptreeJSON(t *testing.T) {
 	}
 }
 
+func TestPyprojectPEP621OptionalDeps(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/pypi/pep621-optional/pyproject.toml")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &pyprojectParser{}
+	deps, err := parser.Parse("pyproject.toml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// 1 runtime + 1 lint + 2 dev + 2 testing + 3 modeling = 9
+	if len(deps) != 9 {
+		t.Fatalf("expected 9 dependencies, got %d", len(deps))
+	}
+
+	type depKey struct {
+		name    string
+		version string
+		scope   core.Scope
+	}
+
+	depMap := make(map[string]depKey)
+	for _, d := range deps {
+		depMap[d.Name] = depKey{d.Name, d.Version, d.Scope}
+	}
+
+	expected := []depKey{
+		{"sqlmodel", ">=0.0.16,<0.0.17", core.Runtime},
+		{"pre-commit", ">=2.20.0", core.Development},
+		{"ipython", "", core.Development},
+		{"alembic", ">=1,<2", core.Development},
+		{"pytest", ">=7,<8", core.Test},
+		{"pytest-cov", "", core.Test},
+		{"numpy", ">=1,<3", core.Optional},
+		{"pandas", ">=1,<3", core.Optional},
+		{"scipy", ">=1,<2", core.Optional},
+	}
+
+	for _, exp := range expected {
+		dep, ok := depMap[exp.name]
+		if !ok {
+			t.Errorf("expected %s dependency", exp.name)
+			continue
+		}
+		if dep.version != exp.version {
+			t.Errorf("%s version = %q, want %q", exp.name, dep.version, exp.version)
+		}
+		if dep.scope != exp.scope {
+			t.Errorf("%s scope = %v, want %v", exp.name, dep.scope, exp.scope)
+		}
+	}
+}
+
+func TestSetupPyExtrasRequire(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/pypi/setup.py")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &setupPyParser{}
+	deps, err := parser.Parse("setup.py", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Find the extras_require deps by scope
+	var testDeps []core.Dependency
+	for _, d := range deps {
+		if d.Scope == core.Test {
+			testDeps = append(testDeps, d)
+		}
+	}
+
+	if len(testDeps) != 7 {
+		t.Fatalf("expected 7 test-scope deps from extras_require, got %d", len(testDeps))
+	}
+
+	testDepMap := make(map[string]core.Dependency)
+	for _, d := range testDeps {
+		testDepMap[d.Name] = d
+	}
+
+	expectedTestDeps := []string{
+		"django-responsediff",
+		"flake8",
+		"pep8",
+		"pytest",
+		"pytest-django",
+		"pytest-cov",
+		"codecov",
+	}
+
+	for _, name := range expectedTestDeps {
+		if _, ok := testDepMap[name]; !ok {
+			t.Errorf("expected %s in extras_require testing deps", name)
+		}
+	}
+}
+
 func TestPipenvGraphJSON(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/pypi/pipenv.graph.json")
 	if err != nil {
