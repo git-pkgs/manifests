@@ -331,6 +331,20 @@ func (p *pyprojectParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
+	// PEP 621 optional dependencies
+	for groupName, groupDeps := range pyproject.Project.OptionalDependencies {
+		scope := optionalGroupScope(groupName)
+		for _, dep := range groupDeps {
+			name, version := parsePEP508(dep)
+			deps = append(deps, core.Dependency{
+				Name:    name,
+				Version: version,
+				Scope:   scope,
+				Direct:  true,
+			})
+		}
+	}
+
 	return deps, nil
 }
 
@@ -386,6 +400,19 @@ func parsePEP508(dep string) (string, string) {
 		name = name[:idx]
 	}
 	return name, ""
+}
+
+// optionalGroupScope maps a PEP 621 optional-dependency group name to a scope.
+// Well-known dev/test group names get their own scope; everything else is optional.
+func optionalGroupScope(groupName string) core.Scope {
+	switch strings.ToLower(groupName) {
+	case "dev", "development", "develop", "lint":
+		return core.Development
+	case "test", "testing", "tests":
+		return core.Test
+	default:
+		return core.Optional
+	}
 }
 
 // poetryLockParser parses poetry.lock files.
@@ -665,30 +692,16 @@ func (p *setupPyParser) Parse(filename string, content []byte) ([]core.Dependenc
 
 	// Parse extras_require
 	if match := extrasRequireRegex.FindStringSubmatch(contentStr); match != nil {
-		// Find the group names and their requirements
-		groupContent := match[1]
-		// Simple parsing: find all quoted strings that look like requirements
-		for _, req := range quotedStringRegex.FindAllStringSubmatch(groupContent, -1) {
-			if len(req) >= 2 {
-				reqStr := req[1]
-				// Skip group names (they don't contain version specifiers)
-				if strings.ContainsAny(reqStr, ">=<~!=") || !strings.ContainsAny(reqStr, "-_.") {
-					continue
-				}
-				// This is a potential group name, skip
-				if !strings.Contains(reqStr, ">=") && !strings.Contains(reqStr, "==") &&
-					!strings.Contains(reqStr, "<=") && !strings.Contains(reqStr, "~=") {
-					// Check if it looks like a package name
-					if len(reqStr) < 20 && strings.ContainsAny(reqStr, "abcdefghijklmnopqrstuvwxyz") {
-						name, version := parseSetupRequirement(reqStr)
-						deps = append(deps, core.Dependency{
-							Name:    name,
-							Version: version,
-							Scope:   core.Development,
-							Direct:  true,
-						})
-					}
-				}
+		for groupName, groupDeps := range parseExtrasRequire(match[1]) {
+			scope := optionalGroupScope(groupName)
+			for _, req := range groupDeps {
+				name, version := parseSetupRequirement(req)
+				deps = append(deps, core.Dependency{
+					Name:    name,
+					Version: version,
+					Scope:   scope,
+					Direct:  true,
+				})
 			}
 		}
 	}
@@ -709,6 +722,26 @@ func parseSetupRequirement(req string) (string, string) {
 	}
 
 	return req, ""
+}
+
+// extrasRequireGroupRegex matches a group key and its list value inside extras_require,
+// e.g. 'testing': ['pkg1', 'pkg2>=1.0']
+var extrasRequireGroupRegex = regexp.MustCompile(`['"]([^'"]+)['"]\s*:\s*\[([^\]]*)\]`)
+
+// parseExtrasRequire parses the inner content of a setup.py extras_require dict
+// and returns a map of group name to list of requirement strings.
+func parseExtrasRequire(content string) map[string][]string {
+	groups := make(map[string][]string)
+	for _, match := range extrasRequireGroupRegex.FindAllStringSubmatch(content, -1) {
+		groupName := match[1]
+		listContent := match[2]
+		for _, req := range quotedStringRegex.FindAllStringSubmatch(listContent, -1) {
+			if len(req) >= 2 {
+				groups[groupName] = append(groups[groupName], req[1])
+			}
+		}
+	}
+	return groups
 }
 
 // pylockTomlParser parses pylock.toml files (PEP 665).

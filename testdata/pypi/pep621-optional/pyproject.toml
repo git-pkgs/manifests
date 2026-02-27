@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rs-graph"
+description = "Exploring research software"
+requires-python = ">=3.11"
+dependencies = [
+  "sqlmodel>=0.0.16,<0.0.17",
+]
+
+[project.optional-dependencies]
+lint = [
+  "pre-commit>=2.20.0",
+]
+dev = [
+  "ipython",
+  "alembic[tz]>=1,<2",
+]
+testing = [
+  "pytest>=7,<8",
+  "pytest-cov",
+]
+modeling = [
+  "numpy>=1,<3",
+  "pandas>=1,<3",
+  "scipy>=1,<2",
+]
