@@ -1,0 +1,38 @@
+# This is a comment
+set name=pkg.fmri value=pkg:/developer/example@1.0,5.11-2024.0.0.0
+set name=pkg.summary value="Example package"
+
+# Runtime dependency
+depend type=require fmri=pkg:/library/libxml2@2.9.14
+
+# Dependency with no version
+depend type=require fmri=pkg:/system/library
+
+# Group dependency with build metadata in version
+depend type=group fmri=pkg:/library/zlib@1.2.13,5.11-2024.0.0.0
+
+# Incorporate dependency
+depend type=incorporate fmri=pkg:/library/openssl@3.1.4,5.11-2024.0.0.1
+
+# Optional dependency
+depend type=optional fmri=pkg:/developer/debug-tools@1.0
+
+# Conditional dependency
+depend type=conditional predicate=pkg:/runtime/python-311 fmri=pkg:/library/python/setuptools-311@68.0.0
+
+# Macro line - should be skipped
+depend type=require fmri=pkg:/library/$(MACH)/libfoo@1.0
+
+# TBD placeholder - should be skipped
+depend type=require fmri=__TBD pkg.debug.depend.file=libbar.so
+
+# require-any with multiple fmri (multi-line with continuation)
+depend type=require-any \
+    fmri=pkg:/web/server/apache-24@2.4.58 \
+    fmri=pkg:/web/server/nginx@1.24.0
+
+# Non-depend line that mentions depend
+set name=pkg.depend.runpath value=$PKGDEPEND_RUNPATH
+
+file path=usr/bin/example mode=0555
+dir path=usr/share/doc/example

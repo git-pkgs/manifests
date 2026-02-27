@@ -28,6 +28,7 @@ import (
 	_ "github.com/git-pkgs/manifests/internal/hackage"
 	_ "github.com/git-pkgs/manifests/internal/haxelib"
 	_ "github.com/git-pkgs/manifests/internal/hex"
+	_ "github.com/git-pkgs/manifests/internal/ips"
 	_ "github.com/git-pkgs/manifests/internal/julia"
 	_ "github.com/git-pkgs/manifests/internal/luarocks"
 	_ "github.com/git-pkgs/manifests/internal/maven"
