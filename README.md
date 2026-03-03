@@ -62,6 +62,7 @@ func main() {
 | git | .gitmodules | |
 | github-actions | .github/workflows/*.yml | |
 | golang | go.mod, Godeps, glide.yaml, Gopkg.toml | Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest |
+| guix | manifest.scm | |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
 | haxelib | haxelib.json | |
 | hex | mix.exs, gleam.toml | mix.lock, rebar.lock |

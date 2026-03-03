@@ -25,6 +25,7 @@ import (
 	_ "github.com/git-pkgs/manifests/internal/github_actions"
 	_ "github.com/git-pkgs/manifests/internal/gleam"
 	_ "github.com/git-pkgs/manifests/internal/golang"
+	_ "github.com/git-pkgs/manifests/internal/guix"
 	_ "github.com/git-pkgs/manifests/internal/hackage"
 	_ "github.com/git-pkgs/manifests/internal/haxelib"
 	_ "github.com/git-pkgs/manifests/internal/hex"
