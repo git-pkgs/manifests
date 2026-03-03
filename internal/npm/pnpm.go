@@ -70,7 +70,6 @@ type pnpmLockParser struct{}
 func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
-	seen := make(map[string]bool)
 
 	inPackages := false
 	var currentKey string
@@ -79,14 +78,32 @@ func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependen
 	var currentDev bool
 
 	core.ForEachLine(text, func(line string) bool {
-		// Detect packages: or snapshots: section
-		if line == "packages:" || line == "snapshots:" {
+		// Detect packages: section (skip snapshots: which only has peer-dep variants)
+		if line == "packages:" {
 			inPackages = true
 			return true
 		}
 
 		// End of packages section (new top-level key)
 		if inPackages && len(line) > 0 && line[0] != ' ' && line[0] != '\n' {
+			// Save the last package before leaving the section
+			if currentKey != "" {
+				name, version := parsePnpmPackageKey(currentKey)
+				if name != "" {
+					scope := core.Runtime
+					if currentDev {
+						scope = core.Development
+					}
+					deps = append(deps, core.Dependency{
+						Name:        name,
+						Version:     version,
+						Scope:       scope,
+						Direct:      false,
+						Integrity:   currentIntegrity,
+						RegistryURL: currentTarball,
+					})
+				}
+			}
 			inPackages = false
 			currentKey = ""
 		}
@@ -100,8 +117,7 @@ func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependen
 			// Save previous package if any
 			if currentKey != "" {
 				name, version := parsePnpmPackageKey(currentKey)
-				if name != "" && !seen[name] {
-					seen[name] = true
+				if name != "" {
 					scope := core.Runtime
 					if currentDev {
 						scope = core.Development
@@ -141,8 +157,7 @@ func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependen
 	// Don't forget the last package
 	if currentKey != "" {
 		name, version := parsePnpmPackageKey(currentKey)
-		if name != "" && !seen[name] {
-			seen[name] = true
+		if name != "" {
 			scope := core.Runtime
 			if currentDev {
 				scope = core.Development

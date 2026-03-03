@@ -334,17 +334,17 @@ func TestPnpmLock(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	// pnpm-lock.yaml has 8 unique packages (ansi-styles has 2 versions but may be deduped)
-	if len(deps) != 8 {
-		t.Fatalf("expected 8 dependencies, got %d", len(deps))
+	// pnpm-lock.yaml has 9 packages (ansi-styles appears at 2.2.0 and 2.2.1)
+	if len(deps) != 9 {
+		t.Fatalf("expected 9 dependencies, got %d", len(deps))
 	}
 
-	depMap := make(map[string]core.Dependency)
+	depMap := make(map[string][]core.Dependency)
 	for _, d := range deps {
-		depMap[d.Name] = d
+		depMap[d.Name] = append(depMap[d.Name], d)
 	}
 
-	// All 8 packages with exact versions and integrities
+	// Single-version packages with exact versions and integrities
 	expected := map[string]struct {
 		version   string
 		integrity string
@@ -359,24 +359,33 @@ func TestPnpmLock(t *testing.T) {
 	}
 
 	for name, exp := range expected {
-		dep, ok := depMap[name]
+		deps, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if dep.Version != exp.version {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, exp.version)
+		if deps[0].Version != exp.version {
+			t.Errorf("%s version = %q, want %q", name, deps[0].Version, exp.version)
 		}
-		if dep.Integrity != exp.integrity {
-			t.Errorf("%s integrity = %q, want %q", name, dep.Integrity, exp.integrity)
+		if deps[0].Integrity != exp.integrity {
+			t.Errorf("%s integrity = %q, want %q", name, deps[0].Integrity, exp.integrity)
 		}
 	}
 
-	// ansi-styles has 2 versions (2.2.0 dev:false, 2.2.1 dev:true) - verify one exists
-	if dep, ok := depMap["ansi-styles"]; !ok {
-		t.Error("expected ansi-styles dependency")
-	} else if dep.Version == "" {
-		t.Error("expected ansi-styles to have version")
+	// ansi-styles has 2 versions (2.2.0 and 2.2.1)
+	ansiStyles, ok := depMap["ansi-styles"]
+	if !ok {
+		t.Fatal("expected ansi-styles dependency")
+	}
+	if len(ansiStyles) != 2 {
+		t.Fatalf("expected 2 ansi-styles versions, got %d", len(ansiStyles))
+	}
+	versions := map[string]bool{}
+	for _, d := range ansiStyles {
+		versions[d.Version] = true
+	}
+	if !versions["2.2.0"] || !versions["2.2.1"] {
+		t.Errorf("expected ansi-styles 2.2.0 and 2.2.1, got %v", versions)
 	}
 }
 
@@ -595,39 +604,39 @@ func TestPnpmLockV5(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 89 {
-		t.Fatalf("expected 89 dependencies, got %d", len(deps))
+	if len(deps) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(deps))
 	}
 
-	depMap := make(map[string]core.Dependency)
+	depMap := make(map[string][]core.Dependency)
 	for _, d := range deps {
-		depMap[d.Name] = d
+		depMap[d.Name] = append(depMap[d.Name], d)
 	}
 
 	// Sample of packages
 	samples := map[string]string{
-		"@babel/helper-string-parser":      "7.27.1",
+		"@babel/helper-string-parser":        "7.27.1",
 		"@babel/helper-validator-identifier": "7.27.1",
-		"@babel/types":                     "7.28.1",
-		"acorn-babel":                      "0.11.1-38",
-		"acorn":                            "5.7.4",
-		"amdefine":                         "1.0.1",
-		"ansi-regex":                       "2.1.1",
-		"ansi-styles":                      "2.2.1",
-		"babel":                            "4.7.16",
-		"chalk":                            "1.1.3",
+		"@babel/types":                       "7.28.1",
+		"acorn-babel":                        "0.11.1-38",
+		"acorn":                              "5.7.4",
+		"amdefine":                           "1.0.1",
+		"ansi-regex":                         "2.1.1",
+		"babel":                              "4.7.16",
+		"chalk":                              "1.1.3",
 	}
 
 	for name, wantVer := range samples {
-		dep, ok := depMap[name]
+		deps, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		if deps[0].Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, deps[0].Version, wantVer)
 		}
 	}
+
 }
 
 func TestPnpmLockV6(t *testing.T) {
@@ -642,13 +651,13 @@ func TestPnpmLockV6(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 90 {
-		t.Fatalf("expected 90 dependencies, got %d", len(deps))
+	if len(deps) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(deps))
 	}
 
-	depMap := make(map[string]core.Dependency)
+	depMap := make(map[string][]core.Dependency)
 	for _, d := range deps {
-		depMap[d.Name] = d
+		depMap[d.Name] = append(depMap[d.Name], d)
 	}
 
 	// Sample of packages
@@ -666,13 +675,13 @@ func TestPnpmLockV6(t *testing.T) {
 	}
 
 	for name, wantVer := range samples {
-		dep, ok := depMap[name]
+		deps, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		if deps[0].Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, deps[0].Version, wantVer)
 		}
 	}
 }
@@ -689,16 +698,16 @@ func TestPnpmLockV9(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 90 {
-		t.Fatalf("expected 90 dependencies, got %d", len(deps))
+	if len(deps) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(deps))
 	}
 
-	depMap := make(map[string]core.Dependency)
+	depMap := make(map[string][]core.Dependency)
 	for _, d := range deps {
-		depMap[d.Name] = d
+		depMap[d.Name] = append(depMap[d.Name], d)
 	}
 
-	// Sample of packages
+	// Sample of single-version packages
 	expected := map[string]string{
 		"@babel/helper-string-parser":        "7.27.1",
 		"@babel/helper-validator-identifier": "7.27.1",
@@ -711,14 +720,30 @@ func TestPnpmLockV9(t *testing.T) {
 	}
 
 	for name, wantVer := range expected {
-		dep, ok := depMap[name]
+		deps, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		if deps[0].Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, deps[0].Version, wantVer)
 		}
+	}
+
+	// debug has 2 versions in the packages section
+	debugDeps, ok := depMap["debug"]
+	if !ok {
+		t.Fatal("expected debug dependency")
+	}
+	if len(debugDeps) != 2 {
+		t.Fatalf("expected 2 debug versions, got %d", len(debugDeps))
+	}
+	debugVersions := map[string]bool{}
+	for _, d := range debugDeps {
+		debugVersions[d.Version] = true
+	}
+	if !debugVersions["2.2.0"] || !debugVersions["2.6.9"] {
+		t.Errorf("expected debug 2.2.0 and 2.6.9, got %v", debugVersions)
 	}
 }
 
