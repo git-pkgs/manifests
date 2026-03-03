@@ -689,8 +689,8 @@ func TestPnpmLockV9(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(deps) != 90 {
+		t.Fatalf("expected 90 dependencies, got %d", len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -698,11 +698,16 @@ func TestPnpmLockV9(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// All 3 packages
+	// Sample of packages
 	expected := map[string]string{
-		"@babel/helper-string-parser":      "7.27.1",
+		"@babel/helper-string-parser":        "7.27.1",
 		"@babel/helper-validator-identifier": "7.27.1",
-		"@babel/types":                     "7.28.1",
+		"@babel/types":                       "7.28.1",
+		"babel":                              "4.7.16",
+		"mocha":                              "2.5.3",
+		"zod":                                "3.24.2",
+		"acorn":                              "5.7.4",
+		"esprima-fb":                         "15001.1001.0-dev-harmony-fb",
 	}
 
 	for name, wantVer := range expected {

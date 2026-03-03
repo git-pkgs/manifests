@@ -24,8 +24,9 @@ func extractPnpmPackageKey(line string) (string, bool) {
 	if len(key) >= 2 && (key[0] == '\'' || key[0] == '"') {
 		key = key[1 : len(key)-1]
 	}
-	// Must start with / or @
-	if len(key) == 0 || (key[0] != '/' && key[0] != '@') {
+	// v5 format starts with /, scoped v6+ starts with @,
+	// non-scoped v6+ (e.g. "acorn@5.7.4") must contain @ as version separator
+	if len(key) == 0 || (key[0] != '/' && key[0] != '@' && !strings.Contains(key, "@")) {
 		return "", false
 	}
 	return key, true
