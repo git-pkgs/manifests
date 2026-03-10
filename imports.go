@@ -37,6 +37,7 @@ import (
 	_ "github.com/git-pkgs/manifests/internal/nix"
 	_ "github.com/git-pkgs/manifests/internal/npm"
 	_ "github.com/git-pkgs/manifests/internal/nuget"
+	_ "github.com/git-pkgs/manifests/internal/precommit"
 	_ "github.com/git-pkgs/manifests/internal/pub"
 	_ "github.com/git-pkgs/manifests/internal/pypi"
 	_ "github.com/git-pkgs/manifests/internal/rebar"

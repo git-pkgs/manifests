@@ -71,6 +71,7 @@ func main() {
 | maven | pom.xml, ivy.xml, build.gradle, build.gradle.kts, build.sbt | gradle.lockfile, gradle-dependencies-q.txt, maven-resolved-dependencies.txt, verification-metadata.xml |
 | nimble | *.nimble | |
 | nix | flake.nix | flake.lock, sources.json |
+| pre-commit | .pre-commit-config.yaml | |
 | npm | package.json, bower.json | package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock, npm-ls.json |
 | nuget | *.csproj, *.vbproj, *.fsproj, *.nuspec, packages.config, Project.json | packages.lock.json, paket.lock, project.assets.json, *.deps.json, Project.lock.json |
 | pub | pubspec.yaml | pubspec.lock |
