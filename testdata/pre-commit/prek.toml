@@ -1,0 +1,39 @@
+[[repos]]
+repo = "builtin"
+hooks = [
+    { id = "trailing-whitespace" },
+    { id = "end-of-file-fixer" },
+]
+
+[[repos]]
+repo = "https://github.com/crate-ci/typos"
+rev = "v1.42.3"
+hooks = [
+    { id = "typos" },
+]
+
+[[repos]]
+repo = "https://github.com/executablebooks/mdformat"
+rev = "1.0.0"
+hooks = [
+    { id = "mdformat", language = "python" },
+]
+
+[[repos]]
+repo = "https://gitlab.com/pycqa/flake8"
+rev = "7.0.0"
+hooks = [
+    { id = "flake8" },
+]
+
+[[repos]]
+repo = "local"
+hooks = [
+    { id = "taplo-fmt", name = "taplo fmt", entry = "taplo fmt", language = "system", types = ["toml"] },
+]
+
+[[repos]]
+repo = "meta"
+hooks = [
+    { id = "check-hooks-apply" },
+]
