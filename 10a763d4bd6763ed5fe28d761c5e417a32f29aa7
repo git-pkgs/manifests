@@ -1,0 +1,31 @@
+internal/precommit/precommit.go
+  317792d71079dd44 1-51
+imports.go
+  317792d71079dd44 40
+README.md
+  317792d71079dd44 74
+testdata/pre-commit/.pre-commit-config.yaml
+  317792d71079dd44 1-28
+internal/precommit/precommit_test.go
+  317792d71079dd44 1-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.10",
+  "base_commit_sha": "10a763d4bd6763ed5fe28d761c5e417a32f29aa7",
+  "prompts": {
+    "317792d71079dd44": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ebd3ae10-7978-4a13-abea-911a8646aeec",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Andrew Nesbitt <andrewnez@gmail.com>",
+      "messages": [],
+      "total_additions": 140,
+      "total_deletions": 5,
+      "accepted_lines": 135,
+      "overriden_lines": 0
+    }
+  }
+}
