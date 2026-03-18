@@ -62,97 +62,100 @@ func (p *githubWorkflowParser) Parse(filename string, content []byte) ([]core.De
 	seen := make(map[string]bool)
 
 	for _, job := range workflow.Jobs {
-		// Parse step actions
-		for _, step := range job.Steps {
-			if step.Uses == "" {
-				continue
-			}
-
-			name, version := parseGitHubAction(step.Uses)
-			if name == "" {
-				continue
-			}
-
-			key := name + "@" + version
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-
-			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: version,
-				Scope:   core.Runtime,
-				Direct:  true,
-			})
-		}
-
-		// Parse job container
-		if job.Container != nil {
-			var containerImage string
-			switch c := job.Container.(type) {
-			case string:
-				containerImage = c
-			case map[string]any:
-				if img, ok := c["image"].(string); ok {
-					containerImage = img
-				}
-			}
-
-			if containerImage != "" && !strings.Contains(containerImage, "$") {
-				name, version := core.ParseDockerImage(containerImage)
-				if name != "" {
-					key := "docker://" + name + "@" + version
-					if !seen[key] {
-						seen[key] = true
-						deps = append(deps, core.Dependency{
-							Name:    "docker://" + name,
-							Version: version,
-							Scope:   core.Runtime,
-							Direct:  true,
-						})
-					}
-				}
-			}
-		}
-
-		// Parse services
-		for _, service := range job.Services {
-			var serviceImage string
-			switch s := service.(type) {
-			case string:
-				serviceImage = s
-			case map[string]any:
-				if img, ok := s["image"].(string); ok {
-					serviceImage = img
-				}
-			}
-
-			if serviceImage == "" || strings.Contains(serviceImage, "$") {
-				continue
-			}
-
-			name, version := core.ParseDockerImage(serviceImage)
-			if name == "" {
-				continue
-			}
-
-			key := "docker://" + name + "@" + version
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-
-			deps = append(deps, core.Dependency{
-				Name:    "docker://" + name,
-				Version: version,
-				Scope:   core.Runtime,
-				Direct:  true,
-			})
-		}
+		deps = collectStepActions(job.Steps, deps, seen)
+		deps = collectContainerImage(job.Container, deps, seen)
+		deps = collectServiceImages(job.Services, deps, seen)
 	}
 
 	return deps, nil
+}
+
+// collectStepActions extracts action dependencies from job steps.
+func collectStepActions(steps []githubStep, deps []core.Dependency, seen map[string]bool) []core.Dependency {
+	for _, step := range steps {
+		if step.Uses == "" {
+			continue
+		}
+
+		name, version := parseGitHubAction(step.Uses)
+		if name == "" {
+			continue
+		}
+
+		key := name + "@" + version
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+
+		deps = append(deps, core.Dependency{
+			Name:    name,
+			Version: version,
+			Scope:   core.Runtime,
+			Direct:  true,
+		})
+	}
+	return deps
+}
+
+// collectContainerImage extracts a Docker dependency from a job's container field.
+func collectContainerImage(container any, deps []core.Dependency, seen map[string]bool) []core.Dependency {
+	if container == nil {
+		return deps
+	}
+
+	image := extractImageRef(container)
+	if image == "" || strings.Contains(image, "$") {
+		return deps
+	}
+
+	return appendDockerDep(image, deps, seen)
+}
+
+// collectServiceImages extracts Docker dependencies from a job's services.
+func collectServiceImages(services map[string]any, deps []core.Dependency, seen map[string]bool) []core.Dependency {
+	for _, service := range services {
+		image := extractImageRef(service)
+		if image == "" || strings.Contains(image, "$") {
+			continue
+		}
+		deps = appendDockerDep(image, deps, seen)
+	}
+	return deps
+}
+
+// extractImageRef pulls a Docker image string from either a plain string or a map with an "image" key.
+func extractImageRef(v any) string {
+	switch c := v.(type) {
+	case string:
+		return c
+	case map[string]any:
+		if img, ok := c["image"].(string); ok {
+			return img
+		}
+	}
+	return ""
+}
+
+// appendDockerDep parses a Docker image reference and appends it as a dependency if not already seen.
+func appendDockerDep(image string, deps []core.Dependency, seen map[string]bool) []core.Dependency {
+	name, version := core.ParseDockerImage(image)
+	if name == "" {
+		return deps
+	}
+
+	key := "docker://" + name + "@" + version
+	if seen[key] {
+		return deps
+	}
+	seen[key] = true
+
+	return append(deps, core.Dependency{
+		Name:    "docker://" + name,
+		Version: version,
+		Scope:   core.Runtime,
+		Direct:  true,
+	})
 }
 
 // parseGitHubAction parses a GitHub Action reference.

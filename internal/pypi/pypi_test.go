@@ -7,41 +7,31 @@ import (
 	"github.com/git-pkgs/manifests/internal/core"
 )
 
-func TestRequirementsTxt(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/requirements.txt")
+// parseFixture reads a fixture file, parses it, checks the dep count, and returns
+// a map of dependency name to Dependency for further assertions.
+func parseFixture(t *testing.T, fixturePath string, filename string, p core.Parser, wantCount int) map[string]core.Dependency {
+	t.Helper()
+	content, err := os.ReadFile(fixturePath)
 	if err != nil {
 		t.Fatalf("failed to read fixture: %v", err)
 	}
-
-	parser := &requirementsTxtParser{}
-	deps, err := parser.Parse("requirements.txt", content)
+	deps, err := p.Parse(filename, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
-
-	if len(deps) != 10 {
-		t.Fatalf("expected 10 dependencies, got %d", len(deps))
+	if len(deps) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
 	}
-
 	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
 		depMap[d.Name] = d
 	}
+	return depMap
+}
 
-	// All 10 packages with versions
-	expected := map[string]string{
-		"Flask":        "== 0.8",
-		"zope.component": "==4.2.2",
-		"scikit-learn": "==0.16.1",
-		"Beaker":       ">=1.6.5",
-		"certifi":      "==0.0.8",
-		"chardet":      "==1.0.1",
-		"distribute":   "==0.6.24",
-		"gunicorn":     "==0.14.2",
-		"requests":     "==0.11.1",
-		"Django":       "== 2.0beta1",
-	}
-
+// verifyVersions checks that each expected name/version pair exists in the dep map.
+func verifyVersions(t *testing.T, depMap map[string]core.Dependency, expected map[string]string) {
+	t.Helper()
 	for name, wantVer := range expected {
 		dep, ok := depMap[name]
 		if !ok {
@@ -52,6 +42,22 @@ func TestRequirementsTxt(t *testing.T) {
 			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
 		}
 	}
+}
+
+func TestRequirementsTxt(t *testing.T) {
+	depMap := parseFixture(t, "../../testdata/pypi/requirements.txt", "requirements.txt", &requirementsTxtParser{}, 10)
+	verifyVersions(t, depMap, map[string]string{
+		"Flask":          "== 0.8",
+		"zope.component": "==4.2.2",
+		"scikit-learn":   "==0.16.1",
+		"Beaker":         ">=1.6.5",
+		"certifi":        "==0.0.8",
+		"chardet":        "==1.0.1",
+		"distribute":     "==0.6.24",
+		"gunicorn":       "==0.14.2",
+		"requests":       "==0.11.1",
+		"Django":         "== 2.0beta1",
+	})
 
 	// Verify comment was filtered out
 	if _, ok := depMap["Jinja2"]; ok {
@@ -218,148 +224,54 @@ func TestPyprojectToml(t *testing.T) {
 }
 
 func TestPoetryLock(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/poetry.lock")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &poetryLockParser{}
-	deps, err := parser.Parse("poetry.lock", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 20 {
-		t.Fatalf("expected 20 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All 20 packages with versions
-	expected := map[string]string{
-		"asgiref":             "3.7.2",
-		"atomicwrites":        "1.4.1",
-		"attrs":               "24.2.0",
-		"colorama":            "0.4.6",
-		"django":              "3.2.25",
-		"importlib-metadata":  "6.7.0",
-		"more-itertools":      "9.1.0",
-		"packaging":           "24.0",
-		"pathlib2":            "2.3.7.post1",
-		"pluggy":              "0.13.1",
-		"py":                  "1.11.0",
-		"pytest":              "5.4.3",
-		"pytz":                "2025.2",
-		"setuptools":          "68.0.0",
-		"six":                 "1.17.0",
-		"sqlparse":            "0.4.4",
-		"typing-extensions":   "4.7.1",
-		"wcwidth":             "0.2.13",
-		"zipp":                "3.15.0",
-		"zope-interface":      "6.3",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	depMap := parseFixture(t, "../../testdata/pypi/poetry.lock", "poetry.lock", &poetryLockParser{}, 20)
+	verifyVersions(t, depMap, map[string]string{
+		"asgiref":            "3.7.2",
+		"atomicwrites":       "1.4.1",
+		"attrs":              "24.2.0",
+		"colorama":           "0.4.6",
+		"django":             "3.2.25",
+		"importlib-metadata": "6.7.0",
+		"more-itertools":     "9.1.0",
+		"packaging":          "24.0",
+		"pathlib2":           "2.3.7.post1",
+		"pluggy":             "0.13.1",
+		"py":                 "1.11.0",
+		"pytest":             "5.4.3",
+		"pytz":               "2025.2",
+		"setuptools":         "68.0.0",
+		"six":                "1.17.0",
+		"sqlparse":           "0.4.4",
+		"typing-extensions":  "4.7.1",
+		"wcwidth":            "0.2.13",
+		"zipp":               "3.15.0",
+		"zope-interface":     "6.3",
+	})
 }
 
 func TestRequirementsDevTxt(t *testing.T) {
-	// Tests pip-compile output format (requirements-dev.txt)
-	content, err := os.ReadFile("../../testdata/pypi/requirements-dev.txt")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &requirementsTxtParser{}
-	deps, err := parser.Parse("requirements-dev.txt", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 51 {
-		t.Fatalf("expected 51 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// Sample of packages with versions
-	samples := map[string]string{
-		"astroid":            "==2.9.0",
-		"attrs":              "==21.4.0",
-		"boto3":              "==1.20.26",
-		"coverage":           "==6.2",
-		"flake8":             "==4.0.1",
-		"pytest":             "==6.2.5",
-		"mypy":               "==0.812",
-		"pylint":             "==2.12.2",
-		"requests":           "==2.26.0",
-		"wheel":              "==0.37.1",
-	}
-
-	for name, wantVer := range samples {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	depMap := parseFixture(t, "../../testdata/pypi/requirements-dev.txt", "requirements-dev.txt", &requirementsTxtParser{}, 51)
+	verifyVersions(t, depMap, map[string]string{
+		"astroid":  "==2.9.0",
+		"attrs":    "==21.4.0",
+		"boto3":    "==1.20.26",
+		"coverage": "==6.2",
+		"flake8":   "==4.0.1",
+		"pytest":   "==6.2.5",
+		"mypy":     "==0.812",
+		"pylint":   "==2.12.2",
+		"requests": "==2.26.0",
+		"wheel":    "==0.37.1",
+	})
 }
 
 func TestRequirementsFrozen(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/requirements.frozen")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &requirementsTxtParser{}
-	deps, err := parser.Parse("requirements.frozen", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All 3 packages with versions
-	expected := map[string]string{
+	depMap := parseFixture(t, "../../testdata/pypi/requirements.frozen", "requirements.frozen", &requirementsTxtParser{}, 3)
+	verifyVersions(t, depMap, map[string]string{
 		"asgiref":  "==3.2.7",
 		"Django":   "==3.0.6",
 		"sqlparse": "==0.3.1",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestPdmLock(t *testing.T) {
@@ -509,32 +421,12 @@ func TestParsePEP508(t *testing.T) {
 }
 
 func TestPipCompileRequirementsIn(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/pip-compile/requirements.in")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
+	depMap := parseFixture(t, "../../testdata/pypi/pip-compile/requirements.in", "requirements.in", &requirementsTxtParser{}, 10)
 
-	parser := &requirementsTxtParser{}
-	deps, err := parser.Parse("requirements.in", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 10 {
-		t.Fatalf("expected 10 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All 10 packages (no versions in .in files)
 	expectedNames := []string{
 		"invoke", "black", "google-cloud-storage", "six", "progress",
 		"questionary", "pyyaml", "semver", "Jinja2", "pip-tools",
 	}
-
 	for _, name := range expectedNames {
 		if _, ok := depMap[name]; !ok {
 			t.Errorf("expected %s dependency", name)
@@ -543,183 +435,53 @@ func TestPipCompileRequirementsIn(t *testing.T) {
 }
 
 func TestPipCompileRequirementsTxt(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/pip-compile/requirements.txt")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &requirementsTxtParser{}
-	deps, err := parser.Parse("requirements.txt", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 38 {
-		t.Fatalf("expected 38 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// Sample of packages with versions
-	samples := map[string]string{
-		"black":                  "==21.9b0",
+	depMap := parseFixture(t, "../../testdata/pypi/pip-compile/requirements.txt", "requirements.txt", &requirementsTxtParser{}, 38)
+	verifyVersions(t, depMap, map[string]string{
+		"black":                 "==21.9b0",
 		"google-cloud-storage":  "==1.42.2",
-		"invoke":                 "==1.6.0",
-		"jinja2":                 "==3.0.1",
-		"pip-tools":              "==6.2.0",
-		"pyyaml":                 "==5.4.1",
-		"questionary":            "==1.10.0",
-		"semver":                 "==2.13.0",
-		"six":                    "==1.16.0",
-		"requests":               "==2.26.0",
-	}
-
-	for name, wantVer := range samples {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+		"invoke":                "==1.6.0",
+		"jinja2":                "==3.0.1",
+		"pip-tools":             "==6.2.0",
+		"pyyaml":                "==5.4.1",
+		"questionary":           "==1.10.0",
+		"semver":                "==2.13.0",
+		"six":                   "==1.16.0",
+		"requests":              "==2.26.0",
+	})
 }
 
 func TestPipCompileFrozen(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/pip-compile/requirements.frozen")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &requirementsTxtParser{}
-	deps, err := parser.Parse("requirements.frozen", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
-	}
-
-	if deps[0].Name != "black" {
-		t.Errorf("expected black, got %s", deps[0].Name)
-	}
-	if deps[0].Version != "==21.9b0" {
-		t.Errorf("black version = %q, want %q", deps[0].Version, "==21.9b0")
-	}
+	depMap := parseFixture(t, "../../testdata/pypi/pip-compile/requirements.frozen", "requirements.frozen", &requirementsTxtParser{}, 1)
+	verifyVersions(t, depMap, map[string]string{
+		"black": "==21.9b0",
+	})
 }
 
 func TestPipCompileExtrasIn(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/pip-compile/requirements-extras.in")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &requirementsTxtParser{}
-	deps, err := parser.Parse("requirements-extras.in", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All 2 packages
-	expected := map[string]string{
-		"urllib3":            "==1.0.0",
+	depMap := parseFixture(t, "../../testdata/pypi/pip-compile/requirements-extras.in", "requirements-extras.in", &requirementsTxtParser{}, 2)
+	verifyVersions(t, depMap, map[string]string{
+		"urllib3":              "==1.0.0",
 		"django-dbfilestorage": "==1.0.0",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestPoetryProjectLock(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/poetry-project/poetry.lock")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &poetryLockParser{}
-	deps, err := parser.Parse("poetry.lock", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 77 {
-		t.Fatalf("expected 77 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// Sample of packages with versions
-	samples := map[string]string{
-		"anyio":              "4.12.0",
+	depMap := parseFixture(t, "../../testdata/pypi/poetry-project/poetry.lock", "poetry.lock", &poetryLockParser{}, 77)
+	verifyVersions(t, depMap, map[string]string{
+		"anyio":             "4.12.0",
 		"backports-tarfile": "1.2.0",
-		"build":              "1.3.0",
-		"certifi":            "2025.11.12",
-		"coverage":           "7.12.0",
-		"cryptography":       "46.0.3",
-		"deepdiff":           "8.6.1",
-		"dulwich":            "0.25.0",
-	}
-
-	for name, wantVer := range samples {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+		"build":             "1.3.0",
+		"certifi":           "2025.11.12",
+		"coverage":          "7.12.0",
+		"cryptography":      "46.0.3",
+		"deepdiff":          "8.6.1",
+		"dulwich":           "0.25.0",
+	})
 }
 
 func TestRequirementsTestTxt(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/requirements/test.txt")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &requirementsTxtParser{}
-	deps, err := parser.Parse("test.txt", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 15 {
-		t.Fatalf("expected 15 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// Sample of packages with versions
-	samples := map[string]string{
+	depMap := parseFixture(t, "../../testdata/pypi/requirements/test.txt", "test.txt", &requirementsTxtParser{}, 15)
+	verifyVersions(t, depMap, map[string]string{
 		"attrs":        "==21.4.0",
 		"execnet":      "==1.9.0",
 		"iniconfig":    "==1.1.1",
@@ -727,43 +489,12 @@ func TestRequirementsTestTxt(t *testing.T) {
 		"pytest":       "==7.1.2",
 		"pytest-xdist": "==2.5.0",
 		"tomli":        "==2.0.1",
-	}
-
-	for name, wantVer := range samples {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestPipDependencyGraph(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/pip-dependency-graph.json")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &pipDependencyGraphParser{}
-	deps, err := parser.Parse("pip-dependency-graph.json", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 17 {
-		t.Fatalf("expected 17 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// Sample packages with versions
-	expected := map[string]string{
+	depMap := parseFixture(t, "../../testdata/pypi/pip-dependency-graph.json", "pip-dependency-graph.json", &pipDependencyGraphParser{}, 17)
+	verifyVersions(t, depMap, map[string]string{
 		"aiohttp":         "3.9.5",
 		"aiosignal":       "1.3.1",
 		"black":           "23.12.0",
@@ -774,57 +505,16 @@ func TestPipDependencyGraph(t *testing.T) {
 		"mypy-extensions": "1.0.0",
 		"packaging":       "24.0",
 		"pathspec":        "0.12.1",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestPipResolvedDeps(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/pip-resolved-dependencies.txt")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &pipResolvedDepsParser{}
-	deps, err := parser.Parse("pip-resolved-dependencies.txt", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	expected := map[string]string{
+	depMap := parseFixture(t, "../../testdata/pypi/pip-resolved-dependencies.txt", "pip-resolved-dependencies.txt", &pipResolvedDepsParser{}, 3)
+	verifyVersions(t, depMap, map[string]string{
 		"asgiref":  "3.2.7",
 		"Django":   "3.0.6",
 		"sqlparse": "0.3.1",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestSetupPy(t *testing.T) {
@@ -927,44 +617,12 @@ func TestPylockToml(t *testing.T) {
 }
 
 func TestPipdeptreeJSON(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/pipdeptree.json")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &pipDependencyGraphParser{}
-	deps, err := parser.Parse("pipdeptree.json", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	// Same as pip-dependency-graph.json test since file is a copy
-	if len(deps) != 17 {
-		t.Fatalf("expected 17 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// Verify some packages
-	samples := map[string]string{
+	depMap := parseFixture(t, "../../testdata/pypi/pipdeptree.json", "pipdeptree.json", &pipDependencyGraphParser{}, 17)
+	verifyVersions(t, depMap, map[string]string{
 		"aiohttp": "3.9.5",
 		"black":   "23.12.0",
 		"click":   "8.1.7",
-	}
-
-	for name, wantVer := range samples {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestPyprojectPEP621OptionalDeps(t *testing.T) {
@@ -1069,43 +727,12 @@ func TestSetupPyExtrasRequire(t *testing.T) {
 }
 
 func TestPipenvGraphJSON(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/pypi/pipenv.graph.json")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &pipDependencyGraphParser{}
-	deps, err := parser.Parse("pipenv.graph.json", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// Verify all packages
-	expected := map[string]string{
-		"requests":            "2.31.0",
-		"charset-normalizer":  "3.3.2",
-		"idna":                "3.7",
-		"urllib3":             "2.2.1",
-		"certifi":             "2024.2.2",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	depMap := parseFixture(t, "../../testdata/pypi/pipenv.graph.json", "pipenv.graph.json", &pipDependencyGraphParser{}, 5)
+	verifyVersions(t, depMap, map[string]string{
+		"requests":           "2.31.0",
+		"charset-normalizer": "3.3.2",
+		"idna":               "3.7",
+		"urllib3":            "2.2.1",
+		"certifi":            "2024.2.2",
+	})
 }

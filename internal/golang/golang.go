@@ -36,8 +36,14 @@ var (
 
 func (p *goModParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	lines := strings.Split(string(content), "\n")
+	tools := collectToolPaths(lines)
+	deps := collectRequireDeps(lines, tools)
+	return deps, nil
+}
 
-	// First pass: collect all tool paths
+// collectToolPaths scans go.mod lines for tool directives (both single-line and block form)
+// and returns a set of tool import paths.
+func collectToolPaths(lines []string) map[string]bool {
 	tools := make(map[string]bool)
 	inToolBlock := false
 
@@ -72,7 +78,12 @@ func (p *goModParser) Parse(filename string, content []byte) ([]core.Dependency,
 		}
 	}
 
-	// Second pass: parse require directives and check against tools
+	return tools
+}
+
+// collectRequireDeps scans go.mod lines for require directives (both single-line and block form)
+// and returns dependencies, marking tool-related modules as development scope.
+func collectRequireDeps(lines []string, tools map[string]bool) []core.Dependency {
 	var deps []core.Dependency
 	inRequireBlock := false
 
@@ -95,39 +106,35 @@ func (p *goModParser) Parse(filename string, content []byte) ([]core.Dependency,
 
 		if strings.HasPrefix(trimmed, "require ") && !strings.Contains(trimmed, "(") {
 			if match := singleRequireRegex.FindStringSubmatch(trimmed); match != nil {
-				direct := !strings.Contains(line, "// indirect")
-				scope := core.Runtime
-				if isToolModule(match[1], tools) {
-					scope = core.Development
-				}
-				deps = append(deps, core.Dependency{
-					Name:    match[1],
-					Version: match[2],
-					Scope:   scope,
-					Direct:  direct,
-				})
+				deps = append(deps, newRequireDep(match[1], match[2], line, tools))
 			}
 			continue
 		}
 
 		if inRequireBlock {
 			if match := requireEntryRegex.FindStringSubmatch(trimmed); match != nil {
-				direct := !strings.Contains(line, "// indirect")
-				scope := core.Runtime
-				if isToolModule(match[1], tools) {
-					scope = core.Development
-				}
-				deps = append(deps, core.Dependency{
-					Name:    match[1],
-					Version: match[2],
-					Scope:   scope,
-					Direct:  direct,
-				})
+				deps = append(deps, newRequireDep(match[1], match[2], line, tools))
 			}
 		}
 	}
 
-	return deps, nil
+	return deps
+}
+
+// newRequireDep builds a Dependency from a parsed require entry, determining
+// scope based on whether the module is used by a tool directive.
+func newRequireDep(name, version, rawLine string, tools map[string]bool) core.Dependency {
+	direct := !strings.Contains(rawLine, "// indirect")
+	scope := core.Runtime
+	if isToolModule(name, tools) {
+		scope = core.Development
+	}
+	return core.Dependency{
+		Name:    name,
+		Version: version,
+		Scope:   scope,
+		Direct:  direct,
+	}
 }
 
 // isToolModule checks if a module is used by any tool.
@@ -227,8 +234,9 @@ func (p *goGraphParser) Parse(filename string, content []byte) ([]core.Dependenc
 			continue
 		}
 
+		const graphEdgeParts = 2 // parent dep
 		parts := strings.Fields(line)
-		if len(parts) != 2 {
+		if len(parts) != graphEdgeParts {
 			continue
 		}
 
@@ -251,8 +259,9 @@ func (p *goGraphParser) Parse(filename string, content []byte) ([]core.Dependenc
 			continue
 		}
 
+		const graphEdgeParts = 2 // parent dep
 		parts := strings.Fields(line)
-		if len(parts) != 2 {
+		if len(parts) != graphEdgeParts {
 			continue
 		}
 

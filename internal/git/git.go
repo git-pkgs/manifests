@@ -7,6 +7,8 @@ import (
 	"github.com/git-pkgs/manifests/internal/core"
 )
 
+const keyValueParts = 2 // key=value
+
 func init() {
 	core.Register("git", core.Manifest, &gitmodulesParser{}, core.ExactMatch(".gitmodules"))
 }
@@ -41,11 +43,11 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) ([]core.Depend
 		}
 
 		if strings.HasPrefix(line, "path") {
-			if _, val, ok := parseKeyValue(line); ok {
+			if val, ok := parseKeyValue(line); ok {
 				current.Name = val
 			}
 		} else if strings.HasPrefix(line, "url") {
-			if _, val, ok := parseKeyValue(line); ok {
+			if val, ok := parseKeyValue(line); ok {
 				current.RegistryURL = val
 			}
 		}
@@ -58,10 +60,10 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) ([]core.Depend
 	return deps, nil
 }
 
-func parseKeyValue(line string) (string, string, bool) {
-	parts := strings.SplitN(line, "=", 2)
-	if len(parts) != 2 {
-		return "", "", false
+func parseKeyValue(line string) (string, bool) {
+	parts := strings.SplitN(line, "=", keyValueParts)
+	if len(parts) != keyValueParts {
+		return "", false
 	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), true
+	return strings.TrimSpace(parts[1]), true
 }

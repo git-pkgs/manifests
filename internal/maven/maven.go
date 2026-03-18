@@ -9,6 +9,11 @@ import (
 	"github.com/git-pkgs/manifests/internal/core"
 )
 
+const (
+	scopeTest     = "test"
+	scopeProvided = "provided"
+)
+
 func init() {
 	core.Register("maven", core.Manifest, &pomXMLParser{}, core.ExactMatch("pom.xml"))
 
@@ -54,9 +59,9 @@ func (p *pomXMLParser) Parse(filename string, content []byte) ([]core.Dependency
 		scope := core.Runtime
 
 		switch strings.ToLower(dep.Scope) {
-		case "test":
+		case scopeTest:
 			scope = core.Test
-		case "provided", "compile":
+		case scopeProvided, "compile":
 			scope = core.Runtime
 		case "runtime":
 			scope = core.Runtime
@@ -110,9 +115,9 @@ func (p *mavenResolvedDepsParser) Parse(filename string, content []byte) ([]core
 
 			scope := core.Runtime
 			switch scopeStr {
-			case "test":
+			case scopeTest:
 				scope = core.Test
-			case "provided":
+			case scopeProvided:
 				scope = core.Runtime
 			case "runtime":
 				scope = core.Runtime
@@ -170,9 +175,9 @@ func collectMavenGraphDeps(deps *[]core.Dependency, seen map[string]bool, nodes 
 
 			scope := core.Runtime
 			switch strings.ToLower(node.Scope) {
-			case "test":
+			case scopeTest:
 				scope = core.Test
-			case "provided":
+			case scopeProvided:
 				scope = core.Optional
 			}
 

@@ -7,43 +7,31 @@ import (
 	"github.com/git-pkgs/manifests/internal/core"
 )
 
-func TestGemfile(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/gem/Gemfile")
+type expectedDep struct {
+	version string
+	scope   core.Scope
+}
+
+func assertDepsWithScopes(t *testing.T, parser core.Parser, fixture string, filename string, wantCount int, expected map[string]expectedDep) {
+	t.Helper()
+
+	content, err := os.ReadFile(fixture)
 	if err != nil {
 		t.Fatalf("failed to read fixture: %v", err)
 	}
 
-	parser := &gemfileParser{}
-	deps, err := parser.Parse("Gemfile", content)
+	deps, err := parser.Parse(filename, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 11 {
-		t.Fatalf("expected 11 dependencies, got %d", len(deps))
+	if len(deps) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
 		depMap[d.Name] = d
-	}
-
-	// All packages with exact versions and scopes
-	expected := map[string]struct {
-		version string
-		scope   core.Scope
-	}{
-		"oj":            {"", core.Runtime},
-		"rails":         {"4.2.0", core.Runtime},
-		"leveldb-ruby":  {"0.15", core.Runtime},
-		"nokogiri":      {"~> 1.6", core.Runtime},
-		"rack":          {">= 2.0", core.Runtime},
-		"json":          {"< 3.0", core.Runtime},
-		"spring":        {"", core.Development},
-		"thin":          {"", core.Development},
-		"puma":          {"", core.Runtime}, // production group maps to runtime
-		"rails_12factor": {"", core.Runtime},
-		"bugsnag":       {"", core.Runtime},
 	}
 
 	for name, exp := range expected {
@@ -59,6 +47,22 @@ func TestGemfile(t *testing.T) {
 			t.Errorf("%s scope = %v, want %v", name, dep.Scope, exp.scope)
 		}
 	}
+}
+
+func TestGemfile(t *testing.T) {
+	assertDepsWithScopes(t, &gemfileParser{}, "../../testdata/gem/Gemfile", "Gemfile", 11, map[string]expectedDep{
+		"oj":             {"", core.Runtime},
+		"rails":          {"4.2.0", core.Runtime},
+		"leveldb-ruby":   {"0.15", core.Runtime},
+		"nokogiri":       {"~> 1.6", core.Runtime},
+		"rack":           {">= 2.0", core.Runtime},
+		"json":           {"< 3.0", core.Runtime},
+		"spring":         {"", core.Development},
+		"thin":           {"", core.Development},
+		"puma":           {"", core.Runtime}, // production group maps to runtime
+		"rails_12factor": {"", core.Runtime},
+		"bugsnag":        {"", core.Runtime},
+	})
 }
 
 func TestGemfileLock(t *testing.T) {
@@ -156,81 +160,19 @@ func TestGemfileLockWithChecksums(t *testing.T) {
 }
 
 func TestGemspec(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/gem/devise.gemspec")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &gemspecParser{}
-	deps, err := parser.Parse("devise.gemspec", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All packages with exact versions and scopes
-	expected := map[string]struct {
-		version string
-		scope   core.Scope
-	}{
+	assertDepsWithScopes(t, &gemspecParser{}, "../../testdata/gem/devise.gemspec", "devise.gemspec", 6, map[string]expectedDep{
 		"warden":      {"~> 1.2.3", core.Runtime},
 		"orm_adapter": {"~> 0.1", core.Development},
 		"bcrypt":      {"~> 3.0", core.Runtime},
 		"thread_safe": {"~> 0.1", core.Runtime},
 		"railties":    {">= 3.2.6", core.Runtime}, // parser only captures first constraint
 		"responders":  {"", core.Runtime},
-	}
-
-	for name, exp := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != exp.version {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, exp.version)
-		}
-		if dep.Scope != exp.scope {
-			t.Errorf("%s scope = %v, want %v", name, dep.Scope, exp.scope)
-		}
-	}
+	})
 }
 
 func TestGemsRb(t *testing.T) {
 	// gems.rb is an alternative name for Gemfile with identical format
-	content, err := os.ReadFile("../../testdata/gem/gems.rb")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &gemfileParser{}
-	deps, err := parser.Parse("gems.rb", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 11 {
-		t.Fatalf("expected 11 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All 11 packages with exact versions and scopes (same as Gemfile)
-	expected := map[string]struct {
-		version string
-		scope   core.Scope
-	}{
+	assertDepsWithScopes(t, &gemfileParser{}, "../../testdata/gem/gems.rb", "gems.rb", 11, map[string]expectedDep{
 		"oj":             {"", core.Runtime},
 		"rails":          {"4.2.0", core.Runtime},
 		"leveldb-ruby":   {"0.15", core.Runtime},
@@ -242,21 +184,7 @@ func TestGemsRb(t *testing.T) {
 		"puma":           {"", core.Runtime},
 		"rails_12factor": {"", core.Runtime},
 		"bugsnag":        {"", core.Runtime},
-	}
-
-	for name, exp := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != exp.version {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, exp.version)
-		}
-		if dep.Scope != exp.scope {
-			t.Errorf("%s scope = %v, want %v", name, dep.Scope, exp.scope)
-		}
-	}
+	})
 }
 
 func TestGemfileLockLineEndings(t *testing.T) {

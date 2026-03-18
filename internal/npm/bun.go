@@ -36,79 +36,99 @@ func (p *bunLockParser) Parse(filename string, content []byte) ([]core.Dependenc
 			continue
 		}
 
-		// Package line format: "name": ["resolved@version", "url", {...}, "sha..."],
-		// Look for lines starting with 4 spaces + quote
-		if !strings.HasPrefix(line, `    "`) {
+		dep, ok := parseBunPackageLine(line)
+		if !ok {
 			continue
 		}
 
-		// Extract the array part after the colon
-		colonIdx := strings.Index(line, `": [`)
-		if colonIdx < 0 {
+		if seen[dep.Name] {
 			continue
 		}
+		seen[dep.Name] = true
 
-		// Find first element in array (name@version)
-		arrayStart := colonIdx + 4
-		if arrayStart >= len(line) {
-			continue
-		}
-
-		// First element is "name@version"
-		if line[arrayStart] != '"' {
-			continue
-		}
-
-		// Find closing quote of first element
-		endQuote := strings.IndexByte(line[arrayStart+1:], '"')
-		if endQuote < 0 {
-			continue
-		}
-
-		nameVersion := line[arrayStart+1 : arrayStart+1+endQuote]
-		name, version := parseBunPackageKey(nameVersion)
-		if name == "" {
-			continue
-		}
-
-		if seen[name] {
-			continue
-		}
-		seen[name] = true
-
-		// Extract second element (URL) - it follows the first element after ", "
-		var registryURL string
-		firstElemEnd := arrayStart + 1 + endQuote + 1 // position after closing quote
-		rest := line[firstElemEnd:]
-		// Look for next quoted string after comma
-		if commaIdx := strings.Index(rest, `, "`); commaIdx >= 0 {
-			urlStart := commaIdx + 3 // skip `, "`
-			if urlEnd := strings.IndexByte(rest[urlStart:], '"'); urlEnd > 0 {
-				registryURL = rest[urlStart : urlStart+urlEnd]
-			}
-		}
-
-		// Look for integrity hash (sha256- or sha512-)
-		var integrity string
-		if shaIdx := strings.Index(line, `"sha`); shaIdx > 0 {
-			// Find closing quote
-			endSha := strings.IndexByte(line[shaIdx+1:], '"')
-			if endSha > 0 {
-				integrity = line[shaIdx+1 : shaIdx+1+endSha]
-			}
-		}
-
-		deps = append(deps, core.Dependency{
-			Name:        name,
-			Version:     version,
-			Scope:       core.Runtime,
-			Direct:      false,
-			Integrity:   integrity,
-			RegistryURL: registryURL,
-		})
+		deps = append(deps, dep)
 	}
 
 	return deps, nil
+}
+
+// parseBunPackageLine parses a single package entry line from a bun.lock file.
+// Returns the dependency and true if the line was a valid package entry.
+func parseBunPackageLine(line string) (core.Dependency, bool) {
+	nameVersion, rest, ok := extractBunArrayFirstElement(line)
+	if !ok {
+		return core.Dependency{}, false
+	}
+
+	name, version := parseBunPackageKey(nameVersion)
+	if name == "" {
+		return core.Dependency{}, false
+	}
+
+	return core.Dependency{
+		Name:        name,
+		Version:     version,
+		Scope:       core.Runtime,
+		Direct:      false,
+		Integrity:   extractBunIntegrity(line),
+		RegistryURL: extractBunRegistryURL(rest),
+	}, true
+}
+
+// extractBunArrayFirstElement extracts the first quoted element from a bun.lock
+// package line. It returns the element value, the remainder of the line after
+// the first element's closing quote, and whether extraction succeeded.
+func extractBunArrayFirstElement(line string) (string, string, bool) {
+	if !strings.HasPrefix(line, `    "`) {
+		return "", "", false
+	}
+
+	colonIdx := strings.Index(line, `": [`)
+	if colonIdx < 0 {
+		return "", "", false
+	}
+
+	arrayStart := colonIdx + len(`": [`)
+	if arrayStart >= len(line) || line[arrayStart] != '"' {
+		return "", "", false
+	}
+
+	endQuote := strings.IndexByte(line[arrayStart+1:], '"')
+	if endQuote < 0 {
+		return "", "", false
+	}
+
+	nameVersion := line[arrayStart+1 : arrayStart+1+endQuote]
+	rest := line[arrayStart+1+endQuote+1:]
+	return nameVersion, rest, true
+}
+
+// extractBunRegistryURL extracts the second array element (URL) from the
+// remainder of a bun.lock package line after the first element.
+func extractBunRegistryURL(rest string) string {
+	commaIdx := strings.Index(rest, `, "`)
+	if commaIdx < 0 {
+		return ""
+	}
+	urlStart := commaIdx + len(`, "`)
+	if urlEnd := strings.IndexByte(rest[urlStart:], '"'); urlEnd > 0 {
+		return rest[urlStart : urlStart+urlEnd]
+	}
+	return ""
+}
+
+// extractBunIntegrity extracts the integrity hash (sha256- or sha512-) from
+// a bun.lock package line.
+func extractBunIntegrity(line string) string {
+	shaIdx := strings.Index(line, `"sha`)
+	if shaIdx <= 0 {
+		return ""
+	}
+	endSha := strings.IndexByte(line[shaIdx+1:], '"')
+	if endSha <= 0 {
+		return ""
+	}
+	return line[shaIdx+1 : shaIdx+1+endSha]
 }
 
 // parseBunPackageKey parses "name@version" from bun.lock

@@ -20,14 +20,20 @@ func ForEachLine(content string, fn func(line string) bool) {
 	}
 }
 
+const (
+	estimateBytesPerDep = 50
+	minEstimatedDeps    = 4
+	maxEstimatedDeps    = 1000
+)
+
 // EstimateDeps estimates the number of dependencies based on file size.
 func EstimateDeps(size int) int {
-	estimate := size / 50
-	if estimate < 4 {
-		return 4
+	estimate := size / estimateBytesPerDep
+	if estimate < minEstimatedDeps {
+		return minEstimatedDeps
 	}
-	if estimate > 1000 {
-		return 1000
+	if estimate > maxEstimatedDeps {
+		return maxEstimatedDeps
 	}
 	return estimate
 }

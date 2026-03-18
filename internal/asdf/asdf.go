@@ -6,6 +6,8 @@ import (
 	"github.com/git-pkgs/manifests/internal/core"
 )
 
+const minToolVersionFields = 2 // name + version
+
 func init() {
 	core.Register("asdf", core.Manifest, &toolVersionsParser{}, core.ExactMatch(".tool-versions"))
 }
@@ -24,7 +26,7 @@ func (p *toolVersionsParser) Parse(filename string, content []byte) ([]core.Depe
 		}
 
 		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		if len(fields) < minToolVersionFields {
 			continue
 		}
 

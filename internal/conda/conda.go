@@ -7,6 +7,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const condaChannelURLParts = 4 // scheme + empty + host + channel
+
 func init() {
 	core.Register("conda", core.Manifest, &condaEnvParser{}, core.ExactMatch("environment.yml"))
 	core.Register("conda", core.Manifest, &condaEnvParser{}, core.ExactMatch("environment.yaml"))
@@ -121,8 +123,8 @@ func (p *condaLockParser) Parse(filename string, content []byte) ([]core.Depende
 		if strings.Contains(pkg.URL, "conda.anaconda.org") {
 			// Extract channel: https://conda.anaconda.org/conda-forge/linux-64/...
 			parts := strings.Split(pkg.URL, "/")
-			if len(parts) >= 4 {
-				registryURL = strings.Join(parts[:4], "/")
+			if len(parts) >= condaChannelURLParts {
+				registryURL = strings.Join(parts[:condaChannelURLParts], "/")
 			}
 		}
 

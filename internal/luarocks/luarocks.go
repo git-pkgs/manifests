@@ -87,10 +87,11 @@ func parseRockspecDep(dep string) (name, version string) {
 		return "", ""
 	}
 
+	const nameAndOp = 3 // name + operator + version
 	name = parts[0]
-	if len(parts) >= 3 {
+	if len(parts) >= nameAndOp {
 		version = strings.Join(parts[1:], " ")
-	} else if len(parts) == 2 {
+	} else if len(parts) == 2 { //nolint:mnd // name + bare version
 		version = parts[1]
 	}
 

@@ -380,8 +380,9 @@ func (p *projectAssetsParser) Parse(filename string, content []byte) ([]core.Dep
 			}
 
 			// Key format: "name/version"
-			parts := strings.SplitN(key, "/", 2)
-			if len(parts) != 2 {
+			const nameVersionParts = 2
+			parts := strings.SplitN(key, "/", nameVersionParts)
+			if len(parts) != nameVersionParts {
 				continue
 			}
 
@@ -442,89 +443,34 @@ func (p *projectJSONParser) Parse(filename string, content []byte) ([]core.Depen
 	return deps, nil
 }
 
-// depsJSONParser parses *.deps.json files (.NET Core runtime deps).
-type depsJSONParser struct{}
-
-type depsJSON struct {
-	Libraries map[string]struct {
-		Type       string `json:"type"`
-		Serviceable bool   `json:"serviceable"`
-		SHA512     string `json:"sha512"`
-	} `json:"libraries"`
+// libraryEntry holds the fields shared by deps.json and project.lock.json libraries.
+type libraryEntry struct {
+	Type   string `json:"type"`
+	SHA512 string `json:"sha512"`
 }
 
-func (p *depsJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
-	var deps depsJSON
-	if err := json.Unmarshal(content, &deps); err != nil {
-		return nil, &core.ParseError{Filename: filename, Err: err}
+// parseLibraries extracts dependencies from a "Name/Version" keyed library map,
+// shared by depsJSONParser and projectLockJSONParser.
+func parseLibraries(filename string, content []byte) ([]core.Dependency, error) {
+	var raw struct {
+		Libraries map[string]libraryEntry `json:"libraries"`
 	}
-
-	var result []core.Dependency
-
-	for key, lib := range deps.Libraries {
-		// Skip project types
-		if lib.Type == "project" {
-			continue
-		}
-
-		// Key format: "Name/Version"
-		parts := strings.SplitN(key, "/", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		name := parts[0]
-		version := parts[1]
-
-		integrity := ""
-		if lib.SHA512 != "" {
-			integrity = "sha512-" + lib.SHA512
-		}
-
-		result = append(result, core.Dependency{
-			Name:      name,
-			Version:   version,
-			Scope:     core.Runtime,
-			Integrity: integrity,
-			Direct:    false,
-		})
-	}
-
-	return result, nil
-}
-
-// projectLockJSONParser parses Project.lock.json files (legacy DNX format).
-type projectLockJSONParser struct{}
-
-type projectLockJSON struct {
-	Libraries map[string]struct {
-		Type string `json:"type"`
-		SHA512 string `json:"sha512"`
-	} `json:"libraries"`
-}
-
-func (p *projectLockJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
-	var lock projectLockJSON
-	if err := json.Unmarshal(content, &lock); err != nil {
+	if err := json.Unmarshal(content, &raw); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
 	var deps []core.Dependency
 
-	for key, lib := range lock.Libraries {
-		// Skip project types
+	for key, lib := range raw.Libraries {
 		if lib.Type == "project" {
 			continue
 		}
 
-		// Key format: "Name/Version"
-		parts := strings.SplitN(key, "/", 2)
-		if len(parts) != 2 {
+		const nameVersionParts = 2
+		parts := strings.SplitN(key, "/", nameVersionParts)
+		if len(parts) != nameVersionParts {
 			continue
 		}
-
-		name := parts[0]
-		version := parts[1]
 
 		integrity := ""
 		if lib.SHA512 != "" {
@@ -532,8 +478,8 @@ func (p *projectLockJSONParser) Parse(filename string, content []byte) ([]core.D
 		}
 
 		deps = append(deps, core.Dependency{
-			Name:      name,
-			Version:   version,
+			Name:      parts[0],
+			Version:   parts[1],
 			Scope:     core.Runtime,
 			Integrity: integrity,
 			Direct:    false,
@@ -541,4 +487,18 @@ func (p *projectLockJSONParser) Parse(filename string, content []byte) ([]core.D
 	}
 
 	return deps, nil
+}
+
+// depsJSONParser parses *.deps.json files (.NET Core runtime deps).
+type depsJSONParser struct{}
+
+func (p *depsJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	return parseLibraries(filename, content)
+}
+
+// projectLockJSONParser parses Project.lock.json files (legacy DNX format).
+type projectLockJSONParser struct{}
+
+func (p *projectLockJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	return parseLibraries(filename, content)
 }

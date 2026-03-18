@@ -9,6 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const basePackageSegments = 3 // e.g. github.com/owner/repo
+
 func init() {
 	// Godeps.json - lockfile (godep tool)
 	core.Register("golang", core.Lockfile, &godepsJSONParser{}, core.ExactMatch("Godeps.json"))
@@ -276,11 +278,11 @@ func (p *vendorJSONParser) Parse(filename string, content []byte) ([]core.Depend
 // e.g., "github.com/pkg/errors/stack" -> "github.com/pkg/errors"
 func extractBasePackage(path string) string {
 	parts := strings.Split(path, "/")
-	if len(parts) <= 3 {
+	if len(parts) <= basePackageSegments {
 		return path
 	}
 	// For github.com/owner/repo/subpkg, return github.com/owner/repo
-	return strings.Join(parts[:3], "/")
+	return strings.Join(parts[:basePackageSegments], "/")
 }
 
 // goResolvedDepsParser parses go-resolved-dependencies.json files.
@@ -393,8 +395,9 @@ func (p *godepsTextParser) Parse(filename string, content []byte) ([]core.Depend
 		}
 
 		// Split on whitespace
+		const nameVersionFields = 2
 		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		if len(fields) < nameVersionFields {
 			continue
 		}
 

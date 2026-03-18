@@ -89,8 +89,9 @@ func extractGradleCoords(line string, keywordEnd int) (group, artifact, version 
 	}
 
 	// Parse group:artifact:version
+	const gavParts = 3 // group:artifact:version
 	parts := strings.Split(coords, ":")
-	if len(parts) < 3 {
+	if len(parts) < gavParts {
 		return "", "", "", false
 	}
 
@@ -442,8 +443,9 @@ type gradleHtmlDep struct {
 func collectGradleHtmlDeps(deps *[]core.Dependency, seen map[string]bool, htmlDeps []gradleHtmlDep, isTest bool) {
 	for _, dep := range htmlDeps {
 		// Parse module: "group:artifact:version"
+		const gavParts = 3
 		parts := strings.Split(dep.Module, ":")
-		if len(parts) < 3 {
+		if len(parts) < gavParts {
 			continue
 		}
 

@@ -26,7 +26,7 @@ func Register(ecosystem string, kind Kind, parser Parser, match func(string) boo
 }
 
 // IdentifyParser returns the first matching parser for a filename.
-func IdentifyParser(filename string) (Parser, string, Kind) {
+func IdentifyParser(filename string) (Parser, string, Kind) { //nolint:ireturn
 	base := filepath.Base(filename)
 	for _, reg := range parsers {
 		if reg.Match(filename) || reg.Match(base) {

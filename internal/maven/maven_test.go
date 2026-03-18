@@ -282,37 +282,27 @@ func TestGradleLockfile(t *testing.T) {
 	}
 }
 
-func TestPom2XML(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/maven/pom2.xml")
+func assertPomDeps(t *testing.T, fixture string, wantCount int, expected map[string]string) {
+	t.Helper()
+
+	content, err := os.ReadFile("../../testdata/maven/" + fixture)
 	if err != nil {
 		t.Fatalf("failed to read fixture: %v", err)
 	}
 
 	parser := &pomXMLParser{}
-	deps, err := parser.Parse("pom2.xml", content)
+	deps, err := parser.Parse(fixture, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 8 {
-		t.Fatalf("expected 8 dependencies, got %d", len(deps))
+	if len(deps) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
 	}
 
 	depMap := make(map[string]core.Dependency)
 	for _, d := range deps {
 		depMap[d.Name] = d
-	}
-
-	// All 8 packages with versions (some with unresolved property placeholders)
-	expected := map[string]string{
-		"org.apache.maven:maven-plugin-api":                  "${maven.version}",
-		"org.apache.maven:maven-core":                        "${maven.version}",
-		"org.apache.maven.plugin-tools:maven-plugin-annotations": "3.4",
-		"org.codehaus.jackson:jackson-core-lgpl":             "${jackson.version}",
-		"org.codehaus.jackson:jackson-mapper-lgpl":           "${jackson.version}",
-		"org.apache.httpcomponents:httpclient":               "${httpcomponents.version}",
-		"org.apache.httpcomponents:httpmime":                  "${httpcomponents.version}",
-		"org.testng:testng":                                   "6.9.12",
 	}
 
 	for name, wantVer := range expected {
@@ -327,29 +317,21 @@ func TestPom2XML(t *testing.T) {
 	}
 }
 
+func TestPom2XML(t *testing.T) {
+	assertPomDeps(t, "pom2.xml", 8, map[string]string{
+		"org.apache.maven:maven-plugin-api":                      "${maven.version}",
+		"org.apache.maven:maven-core":                            "${maven.version}",
+		"org.apache.maven.plugin-tools:maven-plugin-annotations": "3.4",
+		"org.codehaus.jackson:jackson-core-lgpl":                 "${jackson.version}",
+		"org.codehaus.jackson:jackson-mapper-lgpl":               "${jackson.version}",
+		"org.apache.httpcomponents:httpclient":                    "${httpcomponents.version}",
+		"org.apache.httpcomponents:httpmime":                      "${httpcomponents.version}",
+		"org.testng:testng":                                      "6.9.12",
+	})
+}
+
 func TestPomNoProps(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/maven/pom_no_props.xml")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &pomXMLParser{}
-	deps, err := parser.Parse("pom_no_props.xml", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 33 {
-		t.Fatalf("expected 33 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// Sample of packages with versions
-	samples := map[string]string{
+	assertPomDeps(t, "pom_no_props.xml", 33, map[string]string{
 		"mysql:mysql-connector-java":        "5.1.9",
 		"org.springframework:spring-jdbc":   "4.1.0.RELEASE",
 		"com.mchange:c3p0":                  "0.9.2.1",
@@ -358,63 +340,20 @@ func TestPomNoProps(t *testing.T) {
 		"com.google.protobuf:protobuf-java": "2.5.0",
 		"redis.clients:jedis":               "2.6.0",
 		"ch.qos.logback:logback-classic":    "1.1.2",
-	}
-
-	for name, wantVer := range samples {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestPomMissingProps(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/maven/pom_missing_props.xml")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &pomXMLParser{}
-	deps, err := parser.Parse("pom_missing_props.xml", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 8 {
-		t.Fatalf("expected 8 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All 8 packages with versions (includes missing property placeholder)
-	expected := map[string]string{
-		"org.apache.maven:maven-plugin-api":                  "${maven.version}",
-		"org.apache.maven:maven-core":                        "${maven.version}",
+	assertPomDeps(t, "pom_missing_props.xml", 8, map[string]string{
+		"org.apache.maven:maven-plugin-api":                      "${maven.version}",
+		"org.apache.maven:maven-core":                            "${maven.version}",
 		"org.apache.maven.plugin-tools:maven-plugin-annotations": "3.4",
-		"org.codehaus.jackson:jackson-core-lgpl":             "${jackson.version}",
-		"org.codehaus.jackson:jackson-mapper-lgpl":           "${jackson.version}",
-		"org.apache.httpcomponents:httpclient":               "${httpcomponents.version}",
-		"org.apache.httpcomponents:httpmime":                  "${httpcomponents.version}",
-		"org.testng:testng":                                   "${missing_property}",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+		"org.codehaus.jackson:jackson-core-lgpl":                 "${jackson.version}",
+		"org.codehaus.jackson:jackson-mapper-lgpl":               "${jackson.version}",
+		"org.apache.httpcomponents:httpclient":                    "${httpcomponents.version}",
+		"org.apache.httpcomponents:httpmime":                      "${httpcomponents.version}",
+		"org.testng:testng":                                      "${missing_property}",
+	})
 }
 
 func TestPomDependenciesNoRequirement(t *testing.T) {

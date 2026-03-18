@@ -9,6 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const perlPackage = "perl"
+
 func init() {
 	core.Register("cpan", core.Manifest, &cpanfileParser{}, core.ExactMatch("cpanfile"))
 	core.Register("cpan", core.Lockfile, &cpanfileSnapshotParser{}, core.ExactMatch("cpanfile.snapshot"))
@@ -291,7 +293,7 @@ func parsePerlHashSection(text, section string, scope core.Scope, seen map[strin
 		version := match[2]
 
 		// Skip perl itself and common non-module entries
-		if name == "perl" || seen[name] {
+		if name == perlPackage || seen[name] {
 			continue
 		}
 		seen[name] = true
@@ -349,7 +351,7 @@ func (p *metaJSONParser) Parse(filename string, content []byte) ([]core.Dependen
 
 		for _, mods := range requirements {
 			for name, version := range mods {
-				if name == "perl" || seen[name] {
+				if name == perlPackage || seen[name] {
 					continue
 				}
 				seen[name] = true
@@ -400,7 +402,7 @@ func (p *metaYMLParser) Parse(filename string, content []byte) ([]core.Dependenc
 			continue
 		}
 		for name, ver := range *mods {
-			if name == "perl" || seen[name] {
+			if name == perlPackage || seen[name] {
 				continue
 			}
 			seen[name] = true

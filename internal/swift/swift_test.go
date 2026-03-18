@@ -66,10 +66,8 @@ func TestPackageResolved(t *testing.T) {
 	// Check Yams
 	if dep, ok := depMap["Yams"]; !ok {
 		t.Error("expected Yams dependency")
-	} else {
-		if dep.Version != "5.0.1" {
-			t.Errorf("Yams version = %q, want %q", dep.Version, "5.0.1")
-		}
+	} else if dep.Version != "5.0.1" {
+		t.Errorf("Yams version = %q, want %q", dep.Version, "5.0.1")
 	}
 }
 

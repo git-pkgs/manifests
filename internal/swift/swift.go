@@ -44,8 +44,9 @@ func (p *packageSwiftParser) Parse(filename string, content []byte) ([]core.Depe
 		for _, match := range regex.FindAllStringSubmatch(text, -1) {
 			url := match[1]
 			version := ""
-			if len(match) > 2 {
-				version = match[2]
+			const versionGroup = 2
+			if len(match) > versionGroup {
+				version = match[versionGroup]
 			}
 
 			name := extractSwiftPackageName(url)
@@ -120,7 +121,8 @@ func (p *packageResolvedParser) Parse(filename string, content []byte) ([]core.D
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
-	if versionCheck.Version >= 2 {
+	const resolvedV2 = 2
+	if versionCheck.Version >= resolvedV2 {
 		return parsePackageResolvedV2(filename, content)
 	}
 	return parsePackageResolvedV1(filename, content)

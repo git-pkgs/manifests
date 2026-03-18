@@ -149,11 +149,13 @@ func (p *npmPackageLockParser) Parse(filename string, content []byte) ([]core.De
 	// Quick check for lockfile version to determine parsing strategy
 	// v3 (lockfileVersion >= 2 with packages) uses line-based parsing
 	// v1 uses JSON parsing for nested dependencies
-	header := string(content[:min(200, len(content))])
+	const headerPeekSize = 200
+	const packagesPeekSize = 600
+	header := string(content[:min(headerPeekSize, len(content))])
 
 	// v2+ with packages section uses line-based v3 parsing
 	if strings.Contains(header, `"lockfileVersion": 3`) ||
-		(strings.Contains(header, `"lockfileVersion": 2`) && strings.Contains(string(content[:min(600, len(content))]), `"packages"`)) {
+		(strings.Contains(header, `"lockfileVersion": 2`) && strings.Contains(string(content[:min(packagesPeekSize, len(content))]), `"packages"`)) {
 		return parsePackageLockV3Lines(content), nil
 	}
 
@@ -193,6 +195,109 @@ func parsePackageLockV1(deps map[string]packageLockDep) []core.Dependency {
 	return result
 }
 
+// v3PackageEntry holds the state accumulated while parsing a single package
+// entry in the v3 lockfile format.
+type v3PackageEntry struct {
+	path        string
+	version     string
+	integrity   string
+	resolved    string
+	dev         bool
+	optional    bool
+	devOptional bool
+	link        bool
+}
+
+func (e *v3PackageEntry) reset(path string) {
+	e.path = path
+	e.version = ""
+	e.integrity = ""
+	e.resolved = ""
+	e.dev = false
+	e.optional = false
+	e.devOptional = false
+	e.link = false
+}
+
+func (e *v3PackageEntry) hasContent() bool {
+	return e.path != "" && (e.version != "" || e.link)
+}
+
+func (e *v3PackageEntry) toDependency() (core.Dependency, bool) {
+	name := extractPackageName(e.path)
+	if name == "" {
+		return core.Dependency{}, false
+	}
+	scope := core.Runtime
+	if e.dev || e.devOptional {
+		scope = core.Development
+	} else if e.optional {
+		scope = core.Optional
+	}
+	direct := !strings.Contains(strings.TrimPrefix(e.path, "node_modules/"), "node_modules/")
+	return core.Dependency{
+		Name:        name,
+		Version:     e.version,
+		Scope:       scope,
+		Integrity:   e.integrity,
+		Direct:      direct,
+		RegistryURL: e.resolved,
+	}, true
+}
+
+// updateFromLine reads a trimmed line and updates the entry's fields.
+// Returns true if the line was consumed.
+func (e *v3PackageEntry) updateFromLine(trimmed string) bool {
+	switch {
+	case strings.HasPrefix(trimmed, `"version"`):
+		if v := extractJSONStringValue(trimmed); v != "" {
+			e.version = v
+		}
+	case strings.HasPrefix(trimmed, `"integrity"`):
+		if v := extractJSONStringValue(trimmed); v != "" {
+			e.integrity = v
+		}
+	case strings.HasPrefix(trimmed, `"resolved"`):
+		if v := extractJSONStringValue(trimmed); v != "" {
+			e.resolved = v
+		}
+	case strings.HasPrefix(trimmed, `"dev": true`):
+		e.dev = true
+	case strings.HasPrefix(trimmed, `"optional": true`):
+		e.optional = true
+	case strings.HasPrefix(trimmed, `"devOptional": true`):
+		e.devOptional = true
+	case strings.HasPrefix(trimmed, `"link": true`):
+		e.link = true
+	default:
+		return false
+	}
+	return true
+}
+
+// extractQuotedPath pulls the quoted string from a line like `"node_modules/foo": {`.
+func extractQuotedPath(trimmed string) string {
+	start := strings.IndexByte(trimmed, '"')
+	if start < 0 {
+		return ""
+	}
+	end := strings.IndexByte(trimmed[start+1:], '"')
+	if end <= 0 {
+		return ""
+	}
+	return trimmed[start+1 : start+1+end]
+}
+
+// isPackagePathLine returns true for lines like `"node_modules/name": {`.
+func isPackagePathLine(trimmed string) bool {
+	return strings.HasSuffix(trimmed, ": {") || strings.HasSuffix(trimmed, ":{")
+}
+
+// isPackagesSectionEnd detects the closing brace of the "packages" object.
+func isPackagesSectionEnd(line, trimmed string) bool {
+	return (line == "  }," || line == "  }") && strings.HasPrefix(trimmed, "}")
+}
+
 // parsePackageLockV3Lines parses v3 format using line-based parsing.
 // Format: "packages": { "node_modules/name": { "version": "x", ... } }
 func parsePackageLockV3Lines(content []byte) []core.Dependency {
@@ -200,131 +305,39 @@ func parsePackageLockV3Lines(content []byte) []core.Dependency {
 	lines := strings.Split(string(content), "\n")
 
 	inPackages := false
-	var currentPath string
-	var currentVersion string
-	var currentIntegrity string
-	var currentResolved string
-	var currentDev bool
-	var currentOptional bool
-	var currentDevOptional bool
-	var currentLink bool
+	var entry v3PackageEntry
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Detect "packages": section start
-		if strings.HasPrefix(trimmed, `"packages"`) {
-			inPackages = true
-			continue
-		}
-
 		if !inPackages {
+			if strings.HasPrefix(trimmed, `"packages"`) {
+				inPackages = true
+			}
 			continue
 		}
 
-		// Detect end of packages section (closing brace followed by new top-level key)
-		// packages section ends with `  },` at indent 2
-		if (line == "  }," || line == "  }") && strings.HasPrefix(trimmed, "}") {
+		if isPackagesSectionEnd(line, trimmed) {
 			break
 		}
 
-		// Package path line: "node_modules/name": {
-		if strings.HasSuffix(trimmed, ": {") || strings.HasSuffix(trimmed, ":{") {
-			// Save previous package (include links even without version)
-			if currentPath != "" && (currentVersion != "" || currentLink) {
-				name := extractPackageName(currentPath)
-				if name != "" {
-					scope := core.Runtime
-					if currentDev || currentDevOptional {
-						scope = core.Development
-					} else if currentOptional {
-						scope = core.Optional
-					}
-					direct := !strings.Contains(strings.TrimPrefix(currentPath, "node_modules/"), "node_modules/")
-					deps = append(deps, core.Dependency{
-						Name:        name,
-						Version:     currentVersion,
-						Scope:       scope,
-						Integrity:   currentIntegrity,
-						Direct:      direct,
-						RegistryURL: currentResolved,
-					})
+		if isPackagePathLine(trimmed) {
+			if entry.hasContent() {
+				if dep, ok := entry.toDependency(); ok {
+					deps = append(deps, dep)
 				}
 			}
-			// Extract path
-			start := strings.IndexByte(trimmed, '"')
-			end := strings.IndexByte(trimmed[start+1:], '"')
-			if start >= 0 && end > 0 {
-				currentPath = trimmed[start+1 : start+1+end]
-			}
-			currentVersion = ""
-			currentIntegrity = ""
-			currentResolved = ""
-			currentDev = false
-			currentOptional = false
-			currentDevOptional = false
-			currentLink = false
+			entry.reset(extractQuotedPath(trimmed))
 			continue
 		}
 
-		// Version line
-		if strings.HasPrefix(trimmed, `"version"`) {
-			if v := extractJSONStringValue(trimmed); v != "" {
-				currentVersion = v
-			}
-			continue
-		}
-
-		// Integrity line
-		if strings.HasPrefix(trimmed, `"integrity"`) {
-			if v := extractJSONStringValue(trimmed); v != "" {
-				currentIntegrity = v
-			}
-			continue
-		}
-
-		// Resolved line
-		if strings.HasPrefix(trimmed, `"resolved"`) {
-			if v := extractJSONStringValue(trimmed); v != "" {
-				currentResolved = v
-			}
-			continue
-		}
-
-		// Dev/optional/link flags
-		if strings.HasPrefix(trimmed, `"dev": true`) {
-			currentDev = true
-		}
-		if strings.HasPrefix(trimmed, `"optional": true`) {
-			currentOptional = true
-		}
-		if strings.HasPrefix(trimmed, `"devOptional": true`) {
-			currentDevOptional = true
-		}
-		if strings.HasPrefix(trimmed, `"link": true`) {
-			currentLink = true
-		}
+		entry.updateFromLine(trimmed)
 	}
 
 	// Don't forget the last package
-	if currentPath != "" && (currentVersion != "" || currentLink) {
-		name := extractPackageName(currentPath)
-		if name != "" {
-			scope := core.Runtime
-			if currentDev || currentDevOptional {
-				scope = core.Development
-			} else if currentOptional {
-				scope = core.Optional
-			}
-			direct := !strings.Contains(strings.TrimPrefix(currentPath, "node_modules/"), "node_modules/")
-			deps = append(deps, core.Dependency{
-				Name:        name,
-				Version:     currentVersion,
-				Scope:       scope,
-				Integrity:   currentIntegrity,
-				Direct:      direct,
-				RegistryURL: currentResolved,
-			})
+	if entry.hasContent() {
+		if dep, ok := entry.toDependency(); ok {
+			deps = append(deps, dep)
 		}
 	}
 
@@ -363,10 +376,12 @@ func extractPackageName(path string) string {
 	}
 
 	// Handle scoped packages (@scope/name)
+	const scopeAndName = 2
 	if strings.HasPrefix(path, "@") {
 		// @scope/name - return the full scoped name
-		parts := strings.SplitN(path, "/", 3)
-		if len(parts) >= 2 {
+		const scopedParts = 3 // @scope/name/rest
+		parts := strings.SplitN(path, "/", scopedParts)
+		if len(parts) >= scopeAndName {
 			return parts[0] + "/" + parts[1]
 		}
 	}
