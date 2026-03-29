@@ -46,19 +46,15 @@ func TestNpmPackageJSON(t *testing.T) {
 	// Check mocha dependency (dev)
 	if mocha, ok := depMap["mocha"]; !ok {
 		t.Error("expected mocha dependency")
-	} else {
-		if mocha.Scope != core.Development {
-			t.Errorf("mocha scope = %q, want %q", mocha.Scope, core.Development)
-		}
+	} else if mocha.Scope != core.Development {
+		t.Errorf("mocha scope = %q, want %q", mocha.Scope, core.Development)
 	}
 
 	// Check alias handling
 	if actual, ok := depMap["@some-scope/actual-package"]; !ok {
 		t.Error("expected aliased dependency @some-scope/actual-package")
-	} else {
-		if actual.Version != "^1.1.3" {
-			t.Errorf("alias version = %q, want %q", actual.Version, "^1.1.3")
-		}
+	} else if actual.Version != "^1.1.3" {
+		t.Errorf("alias version = %q, want %q", actual.Version, "^1.1.3")
 	}
 
 	// Verify comment was filtered out

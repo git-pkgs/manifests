@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const nameVersionParts = 2 // name/version
+
 func init() {
 	core.Register("conan", core.Manifest, &conanfileTxtParser{}, core.ExactMatch("conanfile.txt"))
 	core.Register("conan", core.Manifest, &conanfilePyParser{}, core.ExactMatch("conanfile.py"))
@@ -146,8 +148,8 @@ func parseConanRef(ref string) (name, version string) {
 		ref = ref[:idx]
 	}
 
-	parts := strings.SplitN(ref, "/", 2)
-	if len(parts) == 2 {
+	parts := strings.SplitN(ref, "/", nameVersionParts)
+	if len(parts) == nameVersionParts {
 		return parts[0], parts[1]
 	}
 	return "", ""

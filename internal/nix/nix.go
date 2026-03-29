@@ -82,7 +82,8 @@ func parseFlakeURL(url string) string {
 	// Format: github:owner/repo/ref or github:owner/repo
 	if strings.HasPrefix(url, "github:") {
 		parts := strings.Split(strings.TrimPrefix(url, "github:"), "/")
-		if len(parts) >= 3 {
+		const ownerRepoRef = 3 // owner/repo/ref
+	if len(parts) >= ownerRepoRef {
 			return parts[2]
 		}
 		return url

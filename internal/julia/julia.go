@@ -13,16 +13,18 @@ func init() {
 	core.Register("julia", core.Manifest, &juliaRequireParser{}, core.ExactMatch("REQUIRE"))
 }
 
+const juliaDepPrefix = "[[deps."
+
 // extractJuliaDepName extracts name from [[deps.Name]]
 func extractJuliaDepName(line string) (string, bool) {
-	if !strings.HasPrefix(line, "[[deps.") {
+	if !strings.HasPrefix(line, juliaDepPrefix) {
 		return "", false
 	}
 	end := strings.IndexByte(line, ']')
-	if end < 7 {
+	if end < len(juliaDepPrefix) {
 		return "", false
 	}
-	return line[7:end], true
+	return line[len(juliaDepPrefix):end], true
 }
 
 // juliaProjectParser parses Julia Project.toml files.
@@ -139,10 +141,11 @@ func (p *juliaRequireParser) Parse(filename string, content []byte) ([]core.Depe
 		}
 
 		// Handle platform-specific deps: @osx Homebrew
+		const nameAndVersion = 2
 		if line[0] == '@' {
 			// Skip platform marker and get the rest
 			parts := strings.Fields(line)
-			if len(parts) >= 2 {
+			if len(parts) >= nameAndVersion {
 				line = strings.Join(parts[1:], " ")
 			} else {
 				return true
@@ -157,9 +160,9 @@ func (p *juliaRequireParser) Parse(filename string, content []byte) ([]core.Depe
 
 		name := parts[0]
 		version := ""
-		if len(parts) >= 2 {
+		if len(parts) >= nameAndVersion {
 			// Version can be single (0.3.4) or range (0.12 0.15)
-			if len(parts) == 2 {
+			if len(parts) == nameAndVersion {
 				version = parts[1]
 			} else {
 				// Range: min max

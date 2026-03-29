@@ -42,10 +42,8 @@ func TestConanfileTxt(t *testing.T) {
 
 	if dep, ok := depMap["boost"]; !ok {
 		t.Error("expected boost dependency")
-	} else {
-		if dep.Version != "1.76.0" {
-			t.Errorf("expected boost version 1.76.0, got %s", dep.Version)
-		}
+	} else if dep.Version != "1.76.0" {
+		t.Errorf("expected boost version 1.76.0, got %s", dep.Version)
 	}
 
 	// Check build dependency

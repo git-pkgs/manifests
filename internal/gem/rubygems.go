@@ -168,16 +168,18 @@ func (p *gemfileParser) Parse(filename string, content []byte) ([]core.Dependenc
 // gemfileLockParser parses Gemfile.lock files.
 type gemfileLockParser struct{}
 
+const gemSpecMinLen = 5 // 4 spaces + at least 1 char
+
 // extractGemSpec extracts gem name and version from "    name (version)" line
 func extractGemSpec(line string) (name, version string, ok bool) {
 	// Must start with exactly 4 spaces (not 6 - those are sub-deps)
-	if len(line) < 5 || line[0] != ' ' || line[1] != ' ' || line[2] != ' ' || line[3] != ' ' || line[4] == ' ' {
+	if len(line) < gemSpecMinLen || line[0] != ' ' || line[1] != ' ' || line[2] != ' ' || line[3] != ' ' || line[4] == ' ' {
 		return "", "", false
 	}
 
 	// Find the opening paren
 	parenStart := strings.IndexByte(line, '(')
-	if parenStart < 5 {
+	if parenStart < gemSpecMinLen {
 		return "", "", false
 	}
 
@@ -220,6 +222,64 @@ func extractChecksum(line string) (name, version, hash string, ok bool) {
 	return name, version, hash, true
 }
 
+const sectionSource = "source"
+
+// detectSection returns the section name if the line is a section header, or empty string otherwise.
+func detectSection(trimmed string) (section string, ok bool) {
+	switch trimmed {
+	case "GEM", "PATH", "GIT":
+		return sectionSource, true
+	case "PLATFORMS":
+		return "platforms", true
+	case "DEPENDENCIES":
+		return "dependencies", true
+	case "CHECKSUMS":
+		return "checksums", true
+	case "BUNDLED WITH":
+		return "bundled", true
+	}
+	return "", false
+}
+
+// collectSpec adds a gem from the specs section if not already seen.
+func collectSpec(line string, remote string, seen map[gemDepKey]bool, deps *[]core.Dependency) {
+	name, version, ok := extractGemSpec(line)
+	if !ok {
+		return
+	}
+	key := gemDepKey{name, version}
+	if seen[key] {
+		return
+	}
+	seen[key] = true
+	*deps = append(*deps, core.Dependency{
+		Name:        name,
+		Version:     version,
+		Scope:       core.Runtime,
+		Direct:      false,
+		RegistryURL: remote,
+	})
+}
+
+// collectDirectDep records a dependency name from the DEPENDENCIES section.
+func collectDirectDep(trimmed string, directDeps map[string]bool) {
+	name := trimmed
+	if idx := strings.IndexByte(name, ' '); idx > 0 {
+		name = name[:idx]
+	}
+	directDeps[strings.TrimSuffix(name, "!")] = true
+}
+
+// applyDirectAndChecksums marks direct deps and attaches integrity hashes.
+func applyDirectAndChecksums(deps []core.Dependency, directDeps map[string]bool, checksums map[gemDepKey]string) {
+	for i := range deps {
+		deps[i].Direct = directDeps[deps[i].Name]
+		if hash, ok := checksums[gemDepKey{deps[i].Name, deps[i].Version}]; ok {
+			deps[i].Integrity = "sha256-" + hash
+		}
+	}
+}
+
 func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
@@ -233,61 +293,32 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 	core.ForEachLine(text, func(line string) bool {
 		trimmed := strings.TrimSpace(line)
 
-		// Detect section headers
-		switch trimmed {
-		case "GEM", "PATH", "GIT":
-			section = "source"
-			currentRemote = ""
-			return true
-		case "PLATFORMS":
-			section = "platforms"
-			return true
-		case "DEPENDENCIES":
-			section = "dependencies"
-			return true
-		case "CHECKSUMS":
-			section = "checksums"
-			return true
-		case "BUNDLED WITH":
-			section = "bundled"
+		if s, ok := detectSection(trimmed); ok {
+			section = s
+			if s == sectionSource {
+				currentRemote = ""
+			}
 			return true
 		}
 
 		// In source sections, look for remote: line
-		if section == "source" {
+		if section == sectionSource {
 			if strings.HasPrefix(trimmed, "remote:") {
 				currentRemote = strings.TrimSpace(trimmed[7:])
 				return true
 			}
 			if trimmed == "specs:" {
 				section = "specs"
-				return true
 			}
+			return true
 		}
 
 		if section == "specs" {
-			if name, version, ok := extractGemSpec(line); ok {
-				key := gemDepKey{name, version}
-				if !seen[key] {
-					seen[key] = true
-					deps = append(deps, core.Dependency{
-						Name:        name,
-						Version:     version,
-						Scope:       core.Runtime,
-						Direct:      false,
-						RegistryURL: currentRemote,
-					})
-				}
-			}
+			collectSpec(line, currentRemote, seen, &deps)
 		}
 
 		if section == "dependencies" && trimmed != "" {
-			name := trimmed
-			if idx := strings.IndexByte(name, ' '); idx > 0 {
-				name = name[:idx]
-			}
-			name = strings.TrimSuffix(name, "!")
-			directDeps[name] = true
+			collectDirectDep(trimmed, directDeps)
 		}
 
 		if section == "checksums" {
@@ -298,13 +329,7 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 		return true
 	})
 
-	// Update direct status and checksums
-	for i := range deps {
-		deps[i].Direct = directDeps[deps[i].Name]
-		if hash, ok := checksums[gemDepKey{deps[i].Name, deps[i].Version}]; ok {
-			deps[i].Integrity = "sha256-" + hash
-		}
-	}
+	applyDirectAndChecksums(deps, directDeps, checksums)
 
 	return deps, nil
 }

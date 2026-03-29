@@ -47,10 +47,11 @@ func (p *podfileParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 
 		if match := podRegex.FindStringSubmatch(line); match != nil {
+			const versionGroup = 2
 			name := match[1]
 			version := ""
-			if len(match) > 2 {
-				version = match[2]
+			if len(match) > versionGroup {
+				version = match[versionGroup]
 			}
 
 			scope := core.Runtime
@@ -172,10 +173,11 @@ func (p *podspecParser) Parse(filename string, content []byte) ([]core.Dependenc
 	text := string(content)
 
 	for _, match := range podspecDepRegex.FindAllStringSubmatch(text, -1) {
+		const versionGroup = 2
 		name := match[1]
 		version := ""
-		if len(match) > 2 {
-			version = match[2]
+		if len(match) > versionGroup {
+			version = match[versionGroup]
 		}
 		deps = append(deps, core.Dependency{
 			Name:    name,

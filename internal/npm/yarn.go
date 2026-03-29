@@ -13,118 +13,128 @@ func init() {
 // yarnLockParser parses yarn.lock files (both v1 and v4 formats).
 type yarnLockParser struct{}
 
+// yarnParseState tracks the current package being parsed.
+type yarnParseState struct {
+	name      string
+	version   string
+	integrity string
+	resolved  string
+}
+
+func (s *yarnParseState) reset(name string) {
+	s.name = name
+	s.version = ""
+	s.integrity = ""
+	s.resolved = ""
+}
+
+// collectDep appends the current state as a dependency if it has a name and version
+// that haven't been seen yet. Returns the updated deps slice and seen map.
+func (s *yarnParseState) collectDep(deps []core.Dependency, seen map[string]bool) []core.Dependency {
+	if s.name == "" || s.version == "" || seen[s.name] {
+		return deps
+	}
+	seen[s.name] = true
+	return append(deps, core.Dependency{
+		Name:        s.name,
+		Version:     s.version,
+		Scope:       core.Runtime,
+		Direct:      false,
+		Integrity:   s.integrity,
+		RegistryURL: s.resolved,
+	})
+}
+
 func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 	seen := make(map[string]bool)
-
-	// Check if this is a v4 lockfile
 	isV4 := strings.Contains(string(content), "__metadata:")
 
-	var currentName string
-	var currentVersion string
-	var currentIntegrity string
-	var currentResolved string
+	var state yarnParseState
 
 	for _, line := range lines {
-		// Skip empty lines
-		if len(line) == 0 {
+		if skipYarnLine(line) {
 			continue
 		}
 
-		// Skip comments
-		if line[0] == '#' {
+		if isYarnHeader(line) {
+			deps = state.collectDep(deps, seen)
+			state.reset(parseYarnHeader(line))
 			continue
 		}
 
-		// Skip __metadata and workspace entries
-		if strings.HasPrefix(line, "__metadata:") {
-			continue
-		}
-
-		// Package header: no leading whitespace, ends with :
-		if line[0] != ' ' && line[0] != '\t' {
-			// Save previous package if we have one
-			if currentName != "" && currentVersion != "" && !seen[currentName] {
-				seen[currentName] = true
-				deps = append(deps, core.Dependency{
-					Name:        currentName,
-					Version:     currentVersion,
-					Scope:       core.Runtime,
-					Direct:      false,
-					Integrity:   currentIntegrity,
-					RegistryURL: currentResolved,
-				})
-			}
-
-			// Parse header: "package@version": or package@version:
-			currentName = parseYarnHeader(line)
-			currentVersion = ""
-			currentIntegrity = ""
-			currentResolved = ""
-			continue
-		}
-
-		// Indented lines are package details
-		trimmed := strings.TrimLeft(line, " \t")
-
-		// Check for version line
-		if strings.HasPrefix(trimmed, "version") {
-			currentVersion = extractYarnValue(trimmed[7:])
-			continue
-		}
-
-		// Check for resolved line (v1)
-		if strings.HasPrefix(trimmed, "resolved ") {
-			currentResolved = extractYarnValue(trimmed[9:])
-			continue
-		}
-
-		// Check for resolution line (v4)
-		if isV4 && strings.HasPrefix(trimmed, "resolution:") {
-			res := extractYarnValue(trimmed[11:])
-			// v4 resolution can be "pkg@npm:version" or a URL
-			if strings.HasPrefix(res, "http") {
-				currentResolved = res
-			}
-			continue
-		}
-
-		// Check for integrity (v1)
-		if strings.HasPrefix(trimmed, "integrity ") {
-			currentIntegrity = strings.TrimSpace(trimmed[10:])
-			continue
-		}
-
-		// Check for checksum (v4)
-		if isV4 && strings.HasPrefix(trimmed, "checksum") {
-			checksum := extractYarnValue(trimmed[8:])
-			// v4 checksums are in format: 10c0/hash... or sha512-...
-			if idx := strings.IndexByte(checksum, '/'); idx > 0 {
-				currentIntegrity = "sha512-" + checksum[idx+1:]
-			} else if strings.HasPrefix(checksum, "sha") {
-				currentIntegrity = checksum
-			}
-			continue
-		}
+		parseYarnDetailLine(strings.TrimLeft(line, " \t"), isV4, &state)
 	}
 
 	// Don't forget the last package
-	if currentName != "" && currentVersion != "" && !seen[currentName] {
-		// Skip workspace packages
-		if !strings.HasPrefix(currentVersion, "0.0.0-use.local") {
-			deps = append(deps, core.Dependency{
-				Name:        currentName,
-				Version:     currentVersion,
-				Scope:       core.Runtime,
-				Direct:      false,
-				Integrity:   currentIntegrity,
-				RegistryURL: currentResolved,
-			})
+	if state.name != "" && state.version != "" && !seen[state.name] {
+		if !strings.HasPrefix(state.version, "0.0.0-use.local") {
+			deps = state.collectDep(deps, seen)
 		}
 	}
 
 	return deps, nil
+}
+
+// skipYarnLine returns true for lines that should be ignored: empty lines,
+// comments, and __metadata entries.
+func skipYarnLine(line string) bool {
+	if len(line) == 0 {
+		return true
+	}
+	if line[0] == '#' {
+		return true
+	}
+	return strings.HasPrefix(line, "__metadata:")
+}
+
+// isYarnHeader returns true if the line is a package header (no leading whitespace).
+func isYarnHeader(line string) bool {
+	return line[0] != ' ' && line[0] != '\t'
+}
+
+// parseYarnDetailLine extracts version, resolved, integrity, or checksum
+// from an indented detail line and updates state accordingly.
+func parseYarnDetailLine(trimmed string, isV4 bool, state *yarnParseState) {
+	if strings.HasPrefix(trimmed, "version") {
+		state.version = extractYarnValue(trimmed[7:])
+		return
+	}
+
+	if strings.HasPrefix(trimmed, "resolved ") {
+		state.resolved = extractYarnValue(trimmed[9:])
+		return
+	}
+
+	if isV4 && strings.HasPrefix(trimmed, "resolution:") {
+		res := extractYarnValue(trimmed[11:])
+		if strings.HasPrefix(res, "http") {
+			state.resolved = res
+		}
+		return
+	}
+
+	if strings.HasPrefix(trimmed, "integrity ") {
+		state.integrity = strings.TrimSpace(trimmed[10:])
+		return
+	}
+
+	if isV4 && strings.HasPrefix(trimmed, "checksum") {
+		state.integrity = parseV4Checksum(extractYarnValue(trimmed[8:]))
+	}
+}
+
+// parseV4Checksum converts a v4 checksum value into an integrity string.
+// v4 checksums use the format "10c0/hash..." or "sha512-...".
+func parseV4Checksum(checksum string) string {
+	if idx := strings.IndexByte(checksum, '/'); idx > 0 {
+		return "sha512-" + checksum[idx+1:]
+	}
+	if strings.HasPrefix(checksum, "sha") {
+		return checksum
+	}
+	return ""
 }
 
 // parseYarnHeader extracts the package name from a yarn header line.

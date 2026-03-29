@@ -9,6 +9,12 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+const (
+	groupDev         = "dev"
+	groupDevelopment = "development"
+	groupTest        = "test"
+)
+
 func init() {
 	// requirements.txt variants - manifests
 	core.Register("pypi", core.Manifest, &requirementsTxtParser{},
@@ -301,9 +307,9 @@ func (p *pyprojectParser) Parse(filename string, content []byte) ([]core.Depende
 	for groupName, group := range pyproject.Tool.Poetry.Group {
 		var scope core.Scope
 		switch groupName {
-		case "dev", "development":
+		case groupDev, groupDevelopment:
 			scope = core.Development
-		case "test":
+		case groupTest:
 			scope = core.Test
 		default:
 			scope = core.Runtime
@@ -406,9 +412,9 @@ func parsePEP508(dep string) (string, string) {
 // Well-known dev/test group names get their own scope; everything else is optional.
 func optionalGroupScope(groupName string) core.Scope {
 	switch strings.ToLower(groupName) {
-	case "dev", "development", "develop", "lint":
+	case groupDev, groupDevelopment, "develop", "lint":
 		return core.Development
-	case "test", "testing", "tests":
+	case groupTest, "testing", "tests":
 		return core.Test
 	default:
 		return core.Optional
@@ -449,11 +455,11 @@ func (p *poetryLockParser) Parse(filename string, content []byte) ([]core.Depend
 
 		// Determine scope from groups
 		for _, g := range pkg.Groups {
-			if g == "dev" || g == "development" {
+			if g == groupDev || g == groupDevelopment {
 				scope = core.Development
 				break
 			}
-			if g == "test" {
+			if g == groupTest {
 				scope = core.Test
 				break
 			}
@@ -507,7 +513,7 @@ func (p *pdmLockParser) Parse(filename string, content []byte) ([]core.Dependenc
 
 		// Check if dev dependency
 		for _, g := range pkg.Groups {
-			if g == "dev" || g == "development" {
+			if g == groupDev || g == groupDevelopment {
 				scope = core.Development
 				break
 			}
@@ -640,8 +646,9 @@ func (p *pipResolvedDepsParser) Parse(filename string, content []byte) ([]core.D
 		}
 
 		// Parse package==version format
-		parts := strings.SplitN(line, "==", 2)
-		if len(parts) != 2 {
+		const nameVersionParts = 2
+		parts := strings.SplitN(line, "==", nameVersionParts)
+		if len(parts) != nameVersionParts {
 			continue
 		}
 
@@ -676,9 +683,10 @@ func (p *setupPyParser) Parse(filename string, content []byte) ([]core.Dependenc
 	contentStr := string(content)
 
 	// Parse install_requires
+	const regexCaptureGroups = 2 // full match + first capture group
 	if match := installRequiresRegex.FindStringSubmatch(contentStr); match != nil {
 		for _, req := range quotedStringRegex.FindAllStringSubmatch(match[1], -1) {
-			if len(req) >= 2 {
+			if len(req) >= regexCaptureGroups {
 				name, version := parseSetupRequirement(req[1])
 				deps = append(deps, core.Dependency{
 					Name:    name,
@@ -732,11 +740,12 @@ var extrasRequireGroupRegex = regexp.MustCompile(`['"]([^'"]+)['"]\s*:\s*\[([^\]
 // and returns a map of group name to list of requirement strings.
 func parseExtrasRequire(content string) map[string][]string {
 	groups := make(map[string][]string)
+	const regexCaptureGroups = 2
 	for _, match := range extrasRequireGroupRegex.FindAllStringSubmatch(content, -1) {
 		groupName := match[1]
 		listContent := match[2]
 		for _, req := range quotedStringRegex.FindAllStringSubmatch(listContent, -1) {
-			if len(req) >= 2 {
+			if len(req) >= regexCaptureGroups {
 				groups[groupName] = append(groups[groupName], req[1])
 			}
 		}

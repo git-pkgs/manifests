@@ -56,10 +56,11 @@ func (p *cartfileParser) Parse(filename string, content []byte) ([]core.Dependen
 				Direct:  true,
 			})
 		} else if match := cartfileGitRegex.FindStringSubmatch(line); match != nil {
+			const versionGroup = 2
 			name := match[1]
 			version := ""
-			if len(match) > 2 {
-				version = match[2]
+			if len(match) > versionGroup {
+				version = match[versionGroup]
 			}
 			deps = append(deps, core.Dependency{
 				Name:    name,

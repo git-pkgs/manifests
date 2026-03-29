@@ -67,45 +67,75 @@ func extractPnpmTarball(line string) (string, bool) {
 // pnpmLockParser parses pnpm-lock.yaml files using regex for speed.
 type pnpmLockParser struct{}
 
+// pnpmPackageState tracks the current package being parsed within the packages section.
+type pnpmPackageState struct {
+	key       string
+	integrity string
+	tarball   string
+	dev       bool
+}
+
+// buildDependency converts the current package state into a Dependency and appends it to deps.
+// Returns the original slice unchanged if the key doesn't parse to a valid package.
+func buildDependency(deps []core.Dependency, state pnpmPackageState) []core.Dependency {
+	if state.key == "" {
+		return deps
+	}
+	name, version := parsePnpmPackageKey(state.key)
+	if name == "" {
+		return deps
+	}
+	scope := core.Runtime
+	if state.dev {
+		scope = core.Development
+	}
+	return append(deps, core.Dependency{
+		Name:        name,
+		Version:     version,
+		Scope:       scope,
+		Direct:      false,
+		Integrity:   state.integrity,
+		RegistryURL: state.tarball,
+	})
+}
+
+// updatePackageState checks a line for integrity, tarball, or dev metadata and updates state accordingly.
+func updatePackageState(state *pnpmPackageState, line string) {
+	if integrity, ok := extractPnpmIntegrity(line); ok {
+		state.integrity = integrity
+	}
+	if tarball, ok := extractPnpmTarball(line); ok {
+		state.tarball = tarball
+	}
+	if strings.Contains(line, "dev: true") {
+		state.dev = true
+	}
+}
+
+// isTopLevelKey returns true if the line starts a new top-level YAML key (not indented).
+func isTopLevelKey(line string) bool {
+	return len(line) > 0 && line[0] != ' ' && line[0] != '\n'
+}
+
 func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
 	inPackages := false
-	var currentKey string
-	var currentIntegrity string
-	var currentTarball string
-	var currentDev bool
+	var state pnpmPackageState
 
 	core.ForEachLine(text, func(line string) bool {
-		// Detect packages: section (skip snapshots: which only has peer-dep variants)
 		if line == "packages:" {
 			inPackages = true
 			return true
 		}
 
 		// End of packages section (new top-level key)
-		if inPackages && len(line) > 0 && line[0] != ' ' && line[0] != '\n' {
-			// Save the last package before leaving the section
-			if currentKey != "" {
-				name, version := parsePnpmPackageKey(currentKey)
-				if name != "" {
-					scope := core.Runtime
-					if currentDev {
-						scope = core.Development
-					}
-					deps = append(deps, core.Dependency{
-						Name:        name,
-						Version:     version,
-						Scope:       scope,
-						Direct:      false,
-						Integrity:   currentIntegrity,
-						RegistryURL: currentTarball,
-					})
-				}
-			}
+		if inPackages && isTopLevelKey(line) {
+			deps = buildDependency(deps, state)
 			inPackages = false
-			currentKey = ""
+			state = pnpmPackageState{}
+			return true
 		}
 
 		if !inPackages {
@@ -114,64 +144,20 @@ func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependen
 
 		// Package key line (2-space indent)
 		if key, ok := extractPnpmPackageKey(line); ok {
-			// Save previous package if any
-			if currentKey != "" {
-				name, version := parsePnpmPackageKey(currentKey)
-				if name != "" {
-					scope := core.Runtime
-					if currentDev {
-						scope = core.Development
-					}
-					deps = append(deps, core.Dependency{
-						Name:        name,
-						Version:     version,
-						Scope:       scope,
-						Direct:      false,
-						Integrity:   currentIntegrity,
-						RegistryURL: currentTarball,
-					})
-				}
-			}
-			currentKey = key
-			currentIntegrity = ""
-			currentTarball = ""
-			currentDev = false
+			deps = buildDependency(deps, state)
+			state = pnpmPackageState{key: key}
 			return true
 		}
 
-		// Look for integrity, tarball, and dev within package block
-		if currentKey != "" {
-			if integrity, ok := extractPnpmIntegrity(line); ok {
-				currentIntegrity = integrity
-			}
-			if tarball, ok := extractPnpmTarball(line); ok {
-				currentTarball = tarball
-			}
-			if strings.Contains(line, "dev: true") {
-				currentDev = true
-			}
+		// Collect metadata within a package block
+		if state.key != "" {
+			updatePackageState(&state, line)
 		}
 		return true
 	})
 
-	// Don't forget the last package
-	if currentKey != "" {
-		name, version := parsePnpmPackageKey(currentKey)
-		if name != "" {
-			scope := core.Runtime
-			if currentDev {
-				scope = core.Development
-			}
-			deps = append(deps, core.Dependency{
-				Name:        name,
-				Version:     version,
-				Scope:       scope,
-				Direct:      false,
-				Integrity:   currentIntegrity,
-				RegistryURL: currentTarball,
-			})
-		}
-	}
+	// Flush the last package
+	deps = buildDependency(deps, state)
 
 	return deps, nil
 }
