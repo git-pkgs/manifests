@@ -67,6 +67,7 @@ func main() {
 | haxelib | haxelib.json | |
 | hex | mix.exs, gleam.toml | mix.lock, rebar.lock |
 | julia | Project.toml, REQUIRE | Manifest.toml |
+| lean | lakefile.toml, lakefile.lean | lake-manifest.json |
 | luarocks | *.rockspec | |
 | maven | pom.xml, ivy.xml, build.gradle, build.gradle.kts, build.sbt | gradle.lockfile, gradle-dependencies-q.txt, maven-resolved-dependencies.txt, verification-metadata.xml |
 | nimble | *.nimble | |
@@ -118,6 +119,7 @@ func main() {
 | shard.lock | | | | |
 | flake.lock | | | | |
 | Brewfile.lock.json | | ✓ | | ✓ |
+| lake-manifest.json | ✓ | | | ✓ |
 
 **Supplement files:** go.sum is parsed as a supplement rather than a lockfile. It provides integrity hashes that can be matched against go.mod dependencies by name and version, but it doesn't represent a standalone dependency tree.
 
