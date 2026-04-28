@@ -30,22 +30,22 @@ func TestPomXML(t *testing.T) {
 
 	// Sample of packages with exact versions (some have unresolved ${property})
 	expected := map[string]string{
-		"mysql:mysql-connector-java":             "5.1.9",
-		"org.springframework:spring-jdbc":        "4.1.0.RELEASE",
-		"com.mchange:c3p0":                       "0.9.2.1",
-		"org.freemarker:freemarker":              "2.3.21",
-		"org.jasypt:jasypt":                      "1.9.2",
-		"com.google.protobuf:protobuf-java":      "2.5.0",
-		"redis.clients:jedis":                    "2.6.0",
-		"ch.qos.logback:logback-classic":         "1.1.2",
-		"io.dropwizard.metrics:metrics-core":     "3.1.0",
-		"net.spy:spymemcached":                   "2.11.7",
-		"com.google.inject:guice":                "3.0",
-		"commons-io:commons-io":                  "2.4",
-		"org.apache.commons:commons-exec":        "1.3",
-		"com.typesafe:config":                    "1.2.1",
-		"org.testng:testng":                      "6.8.7",
-		"org.mockito:mockito-all":                "1.8.4",
+		"mysql:mysql-connector-java":         "5.1.9",
+		"org.springframework:spring-jdbc":    "4.1.0.RELEASE",
+		"com.mchange:c3p0":                   "0.9.2.1",
+		"org.freemarker:freemarker":          "2.3.21",
+		"org.jasypt:jasypt":                  "1.9.2",
+		"com.google.protobuf:protobuf-java":  "2.5.0",
+		"redis.clients:jedis":                "2.6.0",
+		"ch.qos.logback:logback-classic":     "1.1.2",
+		"io.dropwizard.metrics:metrics-core": "3.1.0",
+		"net.spy:spymemcached":               "2.11.7",
+		"com.google.inject:guice":            "3.0",
+		"commons-io:commons-io":              "2.4",
+		"org.apache.commons:commons-exec":    "1.3",
+		"com.typesafe:config":                "1.2.1",
+		"org.testng:testng":                  "6.8.7",
+		"org.mockito:mockito-all":            "1.8.4",
 	}
 
 	for name, wantVer := range expected {
@@ -88,15 +88,15 @@ func TestBuildGradle(t *testing.T) {
 
 	// All 9 packages with exact versions
 	expected := map[string]string{
-		"com.squareup.okhttp:okhttp":                "2.1.0",
-		"com.squareup.okhttp:okhttp-urlconnection":  "2.1.0",
-		"com.squareup.picasso:picasso":              "2.4.0",
+		"com.squareup.okhttp:okhttp":                    "2.1.0",
+		"com.squareup.okhttp:okhttp-urlconnection":      "2.1.0",
+		"com.squareup.picasso:picasso":                  "2.4.0",
 		"com.google.android.gms:play-services-wearable": "8.3.0",
-		"de.greenrobot:eventbus":                    "2.4.0",
-		"com.android.support:appcompat-v7":          "23.1.1",
-		"com.android.support:recyclerview-v7":       "23.1.1",
-		"com.android.support:design":                "23.1.1",
-		"com.android.support:customtabs":            "23.1.1",
+		"de.greenrobot:eventbus":                        "2.4.0",
+		"com.android.support:appcompat-v7":              "23.1.1",
+		"com.android.support:recyclerview-v7":           "23.1.1",
+		"com.android.support:design":                    "23.1.1",
+		"com.android.support:customtabs":                "23.1.1",
 	}
 
 	for name, wantVer := range expected {
@@ -162,18 +162,18 @@ func TestIvyXML(t *testing.T) {
 
 	// All 12 packages with exact versions
 	expected := map[string]string{
-		"org.htmlparser:htmlparser":              "2.1",
-		"org.apache.velocity:velocity":           "1.7",
-		"commons-lang:commons-lang":              "2.6",
-		"commons-collections:commons-collections": "3.2.2",
-		"org.json:json":                          "20151123",
-		"org.apache.ant:ant":                     "1.9.6",
+		"org.htmlparser:htmlparser":                "2.1",
+		"org.apache.velocity:velocity":             "1.7",
+		"commons-lang:commons-lang":                "2.6",
+		"commons-collections:commons-collections":  "3.2.2",
+		"org.json:json":                            "20151123",
+		"org.apache.ant:ant":                       "1.9.6",
 		"com.googlecode.java-diff-utils:diffutils": "1.3.0",
-		"junit:junit":                            "4.12",
-		"org.mockito:mockito-core":               "1.10.19",
-		"org.hamcrest:hamcrest-all":              "1.3",
-		"net.javacrumbs.json-unit:json-unit":     "1.1.6",
-		"org.mozilla:rhino":                      "1.7.7",
+		"junit:junit":                              "4.12",
+		"org.mockito:mockito-core":                 "1.10.19",
+		"org.hamcrest:hamcrest-all":                "1.3",
+		"net.javacrumbs.json-unit:json-unit":       "1.1.6",
+		"org.mozilla:rhino":                        "1.7.7",
 	}
 
 	for name, wantVer := range expected {
@@ -214,8 +214,8 @@ func TestBuildSbt(t *testing.T) {
 		version string
 		scope   core.Scope
 	}{
-		"junit:junit":                   {"4.11", core.Test},
-		"com.novocode:junit-interface":  {"0.10", core.Test},
+		"junit:junit":                  {"4.11", core.Test},
+		"com.novocode:junit-interface": {"0.10", core.Test},
 	}
 
 	for name, exp := range expected {
@@ -319,13 +319,13 @@ func assertPomDeps(t *testing.T, fixture string, wantCount int, expected map[str
 
 func TestPom2XML(t *testing.T) {
 	assertPomDeps(t, "pom2.xml", 8, map[string]string{
-		"org.apache.maven:maven-plugin-api":                      "${maven.version}",
-		"org.apache.maven:maven-core":                            "${maven.version}",
+		"org.apache.maven:maven-plugin-api":                      "3.3.9",
+		"org.apache.maven:maven-core":                            "3.3.9",
 		"org.apache.maven.plugin-tools:maven-plugin-annotations": "3.4",
-		"org.codehaus.jackson:jackson-core-lgpl":                 "${jackson.version}",
-		"org.codehaus.jackson:jackson-mapper-lgpl":               "${jackson.version}",
-		"org.apache.httpcomponents:httpclient":                    "${httpcomponents.version}",
-		"org.apache.httpcomponents:httpmime":                      "${httpcomponents.version}",
+		"org.codehaus.jackson:jackson-core-lgpl":                 "1.9.13",
+		"org.codehaus.jackson:jackson-mapper-lgpl":               "1.9.13",
+		"org.apache.httpcomponents:httpclient":                   "4.5.2",
+		"org.apache.httpcomponents:httpmime":                     "4.5.2",
 		"org.testng:testng":                                      "6.9.12",
 	})
 }
@@ -345,15 +345,43 @@ func TestPomNoProps(t *testing.T) {
 
 func TestPomMissingProps(t *testing.T) {
 	assertPomDeps(t, "pom_missing_props.xml", 8, map[string]string{
-		"org.apache.maven:maven-plugin-api":                      "${maven.version}",
-		"org.apache.maven:maven-core":                            "${maven.version}",
+		"org.apache.maven:maven-plugin-api":                      "3.3.9",
+		"org.apache.maven:maven-core":                            "3.3.9",
 		"org.apache.maven.plugin-tools:maven-plugin-annotations": "3.4",
-		"org.codehaus.jackson:jackson-core-lgpl":                 "${jackson.version}",
-		"org.codehaus.jackson:jackson-mapper-lgpl":               "${jackson.version}",
-		"org.apache.httpcomponents:httpclient":                    "${httpcomponents.version}",
-		"org.apache.httpcomponents:httpmime":                      "${httpcomponents.version}",
+		"org.codehaus.jackson:jackson-core-lgpl":                 "1.9.13",
+		"org.codehaus.jackson:jackson-mapper-lgpl":               "1.9.13",
+		"org.apache.httpcomponents:httpclient":                   "4.5.2",
+		"org.apache.httpcomponents:httpmime":                     "4.5.2",
 		"org.testng:testng":                                      "${missing_property}",
 	})
+}
+
+func TestPomMultiModuleLocalParent(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/multimodule/child/pom.xml")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	parser := &pomXMLParser{}
+	deps, err := parser.Parse("../../testdata/maven/multimodule/child/pom.xml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if len(deps) != 3 {
+		t.Fatalf("expected 3 deps, got %d: %+v", len(deps), deps)
+	}
+	got := map[string]core.Dependency{}
+	for _, d := range deps {
+		got[d.Name] = d
+	}
+	if got["org.example:sibling"].Version != "1.0-SNAPSHOT" {
+		t.Errorf("project.version: %+v", got["org.example:sibling"])
+	}
+	if got["org.openjdk.jmh:jmh-core"].Version != "1.37" || got["org.openjdk.jmh:jmh-core"].Scope != core.Test {
+		t.Errorf("jmh from parent property: %+v", got["org.openjdk.jmh:jmh-core"])
+	}
+	if got["org.lib:lib"].Version != "2.5" {
+		t.Errorf("lib from parent depMgmt: %+v", got["org.lib:lib"])
+	}
 }
 
 func TestPomDependenciesNoRequirement(t *testing.T) {
@@ -452,10 +480,10 @@ func TestGradleDependenciesQ(t *testing.T) {
 
 	// Sample of packages with versions
 	samples := map[string]string{
-		"org.projectlombok:lombok":                  "1.18.2",
-		"com.google.guava:guava":                    "23.5-jre",
-		"org.checkerframework:checker-qual":        "2.0.0", // First occurrence in tree
-		"com.google.errorprone:error_prone_core":   "2.3.1",
+		"org.projectlombok:lombok":               "1.18.2",
+		"com.google.guava:guava":                 "23.5-jre",
+		"org.checkerframework:checker-qual":      "2.0.0", // First occurrence in tree
+		"com.google.errorprone:error_prone_core": "2.3.1",
 	}
 
 	for name, wantVer := range samples {
@@ -542,9 +570,9 @@ func TestGradleVerificationMetadata(t *testing.T) {
 
 	// All packages with expected versions
 	expected := map[string]string{
-		"org.apache.pdfbox:pdfbox":         "2.0.17",
+		"org.apache.pdfbox:pdfbox":              "2.0.17",
 		"com.github.javaparser:javaparser-core": "3.6.11",
-		"org.springframework:spring-core":  "5.3.23",
+		"org.springframework:spring-core":       "5.3.23",
 	}
 
 	for name, wantVer := range expected {
@@ -761,11 +789,11 @@ func TestIvyReportTest(t *testing.T) {
 
 	// Verify some dependencies and that they have test scope
 	expectedTest := map[string]string{
-		"org.scala-lang:scala-reflect":           "2.12.5",
-		"org.scalatest:scalatest_2.12":           "3.0.5",
+		"org.scala-lang:scala-reflect":          "2.12.5",
+		"org.scalatest:scalatest_2.12":          "3.0.5",
 		"org.scala-lang.modules:scala-xml_2.12": "1.0.6",
-		"org.scalactic:scalactic_2.12":           "3.0.5",
-		"org.scala-lang:scala-library":           "2.12.5",
+		"org.scalactic:scalactic_2.12":          "3.0.5",
+		"org.scala-lang:scala-library":          "2.12.5",
 	}
 
 	for name, wantVer := range expectedTest {

@@ -1,12 +1,14 @@
 package maven
 
 import (
+	"context"
 	"encoding/json"
-	"encoding/xml"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
+	"github.com/git-pkgs/pom"
 )
 
 const (
@@ -24,62 +26,51 @@ func init() {
 	core.Register("maven", core.Lockfile, &mavenGraphJSONParser{}, core.ExactMatch("maven.graph.json"))
 }
 
-// pomXMLParser parses pom.xml files.
+// pomXMLParser parses pom.xml files. It computes a local-only effective
+// POM: parents reachable via <relativePath> on disk are merged so that
+// ${project.version} and properties defined in a multi-module root
+// resolve, but nothing is fetched over the network. Anything that would
+// need a remote parent or BOM is left as-is and the dependency keeps its
+// raw ${...} version.
 type pomXMLParser struct{}
 
-type pomXML struct {
-	Dependencies struct {
-		Dependency []pomDependency `xml:"dependency"`
-	} `xml:"dependencies"`
-}
-
-type pomDependency struct {
-	GroupID    string `xml:"groupId"`
-	ArtifactID string `xml:"artifactId"`
-	Version    string `xml:"version"`
-	Scope      string `xml:"scope"`
-	Optional   string `xml:"optional"`
-}
-
 func (p *pomXMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
-	var pom pomXML
-	if err := xml.Unmarshal(content, &pom); err != nil {
+	root, err := pom.ParsePOM(content)
+	if err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
-	var deps []core.Dependency
+	fetcher := pom.NewLocalFetcherFrom(root, filepath.Dir(filename))
+	ep, err := pom.NewResolver(fetcher).ResolvePOM(context.Background(), root, pom.Options{})
+	if err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
 
-	for _, dep := range pom.Dependencies.Dependency {
-		// Skip dependencies with property references as they can't be resolved
-		if strings.Contains(dep.GroupID, "${") && strings.Contains(dep.ArtifactID, "${") {
+	deps := make([]core.Dependency, 0, len(ep.Dependencies))
+	for _, d := range ep.Dependencies {
+		if strings.Contains(d.GroupID, "${") && strings.Contains(d.ArtifactID, "${") {
 			continue
 		}
-
-		name := dep.GroupID + ":" + dep.ArtifactID
-		scope := core.Runtime
-
-		switch strings.ToLower(dep.Scope) {
-		case scopeTest:
-			scope = core.Test
-		case scopeProvided, "compile":
-			scope = core.Runtime
-		case "runtime":
-			scope = core.Runtime
-		}
-
-		if strings.ToLower(dep.Optional) == "true" {
-			scope = core.Optional
-		}
-
 		deps = append(deps, core.Dependency{
-			Name:    name,
-			Version: dep.Version,
-			Scope:   scope,
+			Name:    d.GroupID + ":" + d.ArtifactID,
+			Version: d.Version,
+			Scope:   mapScope(d.Scope, d.Optional),
 			Direct:  true,
 		})
 	}
-
 	return deps, nil
+}
+
+func mapScope(scope string, optional bool) core.Scope {
+	if optional {
+		return core.Optional
+	}
+	switch strings.ToLower(scope) {
+	case scopeTest:
+		return core.Test
+	default:
+		return core.Runtime
+	}
 }
 
 // mavenResolvedDepsParser parses maven-resolved-dependencies.txt files (mvn dependency:list output).
