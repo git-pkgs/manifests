@@ -103,6 +103,11 @@ func TestIdentifyFiles(t *testing.T) {
 		{"composer.json", "composer", Manifest, true},
 		{"composer.lock", "composer", Lockfile, true},
 
+		// lean
+		{"lakefile.toml", "lean", Manifest, true},
+		{"lakefile.lean", "lean", Manifest, true},
+		{"lake-manifest.json", "lean", Lockfile, true},
+
 		// docker
 		{"Dockerfile", "docker", Manifest, true},
 		{"docker-compose.yml", "docker", Manifest, true},

@@ -31,6 +31,7 @@ import (
 	_ "github.com/git-pkgs/manifests/internal/hex"
 	_ "github.com/git-pkgs/manifests/internal/ips"
 	_ "github.com/git-pkgs/manifests/internal/julia"
+	_ "github.com/git-pkgs/manifests/internal/lake"
 	_ "github.com/git-pkgs/manifests/internal/luarocks"
 	_ "github.com/git-pkgs/manifests/internal/maven"
 	_ "github.com/git-pkgs/manifests/internal/nimble"
