@@ -6,11 +6,11 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bazelbuild/buildtools v0.0.0-20260211083412-859bfffeef82
 	github.com/git-pkgs/pom v0.1.3
-	github.com/git-pkgs/purl v0.1.10
+	github.com/git-pkgs/purl v0.1.11
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/git-pkgs/packageurl-go v0.3.1 // indirect
 	github.com/git-pkgs/vers v0.2.4 // indirect
+	github.com/package-url/packageurl-go v0.1.6 // indirect
 )
