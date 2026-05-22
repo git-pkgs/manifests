@@ -1,0 +1,6 @@
+version: "2"
+
+linters:
+  settings:
+    goconst:
+      ignore-tests: true
