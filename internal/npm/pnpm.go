@@ -11,8 +11,8 @@ func init() {
 
 // extractPnpmPackageKey extracts package key from "  /name/ver:" or "  '@scope/name@ver':" lines
 func extractPnpmPackageKey(line string) (string, bool) {
-	// Must start with 2 spaces
-	if len(line) < 4 || line[0] != ' ' || line[1] != ' ' {
+	// Must start with exactly 2 spaces so nested keys (peerDependenciesMeta etc) are skipped
+	if len(line) < 4 || line[0] != ' ' || line[1] != ' ' || line[2] == ' ' {
 		return "", false
 	}
 	// Must end with colon
