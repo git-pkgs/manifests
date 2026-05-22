@@ -880,6 +880,75 @@ func TestDenoLock(t *testing.T) {
 	}
 }
 
+func TestExtractPnpmPackageKey(t *testing.T) {
+	tests := []struct {
+		line    string
+		wantKey string
+		wantOk  bool
+	}{
+		{"  '@typescript-eslint/eslint-plugin@8.59.3':", "@typescript-eslint/eslint-plugin@8.59.3", true},
+		{"  acorn@5.7.4:", "acorn@5.7.4", true},
+		{"  /chalk/1.1.3:", "/chalk/1.1.3", true},
+		// Nested keys (>2-space indent) must be rejected.
+		// https://github.com/git-pkgs/manifests/issues/32
+		{"      '@typescript-eslint/parser':", "", false},
+		{"    peerDependenciesMeta:", "", false},
+		{"packages:", "", false},
+		{"  resolution: {integrity: sha512-xxx}", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.line, func(t *testing.T) {
+			gotKey, gotOk := extractPnpmPackageKey(tt.line)
+			if gotOk != tt.wantOk {
+				t.Errorf("ok = %v, want %v", gotOk, tt.wantOk)
+			}
+			if gotKey != tt.wantKey {
+				t.Errorf("key = %q, want %q", gotKey, tt.wantKey)
+			}
+		})
+	}
+}
+
+func TestPnpmLockPeerDependenciesMeta(t *testing.T) {
+	// https://github.com/git-pkgs/manifests/issues/32
+	content := []byte(`lockfileVersion: '9.0'
+
+packages:
+
+  '@typescript-eslint/eslint-plugin@8.59.3':
+    resolution: {integrity: sha512-PwFvSKsXGShKGW6n5bZOhGHEcCZXM8HofLK9fNsEwZXzFRjoY+XT1Vsf1zgyXdwTr0ZYz1/2tkZ0DBTT9jZjhw==}
+    engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    peerDependencies:
+      '@typescript-eslint/parser': ^8.59.3
+      eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+    peerDependenciesMeta:
+      '@typescript-eslint/parser':
+        optional: true
+      eslint:
+        optional: true
+
+  eslint@9.0.0:
+    resolution: {integrity: sha512-xxx}
+`)
+
+	parser := &pnpmLockParser{}
+	deps, err := parser.Parse("pnpm-lock.yaml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(deps) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d: %+v", len(deps), deps)
+	}
+	if deps[0].Name != "@typescript-eslint/eslint-plugin" || deps[0].Version != "8.59.3" {
+		t.Errorf("dep[0] = %s@%s, want @typescript-eslint/eslint-plugin@8.59.3", deps[0].Name, deps[0].Version)
+	}
+	if deps[1].Name != "eslint" || deps[1].Version != "9.0.0" {
+		t.Errorf("dep[1] = %s@%s, want eslint@9.0.0", deps[1].Name, deps[1].Version)
+	}
+}
+
 func TestParsePnpmPackageKey(t *testing.T) {
 	tests := []struct {
 		key      string
