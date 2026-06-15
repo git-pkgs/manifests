@@ -14,3 +14,5 @@ require (
 	github.com/git-pkgs/vers v0.2.5 // indirect
 	github.com/package-url/packageurl-go v0.1.6 // indirect
 )
+
+replace github.com/git-pkgs/pom => ../pom

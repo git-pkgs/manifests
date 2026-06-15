@@ -27,20 +27,25 @@ func init() {
 }
 
 // pomXMLParser parses pom.xml files. It computes a local-only effective
-// POM: parents reachable via <relativePath> on disk are merged so that
-// ${project.version} and properties defined in a multi-module root
-// resolve, but nothing is fetched over the network. Anything that would
+// POM: when given a filesystem root, parents reachable via <relativePath>
+// on disk inside that root are merged so that ${project.version} and
+// properties defined in a multi-module root resolve. Nothing is fetched
+// over the network and nothing outside fsRoot is read. Anything that would
 // need a remote parent or BOM is left as-is and the dependency keeps its
 // raw ${...} version.
 type pomXMLParser struct{}
 
 func (p *pomXMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+	return p.ParseInRoot(filename, content, "")
+}
+
+func (p *pomXMLParser) ParseInRoot(filename string, content []byte, fsRoot string) ([]core.Dependency, error) {
 	root, err := pom.ParsePOM(content)
 	if err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
-	fetcher := pom.NewLocalFetcherFrom(root, filepath.Dir(filename))
+	fetcher := pom.NewLocalFetcherFrom(root, filepath.Dir(filename), fsRoot)
 	ep, err := pom.NewResolver(fetcher).ResolvePOM(context.Background(), root, pom.Options{})
 	if err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
