@@ -362,7 +362,7 @@ func TestPomMultiModuleLocalParent(t *testing.T) {
 		t.Fatalf("read fixture: %v", err)
 	}
 	parser := &pomXMLParser{}
-	deps, err := parser.Parse("../../testdata/maven/multimodule/child/pom.xml", content)
+	deps, err := parser.ParseInRoot("../../testdata/maven/multimodule/child/pom.xml", content, "../../testdata/maven/multimodule")
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -381,6 +381,48 @@ func TestPomMultiModuleLocalParent(t *testing.T) {
 	}
 	if got["org.lib:lib"].Version != "2.5" {
 		t.Errorf("lib from parent depMgmt: %+v", got["org.lib:lib"])
+	}
+}
+
+func TestPomMultiModuleNoFSRoot(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/multimodule/child/pom.xml")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	parser := &pomXMLParser{}
+	deps, err := parser.Parse("../../testdata/maven/multimodule/child/pom.xml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	got := map[string]core.Dependency{}
+	for _, d := range deps {
+		got[d.Name] = d
+	}
+	if v := got["org.openjdk.jmh:jmh-core"].Version; v == "1.37" {
+		t.Errorf("jmh-core resolved to %q without FSRoot; parent should not have been read", v)
+	}
+	if v := got["org.lib:lib"].Version; v == "2.5" {
+		t.Errorf("lib resolved to %q without FSRoot; parent depMgmt should not have been read", v)
+	}
+}
+
+func TestPomMultiModuleFSRootJail(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/maven/multimodule/child/pom.xml")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	parser := &pomXMLParser{}
+	// fsRoot is the child dir itself, so ../pom.xml is outside the jail.
+	deps, err := parser.ParseInRoot("../../testdata/maven/multimodule/child/pom.xml", content, "../../testdata/maven/multimodule/child")
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	got := map[string]core.Dependency{}
+	for _, d := range deps {
+		got[d.Name] = d
+	}
+	if v := got["org.lib:lib"].Version; v == "2.5" {
+		t.Errorf("lib resolved to %q; parent outside fsRoot should have been refused", v)
 	}
 }
 
