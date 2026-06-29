@@ -37,6 +37,14 @@ type Parser interface {
 	Parse(filename string, content []byte) ([]Dependency, error)
 }
 
+// FSRootParser is optionally implemented by parsers that can consult
+// neighbouring files on disk (e.g. pom.xml following <relativePath> to a
+// parent). The fsRoot argument bounds that lookup; an empty string means
+// no filesystem access.
+type FSRootParser interface {
+	ParseInRoot(filename string, content []byte, fsRoot string) ([]Dependency, error)
+}
+
 // ParseError is returned when parsing fails.
 type ParseError struct {
 	Filename string

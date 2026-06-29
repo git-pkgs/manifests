@@ -47,14 +47,36 @@ type ParseResult struct {
 	Dependencies []Dependency
 }
 
+// Options configures Parse.
+type Options struct {
+	// FSRoot, when non-empty, allows parsers that consult neighbouring
+	// files on disk (currently only pom.xml, for parent <relativePath>
+	// resolution) to do so within this directory. Paths outside it are
+	// refused. When empty, parsing is a pure function of content and no
+	// filesystem access occurs; this is the safe choice for untrusted
+	// input.
+	FSRoot string
+}
+
 // Parse parses a manifest or lockfile and returns its dependencies.
-func Parse(filename string, content []byte) (*ParseResult, error) {
+func Parse(filename string, content []byte, opts ...Options) (*ParseResult, error) {
+	var o Options
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+
 	parser, eco, kind := core.IdentifyParser(filename)
 	if parser == nil {
 		return nil, &UnknownFileError{Filename: filename}
 	}
 
-	deps, err := parser.Parse(filename, content)
+	var deps []Dependency
+	var err error
+	if fp, ok := parser.(core.FSRootParser); ok {
+		deps, err = fp.ParseInRoot(filename, content, o.FSRoot)
+	} else {
+		deps, err = parser.Parse(filename, content)
+	}
 	if err != nil {
 		return nil, err
 	}
