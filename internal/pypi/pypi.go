@@ -1,8 +1,8 @@
 package pypi
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
 
@@ -64,7 +64,7 @@ var (
 	requirementRegex = regexp.MustCompile(`^([a-zA-Z0-9_.-]+(?:\[[^\]]+\])?)\s*(==|>=|<=|~=|!=|>|<)?(.*)`)
 )
 
-func (p *requirementsTxtParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *requirementsTxtParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -101,13 +101,13 @@ func (p *requirementsTxtParser) Parse(filename string, content []byte) ([]core.D
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // pipfileParser parses Pipfile (TOML format).
 type pipfileParser struct{}
 
-func (p *pipfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pipfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var pipfile struct {
 		Packages    map[string]any `toml:"packages"`
 		DevPackages map[string]any `toml:"dev-packages"`
@@ -139,7 +139,7 @@ func (p *pipfileParser) Parse(filename string, content []byte) ([]core.Dependenc
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func extractPipfileVersion(value any) string {
@@ -179,7 +179,7 @@ type pipfileLockDep struct {
 	File    string   `json:"file"`
 }
 
-func (p *pipfileLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pipfileLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock pipfileLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -239,7 +239,7 @@ func (p *pipfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // convertPythonHash converts a Python hash (sha256:...) to SRI format (sha256-...).
@@ -256,7 +256,7 @@ func convertPythonHash(h string) string {
 // pyprojectParser parses pyproject.toml (Poetry format).
 type pyprojectParser struct{}
 
-func (p *pyprojectParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var pyproject struct {
 		Tool struct {
 			Poetry struct {
@@ -268,7 +268,7 @@ func (p *pyprojectParser) Parse(filename string, content []byte) ([]core.Depende
 			} `toml:"poetry"`
 		} `toml:"tool"`
 		Project struct {
-			Dependencies         []string `toml:"dependencies"`
+			Dependencies         []string            `toml:"dependencies"`
 			OptionalDependencies map[string][]string `toml:"optional-dependencies"`
 		} `toml:"project"`
 	}
@@ -351,7 +351,7 @@ func (p *pyprojectParser) Parse(filename string, content []byte) ([]core.Depende
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func extractPoetryVersion(value any) string {
@@ -442,7 +442,7 @@ type poetryLockPackage struct {
 	} `toml:"source"`
 }
 
-func (p *poetryLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *poetryLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock poetryLockFile
 	if _, err := toml.Decode(string(content), &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -480,7 +480,7 @@ func (p *poetryLockParser) Parse(filename string, content []byte) ([]core.Depend
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // pdmLockParser parses pdm.lock files.
@@ -500,7 +500,7 @@ type pdmLockPackage struct {
 	} `toml:"files"`
 }
 
-func (p *pdmLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pdmLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock pdmLockFile
 	if _, err := toml.Decode(string(content), &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -533,7 +533,7 @@ func (p *pdmLockParser) Parse(filename string, content []byte) ([]core.Dependenc
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // uvLockParser parses uv.lock files.
@@ -557,7 +557,7 @@ type uvLockPackage struct {
 	} `toml:"wheels"`
 }
 
-func (p *uvLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *uvLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock uvLockFile
 	if _, err := toml.Decode(string(content), &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -584,7 +584,7 @@ func (p *uvLockParser) Parse(filename string, content []byte) ([]core.Dependency
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // pipDependencyGraphParser parses pip-dependency-graph.json files (pipdeptree --json output).
@@ -603,7 +603,7 @@ type pipDepGraph struct {
 	} `json:"dependencies"`
 }
 
-func (p *pipDependencyGraphParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pipDependencyGraphParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var graph []pipDepGraph
 	if err := json.Unmarshal(content, &graph); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -629,13 +629,13 @@ func (p *pipDependencyGraphParser) Parse(filename string, content []byte) ([]cor
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // pipResolvedDepsParser parses pip-resolved-dependencies.txt files (pip freeze output).
 type pipResolvedDepsParser struct{}
 
-func (p *pipResolvedDepsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pipResolvedDepsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -663,7 +663,7 @@ func (p *pipResolvedDepsParser) Parse(filename string, content []byte) ([]core.D
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // setupPyParser parses setup.py files.
@@ -678,7 +678,7 @@ var (
 	quotedStringRegex = regexp.MustCompile(`['"]([^'"]+)['"]`)
 )
 
-func (p *setupPyParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *setupPyParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	contentStr := string(content)
 
@@ -714,7 +714,7 @@ func (p *setupPyParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func parseSetupRequirement(req string) (string, string) {
@@ -778,7 +778,7 @@ type pylockPackage struct {
 	} `toml:"archive"`
 }
 
-func (p *pylockTomlParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pylockTomlParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock pylockToml
 	if _, err := toml.Decode(string(content), &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -808,5 +808,5 @@ func (p *pylockTomlParser) Parse(filename string, content []byte) ([]core.Depend
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

@@ -16,7 +16,7 @@ func init() {
 
 type bazelModuleManifestParser struct{}
 
-func (p *bazelModuleManifestParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *bazelModuleManifestParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 
 	moduleManifestTree, err := build.ParseModule(filename, content)
@@ -54,7 +54,7 @@ func (p *bazelModuleManifestParser) Parse(filename string, content []byte) ([]co
 		})
 
 	}
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 type bazelDep struct {

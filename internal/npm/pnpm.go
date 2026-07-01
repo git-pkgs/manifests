@@ -117,7 +117,7 @@ func isTopLevelKey(line string) bool {
 	return len(line) > 0 && line[0] != ' ' && line[0] != '\n'
 }
 
-func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pnpmLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -159,7 +159,7 @@ func (p *pnpmLockParser) Parse(filename string, content []byte) ([]core.Dependen
 	// Flush the last package
 	deps = buildDependency(deps, state)
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parsePnpmPackageKey parses a pnpm package key like "/@scope/name/1.0.0" or "@scope/name@1.0.0"

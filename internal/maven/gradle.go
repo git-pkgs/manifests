@@ -134,7 +134,7 @@ func extractQuotedAfter(s string) string {
 	return s[start+1 : start+1+end]
 }
 
-func (p *gradleParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gradleParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 	seen := make(map[string]bool)
@@ -175,13 +175,13 @@ func (p *gradleParser) Parse(filename string, content []byte) ([]core.Dependency
 		return true
 	})
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // gradleLockfileParser parses gradle.lockfile files.
 type gradleLockfileParser struct{}
 
-func (p *gradleLockfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gradleLockfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -230,7 +230,7 @@ func (p *gradleLockfileParser) Parse(filename string, content []byte) ([]core.De
 		return true
 	})
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // gradleDependenciesParser parses gradle-dependencies-q.txt files (gradle dependencies -q output).
@@ -240,7 +240,7 @@ type gradleDependenciesParser struct{}
 // Also matches lines with version resolution: org.group:artifact:1.0 -> 2.0
 var gradleDepLineRegex = regexp.MustCompile(`[+\\]---\s+([a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+):([^\s]+)`)
 
-func (p *gradleDependenciesParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gradleDependenciesParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	seen := make(map[string]bool)
 	lines := strings.Split(string(content), "\n")
@@ -292,7 +292,7 @@ func (p *gradleDependenciesParser) Parse(filename string, content []byte) ([]cor
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // gradleVerificationParser parses verification-metadata.xml files.
@@ -308,7 +308,7 @@ type verificationMetadata struct {
 	} `xml:"components"`
 }
 
-func (p *gradleVerificationParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gradleVerificationParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var metadata verificationMetadata
 	if err := xml.Unmarshal(content, &metadata); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -331,13 +331,13 @@ func (p *gradleVerificationParser) Parse(filename string, content []byte) ([]cor
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // nebulaLockParser parses dependencies.lock files (Nebula gradle-dependency-lock-plugin).
 type nebulaLockParser struct{}
 
-func (p *nebulaLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *nebulaLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lockfile map[string]map[string]nebulaLockEntry
 	if err := json.Unmarshal(content, &lockfile); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -372,7 +372,7 @@ func (p *nebulaLockParser) Parse(filename string, content []byte) ([]core.Depend
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 type nebulaLockEntry struct {
@@ -385,7 +385,7 @@ type nebulaLockEntry struct {
 // gradleHtmlReportParser parses gradle-html-dependency-report.js files.
 type gradleHtmlReportParser struct{}
 
-func (p *gradleHtmlReportParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gradleHtmlReportParser) Parse(filename string, content []byte) (*core.Result, error) {
 	// Extract JSON from: window.project = { ... };
 	text := string(content)
 
@@ -422,17 +422,17 @@ func (p *gradleHtmlReportParser) Parse(filename string, content []byte) ([]core.
 		collectGradleHtmlDeps(&deps, seen, config.Dependencies, isTest)
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 type gradleHtmlProject struct {
-	Name           string                  `json:"name"`
-	Configurations []gradleHtmlConfig      `json:"configurations"`
+	Name           string             `json:"name"`
+	Configurations []gradleHtmlConfig `json:"configurations"`
 }
 
 type gradleHtmlConfig struct {
-	Name         string             `json:"name"`
-	Dependencies []gradleHtmlDep    `json:"dependencies"`
+	Name         string          `json:"name"`
+	Dependencies []gradleHtmlDep `json:"dependencies"`
 }
 
 type gradleHtmlDep struct {

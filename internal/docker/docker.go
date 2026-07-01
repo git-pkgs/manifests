@@ -25,7 +25,7 @@ var (
 	dockerFromRegex = regexp.MustCompile(`(?i)^FROM\s+(\S+)`)
 )
 
-func (p *dockerfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *dockerfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -56,7 +56,7 @@ func (p *dockerfileParser) Parse(filename string, content []byte) ([]core.Depend
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // dockerComposeParser parses docker-compose.yml files.
@@ -76,7 +76,7 @@ type dockerImageKey struct {
 	version string
 }
 
-func (p *dockerComposeParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *dockerComposeParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var compose dockerCompose
 	if err := yaml.Unmarshal(content, &compose); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -115,6 +115,5 @@ func (p *dockerComposeParser) Parse(filename string, content []byte) ([]core.Dep
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
-

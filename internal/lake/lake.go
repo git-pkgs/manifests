@@ -40,7 +40,7 @@ type lakefileToml struct {
 	Require []lakeRequire `toml:"require"`
 }
 
-func (p *lakefileTomlParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *lakefileTomlParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lake lakefileToml
 	if err := toml.Unmarshal(content, &lake); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -82,7 +82,7 @@ func (p *lakefileTomlParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // lakefileLeanParser parses lakefile.lean files using regex.
@@ -107,7 +107,7 @@ var lakeRequireRegex = regexp.MustCompile(
 		`(?:\s*from\s+(?:git\s+"([^"]+)"(?:\s*@\s*"([^"]+)")?|"([^"]+)"))?`,
 )
 
-func (p *lakefileLeanParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *lakefileLeanParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := stripLeanLineComments(string(content))
 
 	var deps []core.Dependency
@@ -141,7 +141,7 @@ func (p *lakefileLeanParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func stripLeanLineComments(text string) string {
@@ -175,7 +175,7 @@ type lakeManifest struct {
 	Packages []lakeManifestPackage `json:"packages"`
 }
 
-func (p *lakeManifestParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *lakeManifestParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var manifest lakeManifest
 	if err := json.Unmarshal(content, &manifest); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -202,5 +202,5 @@ func (p *lakeManifestParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

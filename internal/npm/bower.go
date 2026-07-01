@@ -1,8 +1,8 @@
 package npm
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -17,7 +17,7 @@ type bowerJSON struct {
 	DevDependencies map[string]string `json:"devDependencies"`
 }
 
-func (p *bowerParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *bowerParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var bower bowerJSON
 	if err := json.Unmarshal(content, &bower); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -43,5 +43,5 @@ func (p *bowerParser) Parse(filename string, content []byte) ([]core.Dependency,
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

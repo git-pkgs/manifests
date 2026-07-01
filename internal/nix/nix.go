@@ -1,8 +1,8 @@
 package nix
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
 )
@@ -23,7 +23,7 @@ var (
 	flakeInputRegex    = regexp.MustCompile(`([\w-]+)\s*=\s*\{\s*url\s*=\s*"([^"]+)"`)
 )
 
-func (p *flakeNixParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *flakeNixParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
@@ -31,7 +31,7 @@ func (p *flakeNixParser) Parse(filename string, content []byte) ([]core.Dependen
 	// Find inputs section
 	inputsStart := strings.Index(text, "inputs")
 	if inputsStart == -1 {
-		return nil, nil
+		return &core.Result{}, nil
 	}
 
 	// Parse name.url = "..." pattern
@@ -74,7 +74,7 @@ func (p *flakeNixParser) Parse(filename string, content []byte) ([]core.Dependen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseFlakeURL extracts version info from a flake URL
@@ -83,7 +83,7 @@ func parseFlakeURL(url string) string {
 	if strings.HasPrefix(url, "github:") {
 		parts := strings.Split(strings.TrimPrefix(url, "github:"), "/")
 		const ownerRepoRef = 3 // owner/repo/ref
-	if len(parts) >= ownerRepoRef {
+		if len(parts) >= ownerRepoRef {
 			return parts[2]
 		}
 		return url
@@ -117,7 +117,7 @@ type flakeLockNode struct {
 	} `json:"original"`
 }
 
-func (p *flakeLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *flakeLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock flakeLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -151,7 +151,7 @@ func (p *flakeLockParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // sourcesJSONParser parses niv sources.json files.
@@ -164,7 +164,7 @@ type sourcesSource struct {
 	Branch string `json:"branch"`
 }
 
-func (p *sourcesJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *sourcesJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var sources map[string]sourcesSource
 	if err := json.Unmarshal(content, &sources); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -187,5 +187,5 @@ func (p *sourcesJSONParser) Parse(filename string, content []byte) ([]core.Depen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

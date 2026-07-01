@@ -14,17 +14,17 @@ func TestCondaEnvironment(t *testing.T) {
 	}
 
 	parser := &condaEnvParser{}
-	deps, err := parser.Parse("environment.yml", content)
+	res, err := parser.Parse("environment.yml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 11 {
-		t.Fatalf("expected 11 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 11 {
+		t.Fatalf("expected 11 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -62,17 +62,17 @@ func TestCondaEnvironmentWithPip(t *testing.T) {
 	}
 
 	parser := &condaEnvParser{}
-	deps, err := parser.Parse("environment.yml", content)
+	res, err := parser.Parse("environment.yml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -93,7 +93,7 @@ func TestCondaEnvironmentWithPip(t *testing.T) {
 		}
 	}
 
-	// Django and urllib3 are pip deps, should not be included
+	// Django and urllib3 are pip res.Dependencies, should not be included
 	if _, ok := depMap["Django"]; ok {
 		t.Error("expected Django (pip dep) to be excluded")
 	}
@@ -109,26 +109,26 @@ func TestCondaLock(t *testing.T) {
 	}
 
 	parser := &condaLockParser{}
-	deps, err := parser.Parse("conda-lock.yml", content)
+	res, err := parser.Parse("conda-lock.yml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// 4 conda packages (pip packages are excluded)
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// Verify conda packages
 	expected := []struct {
-		name        string
-		version     string
-		scope       core.Scope
+		name         string
+		version      string
+		scope        core.Scope
 		hasIntegrity bool
 	}{
 		{"python", "3.11.0", core.Runtime, true},

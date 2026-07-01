@@ -12,17 +12,17 @@ func TestManifest(t *testing.T) {
 	}
 
 	parser := &manifestParser{}
-	deps, err := parser.Parse("manifest.scm", content)
+	res, err := parser.Parse("manifest.scm", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 15 {
-		t.Fatalf("expected 15 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 15 {
+		t.Fatalf("expected 15 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]bool)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = true
 		if d.Scope != "runtime" {
 			t.Errorf("%s: scope = %q, want %q", d.Name, d.Scope, "runtime")
@@ -57,13 +57,13 @@ func TestManifestWithVersions(t *testing.T) {
 `)
 
 	parser := &manifestParser{}
-	deps, err := parser.Parse("manifest.scm", content)
+	res, err := parser.Parse("manifest.scm", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	cases := map[string]string{
@@ -72,7 +72,7 @@ func TestManifestWithVersions(t *testing.T) {
 		"go":     "",
 	}
 
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		want, ok := cases[d.Name]
 		if !ok {
 			t.Errorf("unexpected dependency %s", d.Name)
@@ -91,13 +91,13 @@ func TestManifestNoMatch(t *testing.T) {
 `)
 
 	parser := &manifestParser{}
-	deps, err := parser.Parse("manifest.scm", content)
+	res, err := parser.Parse("manifest.scm", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if deps != nil {
-		t.Fatalf("expected nil dependencies for non-specifications manifest, got %d", len(deps))
+	if res.Dependencies != nil {
+		t.Fatalf("expected nil dependencies for non-specifications manifest, got %d", len(res.Dependencies))
 	}
 }
 
@@ -105,12 +105,12 @@ func TestManifestSuffixMatch(t *testing.T) {
 	content := []byte(`(specifications->manifest '("git" "make"))`)
 
 	parser := &manifestParser{}
-	deps, err := parser.Parse("base-manifest.scm", content)
+	res, err := parser.Parse("base-manifest.scm", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 }

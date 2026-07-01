@@ -14,17 +14,17 @@ func TestPKGBUILD(t *testing.T) {
 	}
 
 	parser := &pkgbuildParser{}
-	deps, err := parser.Parse("PKGBUILD", content)
+	res, err := parser.Parse("PKGBUILD", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 7 {
-		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

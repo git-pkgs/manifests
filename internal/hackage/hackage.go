@@ -25,7 +25,7 @@ var (
 	cabalDepRegex = regexp.MustCompile(`^\s*,?\s*([a-zA-Z][a-zA-Z0-9-]*)\s*(.*)$`)
 )
 
-func (p *cabalParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cabalParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 	seen := make(map[string]bool)
@@ -88,7 +88,7 @@ func (p *cabalParser) Parse(filename string, content []byte) ([]core.Dependency,
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // stackLockParser parses stack.yaml.lock files.
@@ -104,7 +104,7 @@ type stackLockPackage struct {
 	} `yaml:"completed"`
 }
 
-func (p *stackLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *stackLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock stackLock
 	if err := yaml.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -132,7 +132,7 @@ func (p *stackLockParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseHackageRef parses a hackage reference like "name-1.2.3@sha256:..."
@@ -159,7 +159,7 @@ var (
 	cabalConstraintRegex = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9-]*)\s*==\s*([0-9][0-9.]*[0-9])`)
 )
 
-func (p *cabalConfigParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cabalConfigParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
@@ -181,7 +181,7 @@ func (p *cabalConfigParser) Parse(filename string, content []byte) ([]core.Depen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // cabalFreezeParser parses cabal.project.freeze files.
@@ -192,7 +192,7 @@ var (
 	cabalProjectFreezeRegex = regexp.MustCompile(`any\.([a-zA-Z][a-zA-Z0-9-]*)\s*==\s*([0-9][0-9.]*[0-9])`)
 )
 
-func (p *cabalFreezeParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cabalFreezeParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
@@ -214,5 +214,5 @@ func (p *cabalFreezeParser) Parse(filename string, content []byte) ([]core.Depen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

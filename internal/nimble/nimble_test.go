@@ -14,17 +14,17 @@ func TestNimble(t *testing.T) {
 	}
 
 	parser := &nimbleParser{}
-	deps, err := parser.Parse("example.nimble", content)
+	res, err := parser.Parse("example.nimble", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -42,7 +42,7 @@ func TestNimble(t *testing.T) {
 		t.Errorf("expected chronos version >= 3.0.0, got %s", dep.Version)
 	}
 
-	// Check multiple deps on one line
+	// Check multiple res.Dependencies on one line
 	if dep, ok := depMap["chronicles"]; !ok {
 		t.Error("expected chronicles dependency")
 	} else if dep.Version != ">= 0.10.0" {

@@ -42,8 +42,15 @@ const (
 
 // ParseResult contains the parsed dependencies from a manifest or lockfile.
 type ParseResult struct {
-	Ecosystem    string
-	Kind         Kind
+	Ecosystem string
+	Kind      Kind
+	// Name is the package's own name as declared in the manifest, when
+	// the format has one. Empty for lockfiles and for formats that
+	// only list dependencies (Gemfile, requirements.txt, etc.).
+	Name string
+	// Version is the package's own version as declared in the
+	// manifest, when present.
+	Version      string
 	Dependencies []Dependency
 }
 
@@ -70,30 +77,35 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		return nil, &UnknownFileError{Filename: filename}
 	}
 
-	var deps []Dependency
+	var res *core.Result
 	var err error
 	if fp, ok := parser.(core.FSRootParser); ok {
-		deps, err = fp.ParseInRoot(filename, content, o.FSRoot)
+		res, err = fp.ParseInRoot(filename, content, o.FSRoot)
 	} else {
-		deps, err = parser.Parse(filename, content)
+		res, err = parser.Parse(filename, content)
 	}
 	if err != nil {
 		return nil, err
 	}
+	if res == nil {
+		res = &core.Result{}
+	}
 
 	// Generate PURLs for all dependencies
-	for i := range deps {
+	for i := range res.Dependencies {
 		version := ""
 		if kind == Lockfile || kind == Supplement {
-			version = deps[i].Version
+			version = res.Dependencies[i].Version
 		}
-		deps[i].PURL = makePURL(eco, deps[i].Name, version, deps[i].RegistryURL)
+		res.Dependencies[i].PURL = makePURL(eco, res.Dependencies[i].Name, version, res.Dependencies[i].RegistryURL)
 	}
 
 	return &ParseResult{
 		Ecosystem:    eco,
 		Kind:         kind,
-		Dependencies: deps,
+		Name:         res.Name,
+		Version:      res.Version,
+		Dependencies: res.Dependencies,
 	}, nil
 }
 

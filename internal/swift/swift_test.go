@@ -14,17 +14,17 @@ func TestPackageSwift(t *testing.T) {
 	}
 
 	parser := &packageSwiftParser{}
-	deps, err := parser.Parse("Package.swift", content)
+	res, err := parser.Parse("Package.swift", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -49,17 +49,17 @@ func TestPackageResolved(t *testing.T) {
 	}
 
 	parser := &packageResolvedParser{}
-	deps, err := parser.Parse("Package.resolved", content)
+	res, err := parser.Parse("Package.resolved", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -78,17 +78,17 @@ func TestPackageResolvedV2(t *testing.T) {
 	}
 
 	parser := &packageResolvedParser{}
-	deps, err := parser.Parse("Package.resolved", content)
+	res, err := parser.Parse("Package.resolved", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

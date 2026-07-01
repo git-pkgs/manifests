@@ -15,7 +15,7 @@ func init() {
 // toolVersionsParser parses .tool-versions files.
 type toolVersionsParser struct{}
 
-func (p *toolVersionsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *toolVersionsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -41,5 +41,5 @@ func (p *toolVersionsParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

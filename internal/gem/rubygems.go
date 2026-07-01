@@ -125,7 +125,7 @@ func extractGemfileGroup(line string) (scope core.Scope, ok bool) {
 	return core.Runtime, true
 }
 
-func (p *gemfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gemfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -162,7 +162,7 @@ func (p *gemfileParser) Parse(filename string, content []byte) ([]core.Dependenc
 		return true
 	})
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // gemfileLockParser parses Gemfile.lock files.
@@ -280,7 +280,7 @@ func applyDirectAndChecksums(deps []core.Dependency, directDeps map[string]bool,
 	}
 }
 
-func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gemfileLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 	checksums := make(map[gemDepKey]string)
@@ -331,7 +331,7 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 
 	applyDirectAndChecksums(deps, directDeps, checksums)
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // gemspecParser parses .gemspec files.
@@ -393,7 +393,7 @@ func extractGemspecDep(line string) (name, version string, isDev bool, ok bool) 
 	return name, version, isDev, true
 }
 
-func (p *gemspecParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gemspecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -413,5 +413,5 @@ func (p *gemspecParser) Parse(filename string, content []byte) ([]core.Dependenc
 		return true
 	})
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

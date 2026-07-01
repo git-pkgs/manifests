@@ -14,17 +14,17 @@ func TestJuliaProject(t *testing.T) {
 	}
 
 	parser := &juliaProjectParser{}
-	deps, err := parser.Parse("Project.toml", content)
+	res, err := parser.Parse("Project.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -62,17 +62,17 @@ func TestJuliaManifest(t *testing.T) {
 	}
 
 	parser := &juliaManifestParser{}
-	deps, err := parser.Parse("Manifest.toml", content)
+	res, err := parser.Parse("Manifest.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -105,32 +105,32 @@ func TestJuliaRequire(t *testing.T) {
 	}
 
 	parser := &juliaRequireParser{}
-	deps, err := parser.Parse("REQUIRE", content)
+	res, err := parser.Parse("REQUIRE", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 21 {
-		t.Fatalf("expected 21 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 21 {
+		t.Fatalf("expected 21 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// Sample of packages with versions
 	expected := map[string]string{
-		"julia":          "0.3",
-		"Colors":         "0.3.4",
-		"Codecs":         "",
-		"Compose":        "0.3.11",
-		"DataFrames":     "0.4.2",
-		"Gadfly":         "0.7-",
-		"Iterators":      "0.1.5",
-		"Plots":          "0.12 0.15",
-		"Showoff":        "0.0.3",
-		"Homebrew":       "",
+		"julia":      "0.3",
+		"Colors":     "0.3.4",
+		"Codecs":     "",
+		"Compose":    "0.3.11",
+		"DataFrames": "0.4.2",
+		"Gadfly":     "0.7-",
+		"Iterators":  "0.1.5",
+		"Plots":      "0.12 0.15",
+		"Showoff":    "0.0.3",
+		"Homebrew":   "",
 	}
 
 	for name, wantVer := range expected {

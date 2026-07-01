@@ -18,19 +18,19 @@ var (
 	rockspecDepRegex = regexp.MustCompile(`"([^"]+)"`)
 )
 
-func (p *rockspecParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *rockspecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 
 	// Find the dependencies section
 	depsStart := strings.Index(text, "dependencies")
 	if depsStart == -1 {
-		return nil, nil
+		return &core.Result{}, nil
 	}
 
 	// Find the opening brace
 	braceStart := strings.Index(text[depsStart:], "{")
 	if braceStart == -1 {
-		return nil, nil
+		return &core.Result{}, nil
 	}
 
 	// Find matching closing brace
@@ -50,7 +50,7 @@ func (p *rockspecParser) Parse(filename string, content []byte) ([]core.Dependen
 	}
 
 	if braceEnd == -1 {
-		return nil, nil
+		return &core.Result{}, nil
 	}
 
 	depsSection := text[start:braceEnd]
@@ -76,7 +76,7 @@ func (p *rockspecParser) Parse(filename string, content []byte) ([]core.Dependen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseRockspecDep parses a rockspec dependency string like "lua >= 5.1"

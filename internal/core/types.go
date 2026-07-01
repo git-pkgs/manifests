@@ -32,9 +32,20 @@ type Dependency struct {
 	RegistryURL string
 }
 
+// Result is the output of a single parser.
+type Result struct {
+	// Name is the package's own name as declared in the manifest, when
+	// the format has one. Empty for lockfiles and for manifest formats
+	// that only list dependencies (Gemfile, requirements.txt, etc.).
+	Name string
+	// Version is the package's own version as declared in the manifest.
+	Version      string
+	Dependencies []Dependency
+}
+
 // Parser is the interface implemented by all manifest parsers.
 type Parser interface {
-	Parse(filename string, content []byte) ([]Dependency, error)
+	Parse(filename string, content []byte) (*Result, error)
 }
 
 // FSRootParser is optionally implemented by parsers that can consult
@@ -42,7 +53,7 @@ type Parser interface {
 // parent). The fsRoot argument bounds that lookup; an empty string means
 // no filesystem access.
 type FSRootParser interface {
-	ParseInRoot(filename string, content []byte, fsRoot string) ([]Dependency, error)
+	ParseInRoot(filename string, content []byte, fsRoot string) (*Result, error)
 }
 
 // ParseError is returned when parsing fails.

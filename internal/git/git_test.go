@@ -12,17 +12,17 @@ func TestGitmodules(t *testing.T) {
 	}
 
 	parser := &gitmodulesParser{}
-	deps, err := parser.Parse(".gitmodules", content)
+	res, err := parser.Parse(".gitmodules", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]string)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d.RegistryURL
 	}
 

@@ -1,8 +1,8 @@
 package elm
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -23,7 +23,7 @@ type elmDependencies struct {
 	Indirect map[string]string `json:"indirect"`
 }
 
-func (p *elmJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *elmJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var elm elmJSON
 	if err := json.Unmarshal(content, &elm); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -71,7 +71,7 @@ func (p *elmJSONParser) Parse(filename string, content []byte) ([]core.Dependenc
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // elmPackageJSONParser parses elm-package.json files (Elm 0.18 and earlier).
@@ -81,7 +81,7 @@ type elmPackageJSON struct {
 	Dependencies map[string]string `json:"dependencies"`
 }
 
-func (p *elmPackageJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *elmPackageJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var elm elmPackageJSON
 	if err := json.Unmarshal(content, &elm); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -98,5 +98,5 @@ func (p *elmPackageJSONParser) Parse(filename string, content []byte) ([]core.De
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

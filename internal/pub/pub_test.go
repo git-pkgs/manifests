@@ -14,17 +14,17 @@ func TestPubspecYAML(t *testing.T) {
 	}
 
 	parser := &pubspecYAMLParser{}
-	deps, err := parser.Parse("pubspec.yaml", content)
+	res, err := parser.Parse("pubspec.yaml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -61,17 +61,17 @@ func TestPubspecLock(t *testing.T) {
 	}
 
 	parser := &pubspecLockParser{}
-	deps, err := parser.Parse("pubspec.lock", content)
+	res, err := parser.Parse("pubspec.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

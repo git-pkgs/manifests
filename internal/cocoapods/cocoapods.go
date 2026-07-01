@@ -22,7 +22,7 @@ var (
 	podTargetRegex = regexp.MustCompile(`^\s*target\s+["']([^"']+)["']\s+do`)
 )
 
-func (p *podfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *podfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -68,7 +68,7 @@ func (p *podfileParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // podfileLockParser parses Podfile.lock files.
@@ -81,7 +81,7 @@ var (
 	podChecksumRegex = regexp.MustCompile(`^\s+([^:]+):\s+([a-f0-9]+)$`)
 )
 
-func (p *podfileLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *podfileLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	lines := strings.Split(string(content), "\n")
 
 	var deps []core.Dependency
@@ -157,7 +157,7 @@ func (p *podfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // podspecParser parses .podspec files.
@@ -168,7 +168,7 @@ var (
 	podspecDepRegex = regexp.MustCompile(`\.dependency\s+["']([^"']+)["'](?:\s*,\s*["']([^"']+)["'])?`)
 )
 
-func (p *podspecParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *podspecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 
@@ -187,5 +187,5 @@ func (p *podspecParser) Parse(filename string, content []byte) ([]core.Dependenc
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

@@ -216,10 +216,10 @@ func TestPURL(t *testing.T) {
 func TestRegistryURLNotIncludedForDefaultRegistry(t *testing.T) {
 	// Test that default registry URLs don't add repository_url qualifier
 	testCases := []struct {
-		name        string
-		content     string
-		filename    string
-		wantInPURL  bool
+		name       string
+		content    string
+		filename   string
+		wantInPURL bool
 	}{
 		{
 			name: "npm default registry",

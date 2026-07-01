@@ -14,17 +14,17 @@ func TestDubJSON(t *testing.T) {
 	}
 
 	parser := &dubJSONParser{}
-	deps, err := parser.Parse("dub.json", content)
+	res, err := parser.Parse("dub.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -60,16 +60,16 @@ func TestDubSDL(t *testing.T) {
 	}
 
 	parser := &dubSDLParser{}
-	deps, err := parser.Parse("dub.sdl", content)
+	res, err := parser.Parse("dub.sdl", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
-	dep := deps[0]
+	dep := res.Dependencies[0]
 	if dep.Name != "vibe-d" {
 		t.Errorf("expected vibe-d, got %s", dep.Name)
 	}

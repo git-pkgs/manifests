@@ -15,7 +15,7 @@ type nimbleParser struct{}
 
 var nimbleDepRegex = regexp.MustCompile(`"([^"]+)"`)
 
-func (p *nimbleParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *nimbleParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
@@ -46,7 +46,7 @@ func (p *nimbleParser) Parse(filename string, content []byte) ([]core.Dependency
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseNimbleDep parses a nimble dependency string like "nim >= 1.6.0"

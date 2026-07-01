@@ -14,17 +14,17 @@ func TestPreCommitConfig(t *testing.T) {
 	}
 
 	parser := &preCommitYAMLParser{}
-	deps, err := parser.Parse(".pre-commit-config.yaml", content)
+	res, err := parser.Parse(".pre-commit-config.yaml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -60,24 +60,24 @@ func TestPrekTOML(t *testing.T) {
 	}
 
 	parser := &prekTOMLParser{}
-	deps, err := parser.Parse("prek.toml", content)
+	res, err := parser.Parse("prek.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	expected := map[string]string{
-		"github.com/crate-ci/typos":          "v1.42.3",
+		"github.com/crate-ci/typos":           "v1.42.3",
 		"github.com/executablebooks/mdformat": "1.0.0",
-		"gitlab.com/pycqa/flake8":            "7.0.0",
+		"gitlab.com/pycqa/flake8":             "7.0.0",
 	}
 
 	for name, wantVer := range expected {

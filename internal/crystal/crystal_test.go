@@ -14,17 +14,17 @@ func TestShardYML(t *testing.T) {
 	}
 
 	parser := &shardYMLParser{}
-	deps, err := parser.Parse("shard.yml", content)
+	res, err := parser.Parse("shard.yml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -63,29 +63,29 @@ func TestShardLock(t *testing.T) {
 	}
 
 	parser := &shardLockParser{}
-	deps, err := parser.Parse("shard.lock", content)
+	res, err := parser.Parse("shard.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 7 {
-		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All 7 packages with versions
 	expected := map[string]string{
-		"common_mark":       "0.1.0",
-		"frost":             "4042fc55a0865df8cbcb9a389527e9557aa8f280",
-		"minitest":          "0.3.1",
-		"pg":                "0.5.0",
-		"pool":              "0.2.1",
+		"common_mark":        "0.1.0",
+		"frost":              "4042fc55a0865df8cbcb9a389527e9557aa8f280",
+		"minitest":           "0.3.1",
+		"pg":                 "0.5.0",
+		"pool":               "0.2.1",
 		"selenium-webdriver": "0.1.0",
-		"shards":            "0.6.0",
+		"shards":             "0.6.0",
 	}
 
 	for name, wantVer := range expected {

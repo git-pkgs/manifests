@@ -20,7 +20,7 @@ var (
 	pkgbuildDepRegex = regexp.MustCompile(`^([a-zA-Z0-9_][a-zA-Z0-9_+@.-]*)(>=|<=|>|<|=)?([^'"]*)$`)
 )
 
-func (p *pkgbuildParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pkgbuildParser) Parse(filename string, content []byte) (*core.Result, error) {
 	vars := parsePkgbuildVars(string(content))
 
 	var deps []core.Dependency
@@ -53,7 +53,7 @@ func (p *pkgbuildParser) Parse(filename string, content []byte) ([]core.Dependen
 		deps = append(deps, dep)
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func parsePkgbuildVars(content string) map[string]string {

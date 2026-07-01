@@ -14,17 +14,17 @@ func TestDockerfile(t *testing.T) {
 	}
 
 	parser := &dockerfileParser{}
-	deps, err := parser.Parse("Dockerfile", content)
+	res, err := parser.Parse("Dockerfile", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -48,17 +48,17 @@ func TestDockerCompose(t *testing.T) {
 	}
 
 	parser := &dockerComposeParser{}
-	deps, err := parser.Parse("docker-compose.yml", content)
+	res, err := parser.Parse("docker-compose.yml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

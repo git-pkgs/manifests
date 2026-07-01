@@ -15,15 +15,15 @@ func parseFixture(t *testing.T, fixturePath string, filename string, p core.Pars
 	if err != nil {
 		t.Fatalf("failed to read fixture: %v", err)
 	}
-	deps, err := p.Parse(filename, content)
+	res, err := p.Parse(filename, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
-	if len(deps) != wantCount {
-		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
+	if len(res.Dependencies) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(res.Dependencies))
 	}
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 	return depMap
@@ -72,17 +72,17 @@ func TestPipfile(t *testing.T) {
 	}
 
 	parser := &pipfileParser{}
-	deps, err := parser.Parse("Pipfile", content)
+	res, err := parser.Parse("Pipfile", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 7 {
-		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -123,17 +123,17 @@ func TestPipfileLock(t *testing.T) {
 	}
 
 	parser := &pipfileLockParser{}
-	deps, err := parser.Parse("Pipfile.lock", content)
+	res, err := parser.Parse("Pipfile.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 13 {
-		t.Fatalf("expected 13 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 13 {
+		t.Fatalf("expected 13 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -180,17 +180,17 @@ func TestPyprojectToml(t *testing.T) {
 	}
 
 	parser := &pyprojectParser{}
-	deps, err := parser.Parse("pyproject.toml", content)
+	res, err := parser.Parse("pyproject.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -281,17 +281,17 @@ func TestPdmLock(t *testing.T) {
 	}
 
 	parser := &pdmLockParser{}
-	deps, err := parser.Parse("pdm.lock", content)
+	res, err := parser.Parse("pdm.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -352,17 +352,17 @@ func TestUvLock(t *testing.T) {
 	}
 
 	parser := &uvLockParser{}
-	deps, err := parser.Parse("uv.lock", content)
+	res, err := parser.Parse("uv.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 36 {
-		t.Fatalf("expected 36 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 36 {
+		t.Fatalf("expected 36 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -437,16 +437,16 @@ func TestPipCompileRequirementsIn(t *testing.T) {
 func TestPipCompileRequirementsTxt(t *testing.T) {
 	depMap := parseFixture(t, "../../testdata/pypi/pip-compile/requirements.txt", "requirements.txt", &requirementsTxtParser{}, 38)
 	verifyVersions(t, depMap, map[string]string{
-		"black":                 "==21.9b0",
-		"google-cloud-storage":  "==1.42.2",
-		"invoke":                "==1.6.0",
-		"jinja2":                "==3.0.1",
-		"pip-tools":             "==6.2.0",
-		"pyyaml":                "==5.4.1",
-		"questionary":           "==1.10.0",
-		"semver":                "==2.13.0",
-		"six":                   "==1.16.0",
-		"requests":              "==2.26.0",
+		"black":                "==21.9b0",
+		"google-cloud-storage": "==1.42.2",
+		"invoke":               "==1.6.0",
+		"jinja2":               "==3.0.1",
+		"pip-tools":            "==6.2.0",
+		"pyyaml":               "==5.4.1",
+		"questionary":          "==1.10.0",
+		"semver":               "==2.13.0",
+		"six":                  "==1.16.0",
+		"requests":             "==2.26.0",
 	})
 }
 
@@ -524,32 +524,32 @@ func TestSetupPy(t *testing.T) {
 	}
 
 	parser := &setupPyParser{}
-	deps, err := parser.Parse("setup.py", content)
+	res, err := parser.Parse("setup.py", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) < 17 {
-		t.Fatalf("expected at least 17 dependencies, got %d", len(deps))
+	if len(res.Dependencies) < 17 {
+		t.Fatalf("expected at least 17 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// Sample of install_requires packages
 	installRequires := map[string]string{
-		"django-bootstrap3":          ">=6.2,<6.3",
-		"lesscpy":                    "",
-		"unicodecsv":                 "==0.14.1",
-		"django-coffeescript":        ">=0.7,<0.8",
-		"django-compressor":          ">=1.6,<1.7",
-		"django-filter":              ">=0.11,<0.12",
+		"django-bootstrap3":            ">=6.2,<6.3",
+		"lesscpy":                      "",
+		"unicodecsv":                   "==0.14.1",
+		"django-coffeescript":          ">=0.7,<0.8",
+		"django-compressor":            ">=1.6,<1.7",
+		"django-filter":                ">=0.11,<0.12",
 		"django-representatives-votes": ">=0.0.13",
-		"django-representatives":     ">=0.0.14",
-		"django":                     ">=1.8,<1.9",
-		"pytz":                       "==2015.7",
+		"django-representatives":       ">=0.0.14",
+		"django":                       ">=1.8,<1.9",
+		"pytz":                         "==2015.7",
 	}
 
 	for name, wantVer := range installRequires {
@@ -574,17 +574,17 @@ func TestPylockToml(t *testing.T) {
 	}
 
 	parser := &pylockTomlParser{}
-	deps, err := parser.Parse("pylock.toml", content)
+	res, err := parser.Parse("pylock.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 20 {
-		t.Fatalf("expected 20 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 20 {
+		t.Fatalf("expected 20 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -632,14 +632,14 @@ func TestPyprojectPEP621OptionalDeps(t *testing.T) {
 	}
 
 	parser := &pyprojectParser{}
-	deps, err := parser.Parse("pyproject.toml", content)
+	res, err := parser.Parse("pyproject.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// 1 runtime + 1 lint + 2 dev + 2 testing + 3 modeling = 9
-	if len(deps) != 9 {
-		t.Fatalf("expected 9 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 9 {
+		t.Fatalf("expected 9 dependencies, got %d", len(res.Dependencies))
 	}
 
 	type depKey struct {
@@ -649,7 +649,7 @@ func TestPyprojectPEP621OptionalDeps(t *testing.T) {
 	}
 
 	depMap := make(map[string]depKey)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = depKey{d.Name, d.Version, d.Scope}
 	}
 
@@ -687,21 +687,21 @@ func TestSetupPyExtrasRequire(t *testing.T) {
 	}
 
 	parser := &setupPyParser{}
-	deps, err := parser.Parse("setup.py", content)
+	res, err := parser.Parse("setup.py", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	// Find the extras_require deps by scope
+	// Find the extras_require res.Dependencies by scope
 	var testDeps []core.Dependency
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		if d.Scope == core.Test {
 			testDeps = append(testDeps, d)
 		}
 	}
 
 	if len(testDeps) != 7 {
-		t.Fatalf("expected 7 test-scope deps from extras_require, got %d", len(testDeps))
+		t.Fatalf("expected 7 test-scope res.Dependencies from extras_require, got %d", len(testDeps))
 	}
 
 	testDepMap := make(map[string]core.Dependency)
@@ -721,7 +721,7 @@ func TestSetupPyExtrasRequire(t *testing.T) {
 
 	for _, name := range expectedTestDeps {
 		if _, ok := testDepMap[name]; !ok {
-			t.Errorf("expected %s in extras_require testing deps", name)
+			t.Errorf("expected %s in extras_require testing res.Dependencies", name)
 		}
 	}
 }

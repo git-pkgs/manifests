@@ -14,17 +14,17 @@ func TestDescription(t *testing.T) {
 	}
 
 	parser := &descriptionParser{}
-	deps, err := parser.Parse("DESCRIPTION", content)
+	res, err := parser.Parse("DESCRIPTION", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 26 {
-		t.Fatalf("expected 26 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 26 {
+		t.Fatalf("expected 26 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -89,17 +89,17 @@ func TestRenvLock(t *testing.T) {
 	}
 
 	parser := &renvLockParser{}
-	deps, err := parser.Parse("renv.lock", content)
+	res, err := parser.Parse("renv.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -138,17 +138,17 @@ func TestDescription2(t *testing.T) {
 	}
 
 	parser := &descriptionParser{}
-	deps, err := parser.Parse("DESCRIPTION", content)
+	res, err := parser.Parse("DESCRIPTION", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 19 {
-		t.Fatalf("expected 19 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 19 {
+		t.Fatalf("expected 19 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

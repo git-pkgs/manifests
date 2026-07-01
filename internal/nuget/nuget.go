@@ -1,9 +1,9 @@
 package nuget
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
 	"encoding/xml"
+	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
 )
@@ -51,7 +51,7 @@ type csprojReference struct {
 	HintPath string `xml:"HintPath"`
 }
 
-func (p *csprojParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *csprojParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var project csprojProject
 	if err := xml.Unmarshal(content, &project); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -108,7 +108,7 @@ func (p *csprojParser) Parse(filename string, content []byte) ([]core.Dependency
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseReferenceInclude parses a Reference Include attribute.
@@ -169,7 +169,7 @@ type nuspecDep struct {
 	Version string `xml:"version,attr"`
 }
 
-func (p *nuspecParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *nuspecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var pkg nuspecPackage
 	if err := xml.Unmarshal(content, &pkg); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -210,7 +210,7 @@ func (p *nuspecParser) Parse(filename string, content []byte) ([]core.Dependency
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // packagesConfigParser parses packages.config files.
@@ -226,7 +226,7 @@ type packagesConfigPkg struct {
 	DevelopmentDependency string `xml:"developmentDependency,attr"`
 }
 
-func (p *packagesConfigParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *packagesConfigParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var config packagesConfig
 	if err := xml.Unmarshal(content, &config); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -252,14 +252,14 @@ func (p *packagesConfigParser) Parse(filename string, content []byte) ([]core.De
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // packagesLockParser parses packages.lock.json files.
 type packagesLockParser struct{}
 
 type packagesLockJSON struct {
-	Version      int                                       `json:"version"`
+	Version      int                                   `json:"version"`
 	Dependencies map[string]map[string]packagesLockPkg `json:"dependencies"`
 }
 
@@ -269,7 +269,7 @@ type packagesLockPkg struct {
 	ContentHash string `json:"contentHash"`
 }
 
-func (p *packagesLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *packagesLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock packagesLockJSON
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -296,7 +296,7 @@ func (p *packagesLockParser) Parse(filename string, content []byte) ([]core.Depe
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // paketLockParser parses paket.lock files.
@@ -307,7 +307,7 @@ var (
 	paketPkgRegex = regexp.MustCompile(`^\s{4}([A-Za-z][A-Za-z0-9._-]*)\s+\(([^)]+)\)`)
 )
 
-func (p *paketLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *paketLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 	seen := make(map[string]bool)
@@ -351,7 +351,7 @@ func (p *paketLockParser) Parse(filename string, content []byte) ([]core.Depende
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // projectAssetsParser parses project.assets.json files.
@@ -363,7 +363,7 @@ type projectAssetsJSON struct {
 	} `json:"targets"`
 }
 
-func (p *projectAssetsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *projectAssetsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var assets projectAssetsJSON
 	if err := json.Unmarshal(content, &assets); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -403,7 +403,7 @@ func (p *projectAssetsParser) Parse(filename string, content []byte) ([]core.Dep
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // projectJSONParser parses Project.json files (legacy DNX/ASP.NET 5 format).
@@ -413,7 +413,7 @@ type projectJSON struct {
 	Dependencies map[string]any `json:"dependencies"`
 }
 
-func (p *projectJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *projectJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var proj projectJSON
 	if err := json.Unmarshal(content, &proj); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -440,7 +440,7 @@ func (p *projectJSONParser) Parse(filename string, content []byte) ([]core.Depen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // libraryEntry holds the fields shared by deps.json and project.lock.json libraries.
@@ -492,13 +492,15 @@ func parseLibraries(filename string, content []byte) ([]core.Dependency, error) 
 // depsJSONParser parses *.deps.json files (.NET Core runtime deps).
 type depsJSONParser struct{}
 
-func (p *depsJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
-	return parseLibraries(filename, content)
+func (p *depsJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
+	deps, err := parseLibraries(filename, content)
+	return &core.Result{Dependencies: deps}, err
 }
 
 // projectLockJSONParser parses Project.lock.json files (legacy DNX format).
 type projectLockJSONParser struct{}
 
-func (p *projectLockJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
-	return parseLibraries(filename, content)
+func (p *projectLockJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
+	deps, err := parseLibraries(filename, content)
+	return &core.Result{Dependencies: deps}, err
 }

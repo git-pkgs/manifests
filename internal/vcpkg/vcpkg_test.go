@@ -14,17 +14,17 @@ func TestVcpkgJSON(t *testing.T) {
 	}
 
 	parser := &vcpkgJSONParser{}
-	deps, err := parser.Parse("vcpkg.json", content)
+	res, err := parser.Parse("vcpkg.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 18 {
-		t.Fatalf("expected 18 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 18 {
+		t.Fatalf("expected 18 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

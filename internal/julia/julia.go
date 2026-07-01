@@ -35,7 +35,7 @@ type juliaProject struct {
 	Compat map[string]string `toml:"compat"`
 }
 
-func (p *juliaProjectParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *juliaProjectParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var project juliaProject
 	if err := toml.Unmarshal(content, &project); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -57,13 +57,13 @@ func (p *juliaProjectParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // juliaManifestParser parses Julia Manifest.toml files using regex for speed.
 type juliaManifestParser struct{}
 
-func (p *juliaManifestParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *juliaManifestParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -115,13 +115,13 @@ func (p *juliaManifestParser) Parse(filename string, content []byte) ([]core.Dep
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // juliaRequireParser parses legacy Julia REQUIRE files.
 type juliaRequireParser struct{}
 
-func (p *juliaRequireParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *juliaRequireParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 
 	core.ForEachLine(string(content), func(line string) bool {
@@ -179,5 +179,5 @@ func (p *juliaRequireParser) Parse(filename string, content []byte) ([]core.Depe
 		return true
 	})
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

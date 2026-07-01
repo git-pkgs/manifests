@@ -19,7 +19,7 @@ var (
 	cljDepRegex = regexp.MustCompile(`\[+([a-zA-Z0-9_./-]+)\s+"([^"]+)"\]`)
 )
 
-func (p *projectCljParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *projectCljParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 
@@ -51,7 +51,7 @@ func (p *projectCljParser) Parse(filename string, content []byte) ([]core.Depend
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // extractCljSection extracts the content of a Clojure vector section.

@@ -20,7 +20,7 @@ var (
 	rpmRequiresRegex = regexp.MustCompile(`(?i)^Requires(?:\([^)]*\))?:\s*(.+)$`)
 )
 
-func (p *rpmSpecParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *rpmSpecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 	seen := make(map[string]bool)
@@ -63,7 +63,7 @@ func (p *rpmSpecParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseRPMDep parses an RPM dependency like "pkg >= 1.0"

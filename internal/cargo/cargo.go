@@ -18,7 +18,7 @@ func init() {
 // cargoTomlParser parses Cargo.toml files.
 type cargoTomlParser struct{}
 
-func (p *cargoTomlParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var cargo struct {
 		Package struct {
 			Name string `toml:"name"`
@@ -83,7 +83,7 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) ([]core.Depende
 		}
 	}
 
-	return filtered, nil
+	return &core.Result{Dependencies: filtered}, nil
 }
 
 func extractCargoVersion(value any) string {
@@ -109,7 +109,7 @@ func isLocalCargoDep(value any) bool {
 // cargoLockParser parses Cargo.lock files using string ops for speed.
 type cargoLockParser struct{}
 
-func (p *cargoLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cargoLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -174,7 +174,7 @@ func (p *cargoLockParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // extractCargoRegistryURL extracts the registry URL from Cargo's source field.

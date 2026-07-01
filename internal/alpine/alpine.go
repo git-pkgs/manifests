@@ -22,7 +22,7 @@ var (
 	apkDepRegex = regexp.MustCompile(`^([a-zA-Z0-9_][a-zA-Z0-9_+.-]*)(>=|<=|>|<|=)?(.*)$`)
 )
 
-func (p *apkbuildParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *apkbuildParser) Parse(filename string, content []byte) (*core.Result, error) {
 	vars := parseApkbuildVars(string(content))
 
 	var deps []core.Dependency
@@ -55,7 +55,7 @@ func (p *apkbuildParser) Parse(filename string, content []byte) ([]core.Dependen
 		deps = append(deps, dep)
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func parseApkbuildVars(content string) map[string]string {

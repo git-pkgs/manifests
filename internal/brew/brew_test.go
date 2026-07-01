@@ -14,17 +14,17 @@ func TestBrewfile(t *testing.T) {
 	}
 
 	parser := &brewfileParser{}
-	deps, err := parser.Parse("Brewfile", content)
+	res, err := parser.Parse("Brewfile", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -57,17 +57,17 @@ func TestBrewfileLock(t *testing.T) {
 	}
 
 	parser := &brewfileLockParser{}
-	deps, err := parser.Parse("Brewfile.lock.json", content)
+	res, err := parser.Parse("Brewfile.lock.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

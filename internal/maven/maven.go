@@ -35,11 +35,11 @@ func init() {
 // raw ${...} version.
 type pomXMLParser struct{}
 
-func (p *pomXMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pomXMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	return p.ParseInRoot(filename, content, "")
 }
 
-func (p *pomXMLParser) ParseInRoot(filename string, content []byte, fsRoot string) ([]core.Dependency, error) {
+func (p *pomXMLParser) ParseInRoot(filename string, content []byte, fsRoot string) (*core.Result, error) {
 	root, err := pom.ParsePOM(content)
 	if err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -63,7 +63,7 @@ func (p *pomXMLParser) ParseInRoot(filename string, content []byte, fsRoot strin
 			Direct:  true,
 		})
 	}
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func mapScope(scope string, optional bool) core.Scope {
@@ -87,7 +87,7 @@ var mavenResolvedDepRegex = regexp.MustCompile(`^\s*([a-zA-Z0-9._-]+):([a-zA-Z0-
 
 var ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
-func (p *mavenResolvedDepsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *mavenResolvedDepsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	seen := make(map[string]bool)
 	lines := strings.Split(string(content), "\n")
@@ -128,7 +128,7 @@ func (p *mavenResolvedDepsParser) Parse(filename string, content []byte) ([]core
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // stripANSI removes ANSI escape codes from a string.
@@ -147,7 +147,7 @@ type mavenGraphNode struct {
 	Children   []mavenGraphNode `json:"children"`
 }
 
-func (p *mavenGraphJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *mavenGraphJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var root mavenGraphNode
 	if err := json.Unmarshal(content, &root); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -159,7 +159,7 @@ func (p *mavenGraphJSONParser) Parse(filename string, content []byte) ([]core.De
 	// Collect all children (skip the root which is the project itself)
 	collectMavenGraphDeps(&deps, seen, root.Children)
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func collectMavenGraphDeps(deps *[]core.Dependency, seen map[string]bool, nodes []mavenGraphNode) {

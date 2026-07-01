@@ -19,7 +19,7 @@ var (
 	mixDepRegex = regexp.MustCompile(`\{:([a-zA-Z_][a-zA-Z0-9_]*),\s*"([^"]+)"`)
 )
 
-func (p *mixExsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *mixExsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 
@@ -29,7 +29,7 @@ func (p *mixExsParser) Parse(filename string, content []byte) ([]core.Dependency
 		depsStart = strings.Index(text, "def deps do")
 	}
 	if depsStart < 0 {
-		return deps, nil
+		return &core.Result{Dependencies: deps}, nil
 	}
 
 	// Find matching end
@@ -61,7 +61,7 @@ func (p *mixExsParser) Parse(filename string, content []byte) ([]core.Dependency
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // mixLockParser parses mix.lock files.
@@ -72,7 +72,7 @@ var (
 	mixLockRegex = regexp.MustCompile(`"([^"]+)":\s*\{:hex,\s*:([^,]+),\s*"([^"]+)",\s*"([^"]+)"`)
 )
 
-func (p *mixLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *mixLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 
@@ -84,11 +84,11 @@ func (p *mixLockParser) Parse(filename string, content []byte) ([]core.Dependenc
 		deps = append(deps, core.Dependency{
 			Name:      name,
 			Version:   version,
-			Scope:   core.Runtime,
+			Scope:     core.Runtime,
 			Integrity: "sha256-" + hash,
 			Direct:    false,
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

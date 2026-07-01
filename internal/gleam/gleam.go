@@ -1,8 +1,8 @@
 package gleam
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"github.com/BurntSushi/toml"
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -17,7 +17,7 @@ type gleamToml struct {
 	DevDependencies map[string]string `toml:"dev-dependencies"`
 }
 
-func (p *gleamTomlParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gleamTomlParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var gleam gleamToml
 	if err := toml.Unmarshal(content, &gleam); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -43,5 +43,5 @@ func (p *gleamTomlParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

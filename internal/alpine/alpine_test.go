@@ -14,17 +14,17 @@ func TestAPKBUILD(t *testing.T) {
 	}
 
 	parser := &apkbuildParser{}
-	deps, err := parser.Parse("APKBUILD", content)
+	res, err := parser.Parse("APKBUILD", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 13 {
-		t.Fatalf("expected 13 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 13 {
+		t.Fatalf("expected 13 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -75,17 +75,17 @@ func TestAPKBUILDWithVersions(t *testing.T) {
 	}
 
 	parser := &apkbuildParser{}
-	deps, err := parser.Parse("APKBUILD", content)
+	res, err := parser.Parse("APKBUILD", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 9 {
-		t.Fatalf("expected 9 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 9 {
+		t.Fatalf("expected 9 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

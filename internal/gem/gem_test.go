@@ -20,17 +20,17 @@ func assertDepsWithScopes(t *testing.T, parser core.Parser, fixture string, file
 		t.Fatalf("failed to read fixture: %v", err)
 	}
 
-	deps, err := parser.Parse(filename, content)
+	res, err := parser.Parse(filename, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != wantCount {
-		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
+	if len(res.Dependencies) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -72,17 +72,17 @@ func TestGemfileLock(t *testing.T) {
 	}
 
 	parser := &gemfileLockParser{}
-	deps, err := parser.Parse("Gemfile.lock", content)
+	res, err := parser.Parse("Gemfile.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -108,7 +108,7 @@ func TestGemfileLock(t *testing.T) {
 		}
 	}
 
-	// Note: DEPENDENCIES section lists direct deps but without versions
+	// Note: DEPENDENCIES section lists direct res.Dependencies but without versions
 	// Parser extracts from GEM specs which has resolved versions
 }
 
@@ -119,17 +119,17 @@ func TestGemfileLockWithChecksums(t *testing.T) {
 	}
 
 	parser := &gemfileLockParser{}
-	deps, err := parser.Parse("Gemfile.lock", content)
+	res, err := parser.Parse("Gemfile.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -194,17 +194,17 @@ func TestGemfileLockLineEndings(t *testing.T) {
 	}
 
 	parser := &gemfileLockParser{}
-	deps, err := parser.Parse("Gemfile.lock", content)
+	res, err := parser.Parse("Gemfile.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -223,17 +223,17 @@ func TestGemfileLockWithBundler(t *testing.T) {
 	}
 
 	parser := &gemfileLockParser{}
-	deps, err := parser.Parse("Gemfile.lock", content)
+	res, err := parser.Parse("Gemfile.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -264,18 +264,18 @@ func TestMastodonGemfileLock(t *testing.T) {
 	}
 
 	parser := &gemfileLockParser{}
-	deps, err := parser.Parse("Gemfile.lock", content)
+	res, err := parser.Parse("Gemfile.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Real-world mastodon lockfile has ~350 packages
-	if len(deps) < 300 {
-		t.Fatalf("expected at least 300 dependencies, got %d", len(deps))
+	if len(res.Dependencies) < 300 {
+		t.Fatalf("expected at least 300 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -314,18 +314,18 @@ func TestGemfileLockWithPlatforms(t *testing.T) {
 	}
 
 	parser := &gemfileLockParser{}
-	deps, err := parser.Parse("Gemfile.lock", content)
+	res, err := parser.Parse("Gemfile.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Should deduplicate platform variants: 7 unique packages
-	if len(deps) != 7 {
-		t.Fatalf("expected 7 dependencies (deduplicated), got %d", len(deps))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies (deduplicated), got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

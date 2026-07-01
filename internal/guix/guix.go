@@ -20,13 +20,13 @@ type manifestParser struct{}
 // Match quoted strings inside specifications->manifest or specifications->manifest+.
 var specStringRegex = regexp.MustCompile(`"([^"]+)"`)
 
-func (p *manifestParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *manifestParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 
 	// Find the specifications->manifest call
 	idx := strings.Index(text, "specifications->manifest")
 	if idx == -1 {
-		return nil, nil
+		return &core.Result{}, nil
 	}
 
 	// Find the opening paren of the list argument
@@ -35,7 +35,7 @@ func (p *manifestParser) Parse(filename string, content []byte) ([]core.Dependen
 	if listStart == -1 {
 		listStart = strings.Index(rest, "(list")
 		if listStart == -1 {
-			return nil, nil
+			return &core.Result{}, nil
 		}
 	}
 
@@ -55,7 +55,7 @@ func (p *manifestParser) Parse(filename string, content []byte) ([]core.Dependen
 		}
 	}
 	if end == -1 {
-		return nil, nil
+		return &core.Result{}, nil
 	}
 
 	block := listText[:end]
@@ -88,5 +88,5 @@ func (p *manifestParser) Parse(filename string, content []byte) ([]core.Dependen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

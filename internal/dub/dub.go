@@ -1,8 +1,8 @@
 package dub
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
 )
@@ -19,7 +19,7 @@ type dubJSON struct {
 	Dependencies map[string]any `json:"dependencies"`
 }
 
-func (p *dubJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *dubJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var dub dubJSON
 	if err := json.Unmarshal(content, &dub); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -51,7 +51,7 @@ func (p *dubJSONParser) Parse(filename string, content []byte) ([]core.Dependenc
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // dubSDLParser parses dub.sdl files.
@@ -62,7 +62,7 @@ var (
 	dubSDLDepRegex = regexp.MustCompile(`dependency\s+"([^"]+)"\s+version="([^"]+)"`)
 )
 
-func (p *dubSDLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *dubSDLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -77,5 +77,5 @@ func (p *dubSDLParser) Parse(filename string, content []byte) ([]core.Dependency
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

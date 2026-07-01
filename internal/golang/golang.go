@@ -34,11 +34,11 @@ var (
 	toolEntryRegex = regexp.MustCompile(`^\s*(\S+)\s*$`)
 )
 
-func (p *goModParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *goModParser) Parse(filename string, content []byte) (*core.Result, error) {
 	lines := strings.Split(string(content), "\n")
 	tools := collectToolPaths(lines)
 	deps := collectRequireDeps(lines, tools)
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // collectToolPaths scans go.mod lines for tool directives (both single-line and block form)
@@ -161,7 +161,7 @@ type goSumKey struct {
 	version string
 }
 
-func (p *goSumParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *goSumParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	seen := make(map[goSumKey]bool)
 	lines := strings.Split(string(content), "\n")
@@ -214,13 +214,13 @@ func (p *goSumParser) Parse(filename string, content []byte) ([]core.Dependency,
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // goGraphParser parses go.graph files (go mod graph output).
 type goGraphParser struct{}
 
-func (p *goGraphParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *goGraphParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	seen := make(map[string]bool)
 	directDeps := make(map[string]bool)
@@ -289,5 +289,5 @@ func (p *goGraphParser) Parse(filename string, content []byte) ([]core.Dependenc
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
