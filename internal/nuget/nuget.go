@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"github.com/git-pkgs/manifests/internal/core"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -32,7 +33,14 @@ func init() {
 type csprojParser struct{}
 
 type csprojProject struct {
-	ItemGroups []csprojItemGroup `xml:"ItemGroup"`
+	PropertyGroups []csprojPropertyGroup `xml:"PropertyGroup"`
+	ItemGroups     []csprojItemGroup     `xml:"ItemGroup"`
+}
+
+type csprojPropertyGroup struct {
+	AssemblyName string `xml:"AssemblyName"`
+	PackageID    string `xml:"PackageId"`
+	Version      string `xml:"Version"`
 }
 
 type csprojItemGroup struct {
@@ -108,7 +116,23 @@ func (p *csprojParser) Parse(filename string, content []byte) (*core.Result, err
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	// Default project name is the filename stem; PackageId or AssemblyName
+	// override it when present.
+	base := filepath.Base(filename)
+	selfName := strings.TrimSuffix(base, filepath.Ext(base))
+	var selfVersion string
+	for _, pg := range project.PropertyGroups {
+		if pg.PackageID != "" {
+			selfName = pg.PackageID
+		} else if pg.AssemblyName != "" {
+			selfName = pg.AssemblyName
+		}
+		if pg.Version != "" {
+			selfVersion = pg.Version
+		}
+	}
+
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 // parseReferenceInclude parses a Reference Include attribute.
@@ -152,6 +176,8 @@ type nuspecParser struct{}
 
 type nuspecPackage struct {
 	Metadata struct {
+		ID           string `xml:"id"`
+		Version      string `xml:"version"`
 		Dependencies struct {
 			Groups []nuspecDepGroup `xml:"group"`
 			Deps   []nuspecDep      `xml:"dependency"`
@@ -210,7 +236,11 @@ func (p *nuspecParser) Parse(filename string, content []byte) (*core.Result, err
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{
+		Name:         pkg.Metadata.ID,
+		Version:      pkg.Metadata.Version,
+		Dependencies: deps,
+	}, nil
 }
 
 // packagesConfigParser parses packages.config files.

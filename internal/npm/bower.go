@@ -13,6 +13,8 @@ func init() {
 type bowerParser struct{}
 
 type bowerJSON struct {
+	Name            string            `json:"name"`
+	Version         string            `json:"version"`
 	Dependencies    map[string]string `json:"dependencies"`
 	DevDependencies map[string]string `json:"devDependencies"`
 }
@@ -43,5 +45,5 @@ func (p *bowerParser) Parse(filename string, content []byte) (*core.Result, erro
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: bower.Name, Version: bower.Version, Dependencies: deps}, nil
 }

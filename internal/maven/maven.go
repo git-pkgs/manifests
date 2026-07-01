@@ -63,7 +63,12 @@ func (p *pomXMLParser) ParseInRoot(filename string, content []byte, fsRoot strin
 			Direct:  true,
 		})
 	}
-	return &core.Result{Dependencies: deps}, nil
+
+	selfName := ep.GAV.ArtifactID
+	if ep.GAV.GroupID != "" {
+		selfName = ep.GAV.GroupID + ":" + ep.GAV.ArtifactID
+	}
+	return &core.Result{Name: selfName, Version: ep.GAV.Version, Dependencies: deps}, nil
 }
 
 func mapScope(scope string, optional bool) core.Scope {

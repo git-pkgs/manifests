@@ -16,6 +16,8 @@ func init() {
 type dubJSONParser struct{}
 
 type dubJSON struct {
+	Name         string         `json:"name"`
+	Version      string         `json:"version"`
 	Dependencies map[string]any `json:"dependencies"`
 }
 
@@ -51,7 +53,7 @@ func (p *dubJSONParser) Parse(filename string, content []byte) (*core.Result, er
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: dub.Name, Version: dub.Version, Dependencies: deps}, nil
 }
 
 // dubSDLParser parses dub.sdl files.

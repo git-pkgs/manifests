@@ -2,6 +2,7 @@ package cpan
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
@@ -323,6 +324,8 @@ func (p *distIniParser) Parse(filename string, content []byte) (*core.Result, er
 type metaJSONParser struct{}
 
 type metaJSON struct {
+	Name    string                                  `json:"name"`
+	Version string                                  `json:"version"`
 	Prereqs map[string]map[string]map[string]string `json:"prereqs"`
 }
 
@@ -366,13 +369,15 @@ func (p *metaJSONParser) Parse(filename string, content []byte) (*core.Result, e
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: meta.Name, Version: meta.Version, Dependencies: deps}, nil
 }
 
 // metaYMLParser parses META.yml files.
 type metaYMLParser struct{}
 
 type metaYML struct {
+	Name              string         `yaml:"name"`
+	Version           any            `yaml:"version"`
 	Requires          map[string]any `yaml:"requires"`
 	BuildRequires     map[string]any `yaml:"build_requires"`
 	ConfigureRequires map[string]any `yaml:"configure_requires"`
@@ -426,5 +431,9 @@ func (p *metaYMLParser) Parse(filename string, content []byte) (*core.Result, er
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	version := ""
+	if meta.Version != nil {
+		version = fmt.Sprintf("%v", meta.Version)
+	}
+	return &core.Result{Name: meta.Name, Version: version, Dependencies: deps}, nil
 }

@@ -31,8 +31,10 @@ func extractJuliaDepName(line string) (string, bool) {
 type juliaProjectParser struct{}
 
 type juliaProject struct {
-	Deps   map[string]string `toml:"deps"`
-	Compat map[string]string `toml:"compat"`
+	Name    string            `toml:"name"`
+	Version string            `toml:"version"`
+	Deps    map[string]string `toml:"deps"`
+	Compat  map[string]string `toml:"compat"`
 }
 
 func (p *juliaProjectParser) Parse(filename string, content []byte) (*core.Result, error) {
@@ -57,7 +59,7 @@ func (p *juliaProjectParser) Parse(filename string, content []byte) (*core.Resul
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: project.Name, Version: project.Version, Dependencies: deps}, nil
 }
 
 // juliaManifestParser parses Julia Manifest.toml files using regex for speed.

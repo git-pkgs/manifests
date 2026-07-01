@@ -17,11 +17,19 @@ var (
 	// Matches [group/artifact "version"] or [artifact "version"]
 	// The \[+ handles nested brackets from the outer vector
 	cljDepRegex = regexp.MustCompile(`\[+([a-zA-Z0-9_./-]+)\s+"([^"]+)"\]`)
+	// Matches (defproject name "version" ...)
+	cljDefprojectRegex = regexp.MustCompile(`\(defproject\s+(\S+)\s+"([^"]+)"`)
 )
 
 func (p *projectCljParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
+
+	var selfName, selfVersion string
+	if m := cljDefprojectRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+		selfVersion = m[2]
+	}
 
 	// Find and parse :dependencies section
 	depsStart := strings.Index(text, ":dependencies")
@@ -51,7 +59,7 @@ func (p *projectCljParser) Parse(filename string, content []byte) (*core.Result,
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 // extractCljSection extracts the content of a Clojure vector section.

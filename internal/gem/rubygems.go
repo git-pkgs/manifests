@@ -337,6 +337,30 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) (*core.Result
 // gemspecParser parses .gemspec files.
 type gemspecParser struct{}
 
+// extractGemspecAttr extracts a string literal from lines like `s.name = "foo"`
+// or `spec.version = 'foo'`. Returns empty when the RHS is not a string literal
+// (e.g. a constant reference).
+func extractGemspecAttr(line, attr string) (string, bool) {
+	idx := strings.Index(line, "."+attr)
+	if idx < 0 {
+		return "", false
+	}
+	rest := strings.TrimSpace(line[idx+len(attr)+1:])
+	if !strings.HasPrefix(rest, "=") {
+		return "", false
+	}
+	rest = strings.TrimSpace(rest[1:])
+	if len(rest) == 0 || (rest[0] != '"' && rest[0] != '\'') {
+		return "", false
+	}
+	quote := rest[0]
+	end := strings.IndexByte(rest[1:], quote)
+	if end < 0 {
+		return "", false
+	}
+	return rest[1 : end+1], true
+}
+
 // extractGemspecDep extracts dependency from add_dependency or add_development_dependency line
 func extractGemspecDep(line string) (name, version string, isDev bool, ok bool) {
 	// Look for .add_dependency, .add_runtime_dependency, or .add_development_dependency
@@ -397,7 +421,18 @@ func (p *gemspecParser) Parse(filename string, content []byte) (*core.Result, er
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
+	var selfName, selfVersion string
 	core.ForEachLine(text, func(line string) bool {
+		if selfName == "" {
+			if v, ok := extractGemspecAttr(line, "name"); ok {
+				selfName = v
+			}
+		}
+		if selfVersion == "" {
+			if v, ok := extractGemspecAttr(line, "version"); ok {
+				selfVersion = v
+			}
+		}
 		if name, version, isDev, ok := extractGemspecDep(line); ok {
 			scope := core.Runtime
 			if isDev {
@@ -413,5 +448,5 @@ func (p *gemspecParser) Parse(filename string, content []byte) (*core.Result, er
 		return true
 	})
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }

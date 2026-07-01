@@ -48,7 +48,7 @@ func (p *condaEnvParser) Parse(filename string, content []byte) (*core.Result, e
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: env.Name, Dependencies: deps}, nil
 }
 
 // parseCondaSpec parses a Conda dependency spec like "name", "name=version", or "name=version=build".

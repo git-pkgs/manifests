@@ -26,12 +26,19 @@ var (
 	swiftPackageV4RangeRegex = regexp.MustCompile(`\.package\s*\(\s*url:\s*"([^"]+)",\s*"([^"]+)"`)
 	// .package(name: "...", url: "https://...", from: "1.0.0")
 	swiftPackageNamedRegex = regexp.MustCompile(`\.package\s*\(\s*(?:name:\s*"[^"]+",\s*)?url:\s*"([^"]+)"`)
+	// Package(name: "...")
+	swiftSelfNameRegex = regexp.MustCompile(`\bPackage\s*\(\s*name:\s*"([^"]+)"`)
 )
 
 func (p *packageSwiftParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
+
+	var selfName string
+	if m := swiftSelfNameRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+	}
 
 	// Try different regex patterns
 	for _, regex := range []*regexp.Regexp{
@@ -64,7 +71,7 @@ func (p *packageSwiftParser) Parse(filename string, content []byte) (*core.Resul
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: selfName, Dependencies: deps}, nil
 }
 
 // extractSwiftPackageName extracts the package name from a git URL.

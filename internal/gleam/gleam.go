@@ -13,6 +13,8 @@ func init() {
 type gleamTomlParser struct{}
 
 type gleamToml struct {
+	Name            string            `toml:"name"`
+	Version         string            `toml:"version"`
 	Dependencies    map[string]string `toml:"dependencies"`
 	DevDependencies map[string]string `toml:"dev-dependencies"`
 }
@@ -43,5 +45,5 @@ func (p *gleamTomlParser) Parse(filename string, content []byte) (*core.Result, 
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: gleam.Name, Version: gleam.Version, Dependencies: deps}, nil
 }

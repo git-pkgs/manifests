@@ -16,6 +16,8 @@ func init() {
 type denoJSONParser struct{}
 
 type denoJSON struct {
+	Name    string            `json:"name"`
+	Version string            `json:"version"`
 	Imports map[string]string `json:"imports"`
 }
 
@@ -39,7 +41,7 @@ func (p *denoJSONParser) Parse(filename string, content []byte) (*core.Result, e
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: deno.Name, Version: deno.Version, Dependencies: deps}, nil
 }
 
 // denoLockParser parses deno.lock files.

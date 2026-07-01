@@ -35,6 +35,8 @@ func extractShardValue(line, prefix string) (string, bool) {
 type shardYMLParser struct{}
 
 type shardYML struct {
+	Name                    string              `yaml:"name"`
+	Version                 string              `yaml:"version"`
 	Dependencies            map[string]shardDep `yaml:"dependencies"`
 	DevelopmentDependencies map[string]shardDep `yaml:"development_dependencies"`
 }
@@ -76,7 +78,7 @@ func (p *shardYMLParser) Parse(filename string, content []byte) (*core.Result, e
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: shard.Name, Version: shard.Version, Dependencies: deps}, nil
 }
 
 func getShardVersion(dep shardDep) string {

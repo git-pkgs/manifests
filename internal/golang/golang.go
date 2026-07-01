@@ -38,7 +38,17 @@ func (p *goModParser) Parse(filename string, content []byte) (*core.Result, erro
 	lines := strings.Split(string(content), "\n")
 	tools := collectToolPaths(lines)
 	deps := collectRequireDeps(lines, tools)
-	return &core.Result{Dependencies: deps}, nil
+
+	var modulePath string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "module ") || strings.HasPrefix(trimmed, "module\t") {
+			modulePath = strings.TrimSpace(strings.Trim(strings.TrimSpace(trimmed[len("module"):]), `"`))
+			break
+		}
+	}
+
+	return &core.Result{Name: modulePath, Dependencies: deps}, nil
 }
 
 // collectToolPaths scans go.mod lines for tool directives (both single-line and block form)

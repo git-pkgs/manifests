@@ -28,6 +28,7 @@ func main() {
 
     fmt.Printf("Ecosystem: %s\n", result.Ecosystem)
     fmt.Printf("Kind: %s\n", result.Kind)
+    fmt.Printf("Package: %s %s\n", result.Name, result.Version)
     for _, dep := range result.Dependencies {
         fmt.Printf("  %s@%s (%s)\n", dep.Name, dep.Version, dep.Scope)
     }
@@ -181,9 +182,13 @@ When a dependency comes from a non-default registry, the PURL includes a `reposi
 type ParseResult struct {
     Ecosystem    string       // npm, gem, pypi, golang, cargo, etc.
     Kind         Kind         // manifest, lockfile, or supplement
+    Name         string       // the package's own name, when the format declares one
+    Version      string       // the package's own version, when declared
     Dependencies []Dependency
 }
 ```
+
+`Name` and `Version` are populated for manifest formats that declare their own package identity (Cargo.toml `[package]`, package.json `"name"`, go.mod `module`, `.gemspec`, and so on). They are empty for lockfiles and for dependency-only files like Gemfile or requirements.txt.
 
 ### Kind
 

@@ -30,6 +30,7 @@ func (p *cabalParser) Parse(filename string, content []byte) (*core.Result, erro
 	lines := strings.Split(string(content), "\n")
 	seen := make(map[string]bool)
 
+	pkgName, pkgVersion := cabalHeaderFields(lines)
 	inBuildDepends := false
 
 	for _, line := range lines {
@@ -88,7 +89,28 @@ func (p *cabalParser) Parse(filename string, content []byte) (*core.Result, erro
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: pkgName, Version: pkgVersion, Dependencies: deps}, nil
+}
+
+// cabalHeaderFields returns the top-level name: and version: values.
+// They appear at column 0 before any indented stanza.
+func cabalHeaderFields(lines []string) (name, version string) {
+	for _, line := range lines {
+		if line == "" || line[0] == ' ' || line[0] == '\t' {
+			continue
+		}
+		lower := strings.ToLower(line)
+		switch {
+		case strings.HasPrefix(lower, "name:"):
+			name = strings.TrimSpace(line[len("name:"):])
+		case strings.HasPrefix(lower, "version:"):
+			version = strings.TrimSpace(line[len("version:"):])
+		}
+		if name != "" && version != "" {
+			return name, version
+		}
+	}
+	return name, version
 }
 
 // stackLockParser parses stack.yaml.lock files.

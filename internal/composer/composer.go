@@ -14,6 +14,8 @@ func init() {
 type composerJSONParser struct{}
 
 type composerJSON struct {
+	Name       string            `json:"name"`
+	Version    string            `json:"version"`
 	Require    map[string]string `json:"require"`
 	RequireDev map[string]string `json:"require-dev"`
 }
@@ -57,7 +59,7 @@ func (p *composerJSONParser) Parse(filename string, content []byte) (*core.Resul
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: composer.Name, Version: composer.Version, Dependencies: deps}, nil
 }
 
 // composerLockParser parses composer.lock files.

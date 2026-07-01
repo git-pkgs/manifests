@@ -65,11 +65,23 @@ var (
 	conanRequiresRegex = regexp.MustCompile(`self\.requires\s*\(\s*["']([^"']+)["']`)
 	// self.build_requires("name/version")
 	conanBuildRequiresRegex = regexp.MustCompile(`self\.build_requires\s*\(\s*["']([^"']+)["']`)
+	// name = "..." class attribute
+	conanNameRegex = regexp.MustCompile(`(?m)^\s*name\s*=\s*["']([^"']+)["']`)
+	// version = "..." class attribute
+	conanVersionRegex = regexp.MustCompile(`(?m)^\s*version\s*=\s*["']([^"']+)["']`)
 )
 
 func (p *conanfilePyParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
+
+	var selfName, selfVersion string
+	if m := conanNameRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+	}
+	if m := conanVersionRegex.FindStringSubmatch(text); m != nil {
+		selfVersion = m[1]
+	}
 
 	for _, match := range conanRequiresRegex.FindAllStringSubmatch(text, -1) {
 		name, version := parseConanRef(match[1])
@@ -95,7 +107,7 @@ func (p *conanfilePyParser) Parse(filename string, content []byte) (*core.Result
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 // conanLockParser parses conan.lock files.

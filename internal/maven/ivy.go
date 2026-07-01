@@ -18,6 +18,11 @@ func init() {
 type ivyXMLParser struct{}
 
 type ivyModule struct {
+	Info struct {
+		Organisation string `xml:"organisation,attr"`
+		Module       string `xml:"module,attr"`
+		Revision     string `xml:"revision,attr"`
+	} `xml:"info"`
 	Dependencies struct {
 		Deps []ivyDep `xml:"dependency"`
 	} `xml:"dependencies"`
@@ -65,7 +70,11 @@ func (p *ivyXMLParser) Parse(filename string, content []byte) (*core.Result, err
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	selfName := module.Info.Module
+	if module.Info.Organisation != "" && selfName != "" {
+		selfName = module.Info.Organisation + ":" + selfName
+	}
+	return &core.Result{Name: selfName, Version: module.Info.Revision, Dependencies: deps}, nil
 }
 
 // ivyReportMatcher matches ivy report files (e.g., com.example-hello-compile.xml)

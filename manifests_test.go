@@ -57,6 +57,86 @@ func TestParseAllEcosystems(t *testing.T) {
 	}
 }
 
+func TestParseName(t *testing.T) {
+	// One row per manifest format that declares its own package
+	// identity. Version is checked when the fixture has one; "" means
+	// the format has a version field but this fixture omits it, "-"
+	// means don't assert.
+	testCases := []struct {
+		path    string
+		name    string
+		version string
+	}{
+		{"testdata/golang/go.mod", "mod", ""},
+		{"testdata/cargo/Cargo.toml", "update", "-"},
+		{"testdata/npm/package.json", "librarian", "-"},
+		{"testdata/npm/bower.json", "bootstrap", "-"},
+		{"testdata/npm/deno.json", "my-deno-app", "-"},
+		{"testdata/composer/composer.json", "laravel/laravel", "-"},
+		{"testdata/pub/pubspec.yaml", "angular", "-"},
+		{"testdata/crystal/shard.yml", "registry", "-"},
+		{"testdata/gleam/gleam.toml", "my_gleam_app", "-"},
+		{"testdata/julia/Project.toml", "MyProject", "-"},
+		{"testdata/dub/dub.json", "ddox", "-"},
+		{"testdata/haxelib/haxelib.json", "flixel", "-"},
+		{"testdata/vcpkg/vcpkg.json", "warzone2100", "-"},
+		{"testdata/cpan/META.json", "App-rainbarf", "-"},
+		{"testdata/cran/DESCRIPTION", "ggplot2", "-"},
+		{"testdata/hackage/example.cabal", "cabal-parser", "-"},
+		// elm-package.json fixture is an application (no name field)
+		{"testdata/elm/elm-package.json", "", "-"},
+		{"testdata/gem/devise.gemspec", "devise", ""},
+		{"testdata/cocoapods/example.podspec", "CocoaLumberjack", "-"},
+		{"testdata/hex/mix.exs", "mixup", "-"},
+		{"testdata/pypi/pyproject.toml", "tidelift", "-"},
+		{"testdata/pypi/setup.py", "political-memory", "-"},
+		{"testdata/swift/Package.swift", "swift-package-converter", ""},
+		{"testdata/conan/conanfile.py", "mypackage", "-"},
+		{"testdata/clojure/project.clj", "clojars-json", "-"},
+		{"testdata/maven/pom.xml", "-", "-"},
+		{"testdata/maven/ivy.xml", "-", "-"},
+		{"testdata/maven/build.sbt", "scala-parser-combinators", "-"},
+		{"testdata/nuget/example.nuspec", "Bottles", "-"},
+		{"testdata/nuget/Example.csproj", "Example", "-"},
+		{"testdata/bazel/MODULE.bazel", "elemental2", "-"},
+		{"testdata/lake/lakefile.lean", "example", ""},
+		{"testdata/luarocks/example.rockspec", "-", "-"},
+		{"testdata/nimble/example.nimble", "example", "-"},
+		{"testdata/alpine/APKBUILD", "curl", "-"},
+		{"testdata/arch/PKGBUILD", "-", "-"},
+		{"testdata/rpm/hello.spec", "hello", "2.10"},
+
+		// Formats with no self-name should stay empty.
+		{"testdata/gem/Gemfile", "", ""},
+		{"testdata/pypi/requirements.txt", "", ""},
+		{"testdata/golang/go.sum", "", ""},
+		{"testdata/cargo/Cargo.lock", "", ""},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.path, func(t *testing.T) {
+			content, err := os.ReadFile(tc.path)
+			if err != nil {
+				t.Skipf("fixture not found: %v", err)
+			}
+			result, err := Parse(filepath.Base(tc.path), content)
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			if tc.name == "-" {
+				if result.Name == "" {
+					t.Errorf("Name is empty; expected some value")
+				}
+			} else if result.Name != tc.name {
+				t.Errorf("Name = %q, want %q", result.Name, tc.name)
+			}
+			if tc.version != "-" && result.Version != tc.version {
+				t.Errorf("Version = %q, want %q", result.Version, tc.version)
+			}
+		})
+	}
+}
+
 func TestIdentifyFiles(t *testing.T) {
 	testCases := []struct {
 		filename  string

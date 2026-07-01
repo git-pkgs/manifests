@@ -260,6 +260,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 	var pyproject struct {
 		Tool struct {
 			Poetry struct {
+				Name            string         `toml:"name"`
+				Version         string         `toml:"version"`
 				Dependencies    map[string]any `toml:"dependencies"`
 				DevDependencies map[string]any `toml:"dev-dependencies"`
 				Group           map[string]struct {
@@ -268,6 +270,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 			} `toml:"poetry"`
 		} `toml:"tool"`
 		Project struct {
+			Name                 string              `toml:"name"`
+			Version              string              `toml:"version"`
 			Dependencies         []string            `toml:"dependencies"`
 			OptionalDependencies map[string][]string `toml:"optional-dependencies"`
 		} `toml:"project"`
@@ -351,7 +355,17 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	// PEP 621 [project] takes precedence; fall back to [tool.poetry].
+	selfName := pyproject.Project.Name
+	if selfName == "" {
+		selfName = pyproject.Tool.Poetry.Name
+	}
+	selfVersion := pyproject.Project.Version
+	if selfVersion == "" {
+		selfVersion = pyproject.Tool.Poetry.Version
+	}
+
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 func extractPoetryVersion(value any) string {
@@ -676,11 +690,23 @@ var (
 	extrasRequireRegex = regexp.MustCompile(`extras_require\s*=\s*\{([^}]*)\}`)
 	// Match quoted string
 	quotedStringRegex = regexp.MustCompile(`['"]([^'"]+)['"]`)
+	// Match name= keyword argument in setup()
+	setupNameRegex = regexp.MustCompile(`\bname\s*=\s*['"]([^'"]+)['"]`)
+	// Match version= keyword argument in setup()
+	setupVersionRegex = regexp.MustCompile(`\bversion\s*=\s*['"]([^'"]+)['"]`)
 )
 
 func (p *setupPyParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	contentStr := string(content)
+
+	var selfName, selfVersion string
+	if m := setupNameRegex.FindStringSubmatch(contentStr); m != nil {
+		selfName = m[1]
+	}
+	if m := setupVersionRegex.FindStringSubmatch(contentStr); m != nil {
+		selfVersion = m[1]
+	}
 
 	// Parse install_requires
 	const regexCaptureGroups = 2 // full match + first capture group
@@ -714,7 +740,7 @@ func (p *setupPyParser) Parse(filename string, content []byte) (*core.Result, er
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 func parseSetupRequirement(req string) (string, string) {

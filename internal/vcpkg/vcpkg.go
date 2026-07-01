@@ -13,7 +13,10 @@ func init() {
 type vcpkgJSONParser struct{}
 
 type vcpkgJSON struct {
-	Dependencies []any `json:"dependencies"`
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	VersionString string `json:"version-string"`
+	Dependencies  []any  `json:"dependencies"`
 }
 
 func (p *vcpkgJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
@@ -49,5 +52,9 @@ func (p *vcpkgJSONParser) Parse(filename string, content []byte) (*core.Result, 
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	version := pkg.Version
+	if version == "" {
+		version = pkg.VersionString
+	}
+	return &core.Result{Name: pkg.Name, Version: version, Dependencies: deps}, nil
 }

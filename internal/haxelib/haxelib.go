@@ -13,6 +13,8 @@ func init() {
 type haxelibJSONParser struct{}
 
 type haxelibJSON struct {
+	Name         string            `json:"name"`
+	Version      string            `json:"version"`
 	Dependencies map[string]string `json:"dependencies"`
 }
 
@@ -33,5 +35,5 @@ func (p *haxelibJSONParser) Parse(filename string, content []byte) (*core.Result
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: haxelib.Name, Version: haxelib.Version, Dependencies: deps}, nil
 }

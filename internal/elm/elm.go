@@ -14,6 +14,8 @@ func init() {
 type elmJSONParser struct{}
 
 type elmJSON struct {
+	Name             string          `json:"name"`
+	Version          string          `json:"version"`
 	Dependencies     elmDependencies `json:"dependencies"`
 	TestDependencies elmDependencies `json:"test-dependencies"`
 }
@@ -71,7 +73,7 @@ func (p *elmJSONParser) Parse(filename string, content []byte) (*core.Result, er
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: elm.Name, Version: elm.Version, Dependencies: deps}, nil
 }
 
 // elmPackageJSONParser parses elm-package.json files (Elm 0.18 and earlier).

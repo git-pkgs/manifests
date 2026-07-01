@@ -22,6 +22,8 @@ func init() {
 type npmPackageJSONParser struct{}
 
 type packageJSON struct {
+	Name                 string         `json:"name"`
+	Version              string         `json:"version"`
 	Dependencies         map[string]any `json:"dependencies"`
 	DevDependencies      map[string]any `json:"devDependencies"`
 	OptionalDependencies map[string]any `json:"optionalDependencies"`
@@ -104,7 +106,7 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Res
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: pkg.Name, Version: pkg.Version, Dependencies: deps}, nil
 }
 
 // isNpmComment checks if a dependency name is actually a comment.

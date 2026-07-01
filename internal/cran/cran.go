@@ -70,7 +70,7 @@ func (p *descriptionParser) Parse(filename string, content []byte) (*core.Result
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: fields["Package"], Version: fields["Version"], Dependencies: deps}, nil
 }
 
 // parseDescriptionFields parses DESCRIPTION file key-value pairs.

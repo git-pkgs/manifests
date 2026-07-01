@@ -17,11 +17,26 @@ type mixExsParser struct{}
 var (
 	// {:name, "~> 1.0"} or {:name, ">= 1.0"}
 	mixDepRegex = regexp.MustCompile(`\{:([a-zA-Z_][a-zA-Z0-9_]*),\s*"([^"]+)"`)
+	// app: :name inside def project
+	mixAppRegex = regexp.MustCompile(`\bapp:\s*:([a-zA-Z_][a-zA-Z0-9_]*)`)
+	// version: "0.0.1" inside def project
+	mixVersionRegex = regexp.MustCompile(`\bversion:\s*"([^"]+)"`)
 )
 
 func (p *mixExsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
+
+	var selfName, selfVersion string
+	if projectStart := strings.Index(text, "def project"); projectStart >= 0 {
+		section := extractMixBlock(text[projectStart:])
+		if m := mixAppRegex.FindStringSubmatch(section); m != nil {
+			selfName = m[1]
+		}
+		if m := mixVersionRegex.FindStringSubmatch(section); m != nil {
+			selfVersion = m[1]
+		}
+	}
 
 	// Find deps function content
 	depsStart := strings.Index(text, "defp deps do")
@@ -29,29 +44,10 @@ func (p *mixExsParser) Parse(filename string, content []byte) (*core.Result, err
 		depsStart = strings.Index(text, "def deps do")
 	}
 	if depsStart < 0 {
-		return &core.Result{Dependencies: deps}, nil
+		return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 	}
 
-	// Find matching end
-	section := text[depsStart:]
-	depth := 0
-	started := false
-	end := len(section)
-	for i, ch := range section {
-		if ch == '[' || ch == '{' {
-			depth++
-			started = true
-		}
-		if ch == ']' || ch == '}' {
-			depth--
-		}
-		if started && depth == 0 {
-			end = i
-			break
-		}
-	}
-	section = section[:end]
-
+	section := extractMixBlock(text[depsStart:])
 	for _, match := range mixDepRegex.FindAllStringSubmatch(section, -1) {
 		deps = append(deps, core.Dependency{
 			Name:    match[1],
@@ -61,7 +57,26 @@ func (p *mixExsParser) Parse(filename string, content []byte) (*core.Result, err
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
+}
+
+// extractMixBlock returns the bracket-delimited body starting at text.
+func extractMixBlock(text string) string {
+	depth := 0
+	started := false
+	for i, ch := range text {
+		if ch == '[' || ch == '{' {
+			depth++
+			started = true
+		}
+		if ch == ']' || ch == '}' {
+			depth--
+		}
+		if started && depth == 0 {
+			return text[:i]
+		}
+	}
+	return text
 }
 
 // mixLockParser parses mix.lock files.

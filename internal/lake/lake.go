@@ -82,7 +82,7 @@ func (p *lakefileTomlParser) Parse(filename string, content []byte) (*core.Resul
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: lake.Name, Dependencies: deps}, nil
 }
 
 // lakefileLeanParser parses lakefile.lean files using regex.
@@ -99,6 +99,10 @@ const (
 	groupPath      = 8
 )
 
+var lakePackageRegex = regexp.MustCompile(
+	`(?m)^\s*package\s+(?:«([^»]+)»|([A-Za-z_][A-Za-z0-9_]*))`,
+)
+
 var lakeRequireRegex = regexp.MustCompile(
 	`require\s+` +
 		`(?:"([^"]+)"\s*/\s*)?` +
@@ -109,6 +113,14 @@ var lakeRequireRegex = regexp.MustCompile(
 
 func (p *lakefileLeanParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := stripLeanLineComments(string(content))
+
+	var selfName string
+	if m := lakePackageRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+		if selfName == "" {
+			selfName = m[2]
+		}
+	}
 
 	var deps []core.Dependency
 	for _, m := range lakeRequireRegex.FindAllStringSubmatch(text, -1) {
@@ -141,7 +153,7 @@ func (p *lakefileLeanParser) Parse(filename string, content []byte) (*core.Resul
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: selfName, Dependencies: deps}, nil
 }
 
 func stripLeanLineComments(text string) string {

@@ -42,6 +42,8 @@ func extractPubspecVersion(line string) (string, bool) {
 type pubspecYAMLParser struct{}
 
 type pubspecYAML struct {
+	Name            string         `yaml:"name"`
+	Version         string         `yaml:"version"`
 	Dependencies    map[string]any `yaml:"dependencies"`
 	DevDependencies map[string]any `yaml:"dev_dependencies"`
 }
@@ -74,7 +76,7 @@ func (p *pubspecYAMLParser) Parse(filename string, content []byte) (*core.Result
 		})
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Name: pubspec.Name, Version: pubspec.Version, Dependencies: deps}, nil
 }
 
 // parsePubVersion extracts version from a pubspec dependency spec.

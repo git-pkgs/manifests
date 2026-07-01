@@ -21,7 +21,8 @@ type cargoTomlParser struct{}
 func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var cargo struct {
 		Package struct {
-			Name string `toml:"name"`
+			Name    string `toml:"name"`
+			Version string `toml:"version"`
 		} `toml:"package"`
 		Dependencies      map[string]any `toml:"dependencies"`
 		DevDependencies   map[string]any `toml:"dev-dependencies"`
@@ -83,7 +84,7 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 		}
 	}
 
-	return &core.Result{Dependencies: filtered}, nil
+	return &core.Result{Name: pkgName, Version: cargo.Package.Version, Dependencies: filtered}, nil
 }
 
 func extractCargoVersion(value any) string {
