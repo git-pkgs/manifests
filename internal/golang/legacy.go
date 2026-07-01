@@ -54,7 +54,7 @@ type godepsJSON struct {
 	} `json:"Deps"`
 }
 
-func (p *godepsJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *godepsJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var godeps godepsJSON
 	if err := json.Unmarshal(content, &godeps); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -80,7 +80,7 @@ func (p *godepsJSONParser) Parse(filename string, content []byte) ([]core.Depend
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // glideYAMLParser parses glide.yaml files.
@@ -93,7 +93,7 @@ type glideYAML struct {
 	} `yaml:"import"`
 }
 
-func (p *glideYAMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *glideYAMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var glide glideYAML
 	if err := yaml.Unmarshal(content, &glide); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -113,7 +113,7 @@ func (p *glideYAMLParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // glideLockParser parses glide.lock files.
@@ -126,7 +126,7 @@ type glideLock struct {
 	} `yaml:"imports"`
 }
 
-func (p *glideLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *glideLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock glideLock
 	if err := yaml.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -146,7 +146,7 @@ func (p *glideLockParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // gopkgTOMLParser parses Gopkg.toml files.
@@ -160,7 +160,7 @@ type gopkgTOML struct {
 	} `toml:"constraint"`
 }
 
-func (p *gopkgTOMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gopkgTOMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var gopkg gopkgTOML
 	if _, err := toml.Decode(string(content), &gopkg); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -186,7 +186,7 @@ func (p *gopkgTOMLParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // gopkgLockParser parses Gopkg.lock files.
@@ -201,7 +201,7 @@ type gopkgLock struct {
 	} `toml:"projects"`
 }
 
-func (p *gopkgLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gopkgLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock gopkgLock
 	if _, err := toml.Decode(string(content), &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -227,7 +227,7 @@ func (p *gopkgLockParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // vendorJSONParser parses vendor.json files (govendor).
@@ -242,7 +242,7 @@ type vendorJSON struct {
 	} `json:"package"`
 }
 
-func (p *vendorJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *vendorJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var vendor vendorJSON
 	if err := json.Unmarshal(content, &vendor); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -271,7 +271,7 @@ func (p *vendorJSONParser) Parse(filename string, content []byte) ([]core.Depend
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // extractBasePackage extracts the base package from an import path.
@@ -298,7 +298,7 @@ type goResolvedDep struct {
 	Replace  string `json:"Replace"`
 }
 
-func (p *goResolvedDepsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *goResolvedDepsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var modules []goResolvedDep
 	if err := json.Unmarshal(content, &modules); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -336,7 +336,7 @@ func (p *goResolvedDepsParser) Parse(filename string, content []byte) ([]core.De
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // gbManifestParser parses gb vendor manifest files.
@@ -352,7 +352,7 @@ type gbManifest struct {
 	} `json:"dependencies"`
 }
 
-func (p *gbManifestParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gbManifestParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var manifest gbManifest
 	if err := json.Unmarshal(content, &manifest); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -372,13 +372,13 @@ func (p *gbManifestParser) Parse(filename string, content []byte) ([]core.Depend
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // godepsTextParser parses plain-text Godeps files.
 type godepsTextParser struct{}
 
-func (p *godepsTextParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *godepsTextParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -412,5 +412,5 @@ func (p *godepsTextParser) Parse(filename string, content []byte) ([]core.Depend
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

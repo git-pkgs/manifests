@@ -22,12 +22,24 @@ var (
 	sbtDepRegex = regexp.MustCompile(`"([^"]+)"\s*%%?\s*"([^"]+)"\s*%\s*"([^"]+)"`)
 	// Match: "group" % "artifact" % "version" % "scope"
 	sbtDepWithScopeRegex = regexp.MustCompile(`"([^"]+)"\s*%%?\s*"([^"]+)"\s*%\s*"([^"]+)"\s*%\s*"([^"]+)"`)
+	// Match: name := "..."
+	sbtNameRegex = regexp.MustCompile(`(?m)^\s*name\s*:=\s*"([^"]+)"`)
+	// Match: version := "..."
+	sbtVersionRegex = regexp.MustCompile(`(?m)^\s*version\s*:=\s*"([^"]+)"`)
 )
 
-func (p *sbtParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *sbtParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
+
+	var selfName, selfVersion string
+	if m := sbtNameRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+	}
+	if m := sbtVersionRegex.FindStringSubmatch(text); m != nil {
+		selfVersion = m[1]
+	}
 
 	// Parse deps with scope first
 	for _, match := range sbtDepWithScopeRegex.FindAllStringSubmatch(text, -1) {
@@ -80,7 +92,7 @@ func (p *sbtParser) Parse(filename string, content []byte) ([]core.Dependency, e
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 // sbtDotMatcher matches sbt dependency DOT files (e.g., dependencies-compile.dot)
@@ -94,7 +106,7 @@ type sbtDotParser struct{}
 // Match "group:artifact:version" in DOT node/edge definitions
 var sbtDotDepRegex = regexp.MustCompile(`"([^":]+):([^":]+):([^"]+)"`)
 
-func (p *sbtDotParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *sbtDotParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	seen := make(map[string]bool)
 	text := string(content)
@@ -125,5 +137,5 @@ func (p *sbtDotParser) Parse(filename string, content []byte) ([]core.Dependency
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

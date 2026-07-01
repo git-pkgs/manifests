@@ -14,17 +14,17 @@ func TestGleamToml(t *testing.T) {
 	}
 
 	parser := &gleamTomlParser{}
-	deps, err := parser.Parse("gleam.toml", content)
+	res, err := parser.Parse("gleam.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

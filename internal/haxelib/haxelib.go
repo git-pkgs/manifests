@@ -1,8 +1,8 @@
 package haxelib
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -13,10 +13,12 @@ func init() {
 type haxelibJSONParser struct{}
 
 type haxelibJSON struct {
+	Name         string            `json:"name"`
+	Version      string            `json:"version"`
 	Dependencies map[string]string `json:"dependencies"`
 }
 
-func (p *haxelibJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *haxelibJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var haxelib haxelibJSON
 	if err := json.Unmarshal(content, &haxelib); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -33,5 +35,5 @@ func (p *haxelibJSONParser) Parse(filename string, content []byte) ([]core.Depen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: haxelib.Name, Version: haxelib.Version, Dependencies: deps}, nil
 }

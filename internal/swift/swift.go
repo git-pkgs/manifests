@@ -1,8 +1,8 @@
 package swift
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
 )
@@ -26,12 +26,19 @@ var (
 	swiftPackageV4RangeRegex = regexp.MustCompile(`\.package\s*\(\s*url:\s*"([^"]+)",\s*"([^"]+)"`)
 	// .package(name: "...", url: "https://...", from: "1.0.0")
 	swiftPackageNamedRegex = regexp.MustCompile(`\.package\s*\(\s*(?:name:\s*"[^"]+",\s*)?url:\s*"([^"]+)"`)
+	// Package(name: "...")
+	swiftSelfNameRegex = regexp.MustCompile(`\bPackage\s*\(\s*name:\s*"([^"]+)"`)
 )
 
-func (p *packageSwiftParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *packageSwiftParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
+
+	var selfName string
+	if m := swiftSelfNameRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+	}
 
 	// Try different regex patterns
 	for _, regex := range []*regexp.Regexp{
@@ -64,7 +71,7 @@ func (p *packageSwiftParser) Parse(filename string, content []byte) ([]core.Depe
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Name: selfName, Dependencies: deps}, nil
 }
 
 // extractSwiftPackageName extracts the package name from a git URL.
@@ -112,7 +119,7 @@ type packageResolvedPinV2 struct {
 	} `json:"state"`
 }
 
-func (p *packageResolvedParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *packageResolvedParser) Parse(filename string, content []byte) (*core.Result, error) {
 	// Try to detect version
 	var versionCheck struct {
 		Version int `json:"version"`
@@ -122,10 +129,14 @@ func (p *packageResolvedParser) Parse(filename string, content []byte) ([]core.D
 	}
 
 	const resolvedV2 = 2
+	var deps []core.Dependency
+	var err error
 	if versionCheck.Version >= resolvedV2 {
-		return parsePackageResolvedV2(filename, content)
+		deps, err = parsePackageResolvedV2(filename, content)
+	} else {
+		deps, err = parsePackageResolvedV1(filename, content)
 	}
-	return parsePackageResolvedV1(filename, content)
+	return &core.Result{Dependencies: deps}, err
 }
 
 func parsePackageResolvedV1(filename string, content []byte) ([]core.Dependency, error) {

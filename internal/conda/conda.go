@@ -19,12 +19,12 @@ func init() {
 type condaEnvParser struct{}
 
 type condaEnvironment struct {
-	Name         string `yaml:"name"`
+	Name         string   `yaml:"name"`
 	Channels     []string `yaml:"channels"`
 	Dependencies []any    `yaml:"dependencies"`
 }
 
-func (p *condaEnvParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *condaEnvParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var env condaEnvironment
 	if err := yaml.Unmarshal(content, &env); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -48,7 +48,7 @@ func (p *condaEnvParser) Parse(filename string, content []byte) ([]core.Dependen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Name: env.Name, Dependencies: deps}, nil
 }
 
 // parseCondaSpec parses a Conda dependency spec like "name", "name=version", or "name=version=build".
@@ -65,19 +65,19 @@ func parseCondaSpec(spec string) (name, version string) {
 type condaLockParser struct{}
 
 type condaLockFile struct {
-	Version  int               `yaml:"version"`
-	Package  []condaLockPkg    `yaml:"package"`
+	Version int            `yaml:"version"`
+	Package []condaLockPkg `yaml:"package"`
 }
 
 type condaLockPkg struct {
-	Name     string            `yaml:"name"`
-	Version  string            `yaml:"version"`
-	Manager  string            `yaml:"manager"`
-	Platform string            `yaml:"platform"`
-	URL      string            `yaml:"url"`
-	Hash     condaLockHash     `yaml:"hash"`
-	Category string            `yaml:"category"`
-	Optional bool              `yaml:"optional"`
+	Name     string        `yaml:"name"`
+	Version  string        `yaml:"version"`
+	Manager  string        `yaml:"manager"`
+	Platform string        `yaml:"platform"`
+	URL      string        `yaml:"url"`
+	Hash     condaLockHash `yaml:"hash"`
+	Category string        `yaml:"category"`
+	Optional bool          `yaml:"optional"`
 }
 
 type condaLockHash struct {
@@ -85,7 +85,7 @@ type condaLockHash struct {
 	SHA256 string `yaml:"sha256"`
 }
 
-func (p *condaLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *condaLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock condaLockFile
 	if err := yaml.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -138,5 +138,5 @@ func (p *condaLockParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

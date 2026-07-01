@@ -18,7 +18,7 @@ type gitmodulesParser struct{}
 
 var submoduleHeaderRegex = regexp.MustCompile(`^\[submodule\s+"([^"]+)"\]`)
 
-func (p *gitmodulesParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -57,7 +57,7 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) ([]core.Depend
 		deps = append(deps, *current)
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 func parseKeyValue(line string) (string, bool) {

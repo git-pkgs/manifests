@@ -1,8 +1,8 @@
 package maven
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/xml"
+	"github.com/git-pkgs/manifests/internal/core"
 	"strings"
 )
 
@@ -18,6 +18,11 @@ func init() {
 type ivyXMLParser struct{}
 
 type ivyModule struct {
+	Info struct {
+		Organisation string `xml:"organisation,attr"`
+		Module       string `xml:"module,attr"`
+		Revision     string `xml:"revision,attr"`
+	} `xml:"info"`
 	Dependencies struct {
 		Deps []ivyDep `xml:"dependency"`
 	} `xml:"dependencies"`
@@ -30,7 +35,7 @@ type ivyDep struct {
 	Conf string `xml:"conf,attr"`
 }
 
-func (p *ivyXMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *ivyXMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var module ivyModule
 	if err := xml.Unmarshal(content, &module); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -65,7 +70,11 @@ func (p *ivyXMLParser) Parse(filename string, content []byte) ([]core.Dependency
 		})
 	}
 
-	return deps, nil
+	selfName := module.Info.Module
+	if module.Info.Organisation != "" && selfName != "" {
+		selfName = module.Info.Organisation + ":" + selfName
+	}
+	return &core.Result{Name: selfName, Version: module.Info.Revision, Dependencies: deps}, nil
 }
 
 // ivyReportMatcher matches ivy report files (e.g., com.example-hello-compile.xml)
@@ -85,8 +94,8 @@ func ivyReportMatcher(filename string) bool {
 type ivyReportParser struct{}
 
 type ivyReport struct {
-	Info         ivyReportInfo   `xml:"info"`
-	Dependencies ivyReportDeps   `xml:"dependencies"`
+	Info         ivyReportInfo `xml:"info"`
+	Dependencies ivyReportDeps `xml:"dependencies"`
 }
 
 type ivyReportInfo struct {
@@ -98,8 +107,8 @@ type ivyReportDeps struct {
 }
 
 type ivyReportModule struct {
-	Org       string            `xml:"organisation,attr"`
-	Name      string            `xml:"name,attr"`
+	Org       string              `xml:"organisation,attr"`
+	Name      string              `xml:"name,attr"`
 	Revisions []ivyReportRevision `xml:"revision"`
 }
 
@@ -107,7 +116,7 @@ type ivyReportRevision struct {
 	Name string `xml:"name,attr"`
 }
 
-func (p *ivyReportParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *ivyReportParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var report ivyReport
 	if err := xml.Unmarshal(content, &report); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -143,5 +152,5 @@ func (p *ivyReportParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

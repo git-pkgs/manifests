@@ -16,17 +16,17 @@ func testCartfileParse(t *testing.T, filename string, wantCount int, expected ma
 	}
 
 	parser := &cartfileParser{}
-	deps, err := parser.Parse(filename, content)
+	res, err := parser.Parse(filename, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != wantCount {
-		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
+	if len(res.Dependencies) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -65,31 +65,31 @@ func TestCartfileResolved(t *testing.T) {
 	}
 
 	parser := &cartfileResolvedParser{}
-	deps, err := parser.Parse("Cartfile.resolved", content)
+	res, err := parser.Parse("Cartfile.resolved", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 9 {
-		t.Fatalf("expected 9 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 9 {
+		t.Fatalf("expected 9 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All 9 packages with versions
 	expected := map[string]string{
-		"thoughtbot/Argo":           "v2.2.0",
-		"Quick/Nimble":              "v3.1.0",
-		"jdhealy/PrettyColors":      "v3.0.0",
-		"Quick/Quick":               "v0.9.1",
-		"antitypical/Result":        "1.0.2",
-		"jspahrsummers/xcconfigs":   "ec5753493605deed7358dec5f9260f503d3ed650",
-		"Carthage/Commandant":       "0.8.3",
+		"thoughtbot/Argo":             "v2.2.0",
+		"Quick/Nimble":                "v3.1.0",
+		"jdhealy/PrettyColors":        "v3.0.0",
+		"Quick/Quick":                 "v0.9.1",
+		"antitypical/Result":          "1.0.2",
+		"jspahrsummers/xcconfigs":     "ec5753493605deed7358dec5f9260f503d3ed650",
+		"Carthage/Commandant":         "0.8.3",
 		"ReactiveCocoa/ReactiveCocoa": "v4.0.1",
-		"Carthage/ReactiveTask":     "0.9.1",
+		"Carthage/ReactiveTask":       "0.9.1",
 	}
 
 	for name, wantVer := range expected {

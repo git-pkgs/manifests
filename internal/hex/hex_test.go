@@ -14,17 +14,17 @@ func TestMixExs(t *testing.T) {
 	}
 
 	parser := &mixExsParser{}
-	deps, err := parser.Parse("mix.exs", content)
+	res, err := parser.Parse("mix.exs", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -54,17 +54,17 @@ func TestMixLock(t *testing.T) {
 	}
 
 	parser := &mixLockParser{}
-	deps, err := parser.Parse("mix.lock", content)
+	res, err := parser.Parse("mix.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

@@ -48,12 +48,12 @@ type preCommitYAMLConfig struct {
 	Repos []repo `yaml:"repos"`
 }
 
-func (p *preCommitYAMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *preCommitYAMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var config preCommitYAMLConfig
 	if err := yaml.Unmarshal(content, &config); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
-	return reposToDeps(config.Repos), nil
+	return &core.Result{Dependencies: reposToDeps(config.Repos)}, nil
 }
 
 // TOML parser for prek.toml
@@ -64,10 +64,10 @@ type prekTOMLConfig struct {
 	Repos []repo `toml:"repos"`
 }
 
-func (p *prekTOMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *prekTOMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var config prekTOMLConfig
 	if err := toml.Unmarshal(content, &config); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
-	return reposToDeps(config.Repos), nil
+	return &core.Result{Dependencies: reposToDeps(config.Repos)}, nil
 }

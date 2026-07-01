@@ -13,7 +13,7 @@ func init() {
 // bunLockParser parses bun.lock files.
 type bunLockParser struct{}
 
-func (p *bunLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *bunLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	seen := make(map[string]bool)
 
@@ -49,7 +49,7 @@ func (p *bunLockParser) Parse(filename string, content []byte) ([]core.Dependenc
 		deps = append(deps, dep)
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseBunPackageLine parses a single package entry line from a bun.lock file.

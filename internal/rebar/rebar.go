@@ -18,7 +18,7 @@ var (
 	rebarPkgRegex = regexp.MustCompile(`\{<<"([^"]+)">>,\{pkg,<<"[^"]+">>,<<"([^"]+)">>\},\d+\}`)
 )
 
-func (p *rebarLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *rebarLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 
@@ -39,5 +39,5 @@ func (p *rebarLockParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

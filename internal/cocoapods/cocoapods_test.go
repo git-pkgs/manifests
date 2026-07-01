@@ -14,28 +14,28 @@ func TestPodfile(t *testing.T) {
 	}
 
 	parser := &podfileParser{}
-	deps, err := parser.Parse("Podfile", content)
+	res, err := parser.Parse("Podfile", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 31 {
-		t.Fatalf("expected 31 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 31 {
+		t.Fatalf("expected 31 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// Sample of packages with versions
 	expected := map[string]string{
-		"Artsy+UIFonts":              "~> 1.1.0",
-		"ISO8601DateFormatter":       "0.7",
+		"Artsy+UIFonts":                 "~> 1.1.0",
+		"ISO8601DateFormatter":          "0.7",
 		"ARCollectionViewMasonryLayout": "~> 2.0.0",
-		"SDWebImage":                 "~> 3.7",
-		"ReactiveCocoa":              "~> 4.0.1-alpha-2",
-		"Nimble":                     "= 2.0.0-rc.3",
+		"SDWebImage":                    "~> 3.7",
+		"ReactiveCocoa":                 "~> 4.0.1-alpha-2",
+		"Nimble":                        "= 2.0.0-rc.3",
 	}
 
 	for name, wantVer := range expected {
@@ -65,32 +65,32 @@ func TestPodfileLock(t *testing.T) {
 	}
 
 	parser := &podfileLockParser{}
-	deps, err := parser.Parse("Podfile.lock", content)
+	res, err := parser.Parse("Podfile.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 50 {
-		t.Fatalf("expected 50 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 50 {
+		t.Fatalf("expected 50 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// Sample of packages with versions
 	expected := map[string]string{
-		"Alamofire":                  "2.0.1",
-		"ARAnalytics/CoreIOS":        "3.8.0",
+		"Alamofire":                     "2.0.1",
+		"ARAnalytics/CoreIOS":           "3.8.0",
 		"ARCollectionViewMasonryLayout": "2.0.0",
-		"Artsy+UIColors":             "1.0.0",
-		"Artsy+UIFonts":              "1.1.0",
-		"CardFlight":                 "1.9.2",
-		"FBSnapshotTestCase":         "1.8.1",
-		"Forgeries":                  "0.1.0",
-		"ISO8601DateFormatter":       "0.7",
-		"Mixpanel":                   "2.8.3",
+		"Artsy+UIColors":                "1.0.0",
+		"Artsy+UIFonts":                 "1.1.0",
+		"CardFlight":                    "1.9.2",
+		"FBSnapshotTestCase":            "1.8.1",
+		"Forgeries":                     "0.1.0",
+		"ISO8601DateFormatter":          "0.7",
+		"Mixpanel":                      "2.8.3",
 	}
 
 	for name, wantVer := range expected {
@@ -112,17 +112,17 @@ func TestPodspec(t *testing.T) {
 	}
 
 	parser := &podspecParser{}
-	deps, err := parser.Parse("example.podspec", content)
+	res, err := parser.Parse("example.podspec", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

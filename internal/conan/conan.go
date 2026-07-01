@@ -1,8 +1,8 @@
 package conan
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
 )
@@ -18,7 +18,7 @@ func init() {
 // conanfileTxtParser parses conanfile.txt files.
 type conanfileTxtParser struct{}
 
-func (p *conanfileTxtParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *conanfileTxtParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -54,7 +54,7 @@ func (p *conanfileTxtParser) Parse(filename string, content []byte) ([]core.Depe
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // conanfilePyParser parses conanfile.py files.
@@ -65,11 +65,23 @@ var (
 	conanRequiresRegex = regexp.MustCompile(`self\.requires\s*\(\s*["']([^"']+)["']`)
 	// self.build_requires("name/version")
 	conanBuildRequiresRegex = regexp.MustCompile(`self\.build_requires\s*\(\s*["']([^"']+)["']`)
+	// name = "..." class attribute
+	conanNameRegex = regexp.MustCompile(`(?m)^\s*name\s*=\s*["']([^"']+)["']`)
+	// version = "..." class attribute
+	conanVersionRegex = regexp.MustCompile(`(?m)^\s*version\s*=\s*["']([^"']+)["']`)
 )
 
-func (p *conanfilePyParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *conanfilePyParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
+
+	var selfName, selfVersion string
+	if m := conanNameRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+	}
+	if m := conanVersionRegex.FindStringSubmatch(text); m != nil {
+		selfVersion = m[1]
+	}
 
 	for _, match := range conanRequiresRegex.FindAllStringSubmatch(text, -1) {
 		name, version := parseConanRef(match[1])
@@ -95,7 +107,7 @@ func (p *conanfilePyParser) Parse(filename string, content []byte) ([]core.Depen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 // conanLockParser parses conan.lock files.
@@ -106,7 +118,7 @@ type conanLock struct {
 	BuildRequires []string `json:"build_requires"`
 }
 
-func (p *conanLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *conanLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock conanLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -138,7 +150,7 @@ func (p *conanLockParser) Parse(filename string, content []byte) ([]core.Depende
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseConanRef parses a Conan reference like "name/version" or "name/version@user/channel".

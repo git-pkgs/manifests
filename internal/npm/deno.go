@@ -1,8 +1,8 @@
 package npm
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 	"strings"
 )
 
@@ -16,10 +16,12 @@ func init() {
 type denoJSONParser struct{}
 
 type denoJSON struct {
+	Name    string            `json:"name"`
+	Version string            `json:"version"`
 	Imports map[string]string `json:"imports"`
 }
 
-func (p *denoJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *denoJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deno denoJSON
 	if err := json.Unmarshal(content, &deno); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -39,23 +41,23 @@ func (p *denoJSONParser) Parse(filename string, content []byte) ([]core.Dependen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Name: deno.Name, Version: deno.Version, Dependencies: deps}, nil
 }
 
 // denoLockParser parses deno.lock files.
 type denoLockParser struct{}
 
 type denoLock struct {
-	Specifiers map[string]string       `json:"specifiers"`
-	JSR        map[string]denoLockPkg  `json:"jsr"`
-	NPM        map[string]denoLockPkg  `json:"npm"`
+	Specifiers map[string]string      `json:"specifiers"`
+	JSR        map[string]denoLockPkg `json:"jsr"`
+	NPM        map[string]denoLockPkg `json:"npm"`
 }
 
 type denoLockPkg struct {
 	Integrity string `json:"integrity"`
 }
 
-func (p *denoLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *denoLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock denoLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -69,7 +71,7 @@ func (p *denoLockParser) Parse(filename string, content []byte) ([]core.Dependen
 		deps = append(deps, core.Dependency{
 			Name:      name,
 			Version:   version,
-			Scope:   core.Runtime,
+			Scope:     core.Runtime,
 			Integrity: pkg.Integrity,
 			Direct:    false,
 		})
@@ -81,13 +83,13 @@ func (p *denoLockParser) Parse(filename string, content []byte) ([]core.Dependen
 		deps = append(deps, core.Dependency{
 			Name:      name,
 			Version:   version,
-			Scope:   core.Runtime,
+			Scope:     core.Runtime,
 			Integrity: pkg.Integrity,
 			Direct:    false,
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseDenoSpec parses a deno import spec like "npm:chalk@5.3.0" or "jsr:@std/path@^1.0.0".

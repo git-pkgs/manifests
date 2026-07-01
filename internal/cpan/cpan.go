@@ -1,8 +1,9 @@
 package cpan
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"fmt"
+	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
 
@@ -64,7 +65,7 @@ func extractCpanRequires(line string) (name, version string, ok bool) {
 	return name, version, true
 }
 
-func (p *cpanfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cpanfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -85,7 +86,7 @@ func (p *cpanfileParser) Parse(filename string, content []byte) ([]core.Dependen
 		return true
 	})
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // cpanfileSnapshotParser parses cpanfile.snapshot files.
@@ -116,7 +117,7 @@ func extractCpanProvides(line string) (name, version string, ok bool) {
 	return name, version, true
 }
 
-func (p *cpanfileSnapshotParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cpanfileSnapshotParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -172,7 +173,7 @@ func (p *cpanfileSnapshotParser) Parse(filename string, content []byte) ([]core.
 		return true
 	})
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // makefilePLParser parses Makefile.PL files.
@@ -183,7 +184,7 @@ var (
 	perlDepRegex = regexp.MustCompile(`['"]([A-Za-z][A-Za-z0-9:_]*)['"]?\s*=>\s*['"]?([^'",\s}]*)['"]?`)
 )
 
-func (p *makefilePLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *makefilePLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
@@ -200,13 +201,13 @@ func (p *makefilePLParser) Parse(filename string, content []byte) ([]core.Depend
 		deps = append(deps, parsePerlHashSection(text, section, scope, seen)...)
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // buildPLParser parses Build.PL files.
 type buildPLParser struct{}
 
-func (p *buildPLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *buildPLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
@@ -223,7 +224,7 @@ func (p *buildPLParser) Parse(filename string, content []byte) ([]core.Dependenc
 		deps = append(deps, parsePerlHashSection(text, section, scope, seen)...)
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // isAlphaUnderscore checks if a byte is a letter or underscore
@@ -312,21 +313,23 @@ func parsePerlHashSection(text, section string, scope core.Scope, seen map[strin
 // distIniParser parses dist.ini files (Dist::Zilla).
 type distIniParser struct{}
 
-func (p *distIniParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *distIniParser) Parse(filename string, content []byte) (*core.Result, error) {
 	// dist.ini uses [AutoPrereqs] to auto-detect dependencies
 	// We can't extract deps directly without running Perl
 	// Return empty for now - this is mainly for file identification
-	return nil, nil
+	return &core.Result{}, nil
 }
 
 // metaJSONParser parses META.json files.
 type metaJSONParser struct{}
 
 type metaJSON struct {
+	Name    string                                  `json:"name"`
+	Version string                                  `json:"version"`
 	Prereqs map[string]map[string]map[string]string `json:"prereqs"`
 }
 
-func (p *metaJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *metaJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var meta metaJSON
 	if err := json.Unmarshal(content, &meta); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -366,13 +369,15 @@ func (p *metaJSONParser) Parse(filename string, content []byte) ([]core.Dependen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Name: meta.Name, Version: meta.Version, Dependencies: deps}, nil
 }
 
 // metaYMLParser parses META.yml files.
 type metaYMLParser struct{}
 
 type metaYML struct {
+	Name              string         `yaml:"name"`
+	Version           any            `yaml:"version"`
 	Requires          map[string]any `yaml:"requires"`
 	BuildRequires     map[string]any `yaml:"build_requires"`
 	ConfigureRequires map[string]any `yaml:"configure_requires"`
@@ -380,7 +385,7 @@ type metaYML struct {
 	Recommends        map[string]any `yaml:"recommends"`
 }
 
-func (p *metaYMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *metaYMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var meta metaYML
 	if err := yaml.Unmarshal(content, &meta); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -426,5 +431,9 @@ func (p *metaYMLParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 	}
 
-	return deps, nil
+	version := ""
+	if meta.Version != nil {
+		version = fmt.Sprintf("%v", meta.Version)
+	}
+	return &core.Result{Name: meta.Name, Version: version, Dependencies: deps}, nil
 }

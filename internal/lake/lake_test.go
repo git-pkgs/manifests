@@ -14,17 +14,17 @@ func TestLakefileToml(t *testing.T) {
 	}
 
 	parser := &lakefileTomlParser{}
-	deps, err := parser.Parse("lakefile.toml", content)
+	res, err := parser.Parse("lakefile.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -68,17 +68,17 @@ func TestLakefileLean(t *testing.T) {
 	}
 
 	parser := &lakefileLeanParser{}
-	deps, err := parser.Parse("lakefile.lean", content)
+	res, err := parser.Parse("lakefile.lean", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d: %+v", len(deps), deps)
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d: %+v", len(res.Dependencies), res.Dependencies)
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -125,17 +125,17 @@ func TestLakeManifestJSON(t *testing.T) {
 	}
 
 	parser := &lakeManifestParser{}
-	deps, err := parser.Parse("lake-manifest.json", content)
+	res, err := parser.Parse("lake-manifest.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

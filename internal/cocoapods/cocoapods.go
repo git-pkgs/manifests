@@ -22,7 +22,7 @@ var (
 	podTargetRegex = regexp.MustCompile(`^\s*target\s+["']([^"']+)["']\s+do`)
 )
 
-func (p *podfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *podfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -68,7 +68,7 @@ func (p *podfileParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // podfileLockParser parses Podfile.lock files.
@@ -81,7 +81,7 @@ var (
 	podChecksumRegex = regexp.MustCompile(`^\s+([^:]+):\s+([a-f0-9]+)$`)
 )
 
-func (p *podfileLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *podfileLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	lines := strings.Split(string(content), "\n")
 
 	var deps []core.Dependency
@@ -157,7 +157,7 @@ func (p *podfileLockParser) Parse(filename string, content []byte) ([]core.Depen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // podspecParser parses .podspec files.
@@ -166,11 +166,23 @@ type podspecParser struct{}
 var (
 	// s.dependency "Name" or s.dependency "Name", "version"
 	podspecDepRegex = regexp.MustCompile(`\.dependency\s+["']([^"']+)["'](?:\s*,\s*["']([^"']+)["'])?`)
+	// s.name = "Name" or spec.name = 'Name'
+	podspecNameRegex = regexp.MustCompile(`\.name\s*=\s*["']([^"']+)["']`)
+	// s.version = "1.0.0"
+	podspecVersionRegex = regexp.MustCompile(`\.version\s*=\s*["']([^"']+)["']`)
 )
 
-func (p *podspecParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *podspecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
+
+	var selfName, selfVersion string
+	if m := podspecNameRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+	}
+	if m := podspecVersionRegex.FindStringSubmatch(text); m != nil {
+		selfVersion = m[1]
+	}
 
 	for _, match := range podspecDepRegex.FindAllStringSubmatch(text, -1) {
 		const versionGroup = 2
@@ -187,5 +199,5 @@ func (p *podspecParser) Parse(filename string, content []byte) ([]core.Dependenc
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }

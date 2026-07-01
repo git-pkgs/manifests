@@ -14,27 +14,27 @@ func TestCpanfile(t *testing.T) {
 	}
 
 	parser := &cpanfileParser{}
-	deps, err := parser.Parse("cpanfile", content)
+	res, err := parser.Parse("cpanfile", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 108 {
-		t.Fatalf("expected 108 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// Sample of packages with versions
 	samples := map[string]string{
-		"List::MoreUtils":    "0.402",
-		"Guard":              "1.023",
-		"PadWalker":          "2.2",
-		"aliased":            "0.34",
-		"Catalyst":           "5.80031",
+		"List::MoreUtils":     "0.402",
+		"Guard":               "1.023",
+		"PadWalker":           "2.2",
+		"aliased":             "0.34",
+		"Catalyst":            "5.80031",
 		"ExtUtils::MakeMaker": "6.72",
 	}
 
@@ -57,17 +57,17 @@ func TestCpanfileSnapshot(t *testing.T) {
 	}
 
 	parser := &cpanfileSnapshotParser{}
-	deps, err := parser.Parse("cpanfile.snapshot", content)
+	res, err := parser.Parse("cpanfile.snapshot", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2898 {
-		t.Fatalf("expected 2898 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2898 {
+		t.Fatalf("expected 2898 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -94,17 +94,17 @@ func assertParsedDeps(t *testing.T, fixture string, parser core.Parser, wantCoun
 		t.Fatalf("failed to read fixture: %v", err)
 	}
 
-	deps, err := parser.Parse(fixture, content)
+	res, err := parser.Parse(fixture, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != wantCount {
-		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
+	if len(res.Dependencies) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -156,17 +156,17 @@ func TestMetaYML(t *testing.T) {
 	}
 
 	parser := &metaYMLParser{}
-	deps, err := parser.Parse("META.yml", content)
+	res, err := parser.Parse("META.yml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 10 {
-		t.Fatalf("expected 10 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 10 {
+		t.Fatalf("expected 10 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

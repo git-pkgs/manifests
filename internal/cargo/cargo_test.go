@@ -14,17 +14,17 @@ func TestCargoToml(t *testing.T) {
 	}
 
 	parser := &cargoTomlParser{}
-	deps, err := parser.Parse("Cargo.toml", content)
+	res, err := parser.Parse("Cargo.toml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -65,17 +65,17 @@ func TestCargoLock(t *testing.T) {
 	}
 
 	parser := &cargoLockParser{}
-	deps, err := parser.Parse("Cargo.lock", content)
+	res, err := parser.Parse("Cargo.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 16 {
-		t.Fatalf("expected 16 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 16 {
+		t.Fatalf("expected 16 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -121,7 +121,7 @@ func TestCargoLock(t *testing.T) {
 		"0.4.2": "sha256-9c33a3c44ca05fa6f1807d8e6743f3824e8509beca625669633be0acbdf509dc",
 	}
 	foundVersions := make(map[string]bool)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		if d.Name == "rand_core" {
 			foundVersions[d.Version] = true
 			wantIntegrity, ok := randCoreVersions[d.Version]

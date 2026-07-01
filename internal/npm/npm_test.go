@@ -14,17 +14,17 @@ func TestNpmPackageJSON(t *testing.T) {
 	}
 
 	parser := &npmPackageJSONParser{}
-	deps, err := parser.Parse("package.json", content)
+	res, err := parser.Parse("package.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
+	if len(res.Dependencies) == 0 {
 		t.Fatal("expected dependencies, got none")
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -70,18 +70,18 @@ func TestNpmPackageLock(t *testing.T) {
 	}
 
 	parser := &npmPackageLockParser{}
-	deps, err := parser.Parse("package-lock.json", content)
+	res, err := parser.Parse("package-lock.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// package-lock.json has many dependencies
-	if len(deps) < 100 {
-		t.Fatalf("expected at least 100 dependencies, got %d", len(deps))
+	if len(res.Dependencies) < 100 {
+		t.Fatalf("expected at least 100 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -90,16 +90,16 @@ func TestNpmPackageLock(t *testing.T) {
 		version   string
 		integrity string
 	}{
-		"express":        {"4.15.3", "sha1-urZdDwOqgMNYQIly/HAPkWlEtmI="},
-		"accepts":        {"1.3.3", "sha1-w8p0NJOGSMPg2cHjKN1otiLChMo="},
-		"ajv":            {"4.11.8", "sha1-gv+wKynmYq5TvcIK8VlHcGc5xTY="},
-		"ansi-regex":     {"2.1.1", "sha1-w7M6te42DYbg5ijwRorn7yfWVN8="},
-		"ansi-styles":    {"2.2.1", "sha1-tDLdM1i2NM914eRmQ2gkBTPB3b4="},
-		"body-parser":    {"1.17.2", "sha1-+IkqvI+eYn1Crtr7yma/WrmRBO4="},
-		"bytes":          {"2.4.0", "sha1-fZcZb51br39pNeJZhVSe3SpsIzk="},
-		"chalk":          {"1.1.3", "sha1-qBFcVeSnAv5NFQq9OHKCKn4J/Jg="},
-		"content-type":   {"1.0.2", "sha1-t9ETrueo3Se9IRM8TcJSnfFyHu0="},
-		"cookie":         {"0.3.1", "sha1-5+Ch+e9DtMi6klxcWpboBtFoc7s="},
+		"express":      {"4.15.3", "sha1-urZdDwOqgMNYQIly/HAPkWlEtmI="},
+		"accepts":      {"1.3.3", "sha1-w8p0NJOGSMPg2cHjKN1otiLChMo="},
+		"ajv":          {"4.11.8", "sha1-gv+wKynmYq5TvcIK8VlHcGc5xTY="},
+		"ansi-regex":   {"2.1.1", "sha1-w7M6te42DYbg5ijwRorn7yfWVN8="},
+		"ansi-styles":  {"2.2.1", "sha1-tDLdM1i2NM914eRmQ2gkBTPB3b4="},
+		"body-parser":  {"1.17.2", "sha1-+IkqvI+eYn1Crtr7yma/WrmRBO4="},
+		"bytes":        {"2.4.0", "sha1-fZcZb51br39pNeJZhVSe3SpsIzk="},
+		"chalk":        {"1.1.3", "sha1-qBFcVeSnAv5NFQq9OHKCKn4J/Jg="},
+		"content-type": {"1.0.2", "sha1-t9ETrueo3Se9IRM8TcJSnfFyHu0="},
+		"cookie":       {"0.3.1", "sha1-5+Ch+e9DtMi6klxcWpboBtFoc7s="},
 	}
 
 	for name, exp := range expected {
@@ -131,17 +131,17 @@ func TestNpmPackageLockV1(t *testing.T) {
 	}
 
 	parser := &npmPackageLockParser{}
-	deps, err := parser.Parse("package-lock.json", content)
+	res, err := parser.Parse("package-lock.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -161,17 +161,17 @@ func TestNpmPackageLockV2(t *testing.T) {
 	}
 
 	parser := &npmPackageLockParser{}
-	deps, err := parser.Parse("package-lock.json", content)
+	res, err := parser.Parse("package-lock.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -191,17 +191,17 @@ func TestNpmPackageLockV3(t *testing.T) {
 	}
 
 	parser := &npmPackageLockParser{}
-	deps, err := parser.Parse("package-lock.json", content)
+	res, err := parser.Parse("package-lock.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -267,17 +267,17 @@ func TestYarnLock(t *testing.T) {
 	}
 
 	parser := &yarnLockParser{}
-	deps, err := parser.Parse("yarn.lock", content)
+	res, err := parser.Parse("yarn.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 21 {
-		t.Fatalf("expected 21 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 21 {
+		t.Fatalf("expected 21 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -325,18 +325,18 @@ func TestPnpmLock(t *testing.T) {
 	}
 
 	parser := &pnpmLockParser{}
-	deps, err := parser.Parse("pnpm-lock.yaml", content)
+	res, err := parser.Parse("pnpm-lock.yaml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// pnpm-lock.yaml has 9 packages (ansi-styles appears at 2.2.0 and 2.2.1)
-	if len(deps) != 9 {
-		t.Fatalf("expected 9 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 9 {
+		t.Fatalf("expected 9 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string][]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = append(depMap[d.Name], d)
 	}
 
@@ -355,16 +355,16 @@ func TestPnpmLock(t *testing.T) {
 	}
 
 	for name, exp := range expected {
-		deps, ok := depMap[name]
+		entries, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if deps[0].Version != exp.version {
-			t.Errorf("%s version = %q, want %q", name, deps[0].Version, exp.version)
+		if entries[0].Version != exp.version {
+			t.Errorf("%s version = %q, want %q", name, entries[0].Version, exp.version)
 		}
-		if deps[0].Integrity != exp.integrity {
-			t.Errorf("%s integrity = %q, want %q", name, deps[0].Integrity, exp.integrity)
+		if entries[0].Integrity != exp.integrity {
+			t.Errorf("%s integrity = %q, want %q", name, entries[0].Integrity, exp.integrity)
 		}
 	}
 
@@ -392,18 +392,18 @@ func TestBunLock(t *testing.T) {
 	}
 
 	parser := &bunLockParser{}
-	deps, err := parser.Parse("bun.lock", content)
+	res, err := parser.Parse("bun.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// isarray is a file: dependency with no version, may be skipped
-	if len(deps) < 10 {
-		t.Fatalf("expected at least 10 dependencies, got %d", len(deps))
+	if len(res.Dependencies) < 10 {
+		t.Fatalf("expected at least 10 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -446,12 +446,12 @@ func TestNpmShrinkwrap(t *testing.T) {
 	}
 
 	parser := &npmPackageLockParser{}
-	deps, err := parser.Parse("npm-shrinkwrap.json", content)
+	res, err := parser.Parse("npm-shrinkwrap.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
+	if len(res.Dependencies) == 0 {
 		t.Fatal("expected dependencies, got none")
 	}
 }
@@ -463,17 +463,17 @@ func Test2018PackageLock(t *testing.T) {
 	}
 
 	parser := &npmPackageLockParser{}
-	deps, err := parser.Parse("package-lock.json", content)
+	res, err := parser.Parse("package-lock.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1974 {
-		t.Fatalf("expected 1974 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 1974 {
+		t.Fatalf("expected 1974 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -503,17 +503,17 @@ func TestNpmLocalFilePackageLock(t *testing.T) {
 	}
 
 	parser := &npmPackageLockParser{}
-	deps, err := parser.Parse("package-lock.json", content)
+	res, err := parser.Parse("package-lock.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 7 {
-		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -553,17 +553,17 @@ func TestNpmLocalFileYarnLock(t *testing.T) {
 	}
 
 	parser := &yarnLockParser{}
-	deps, err := parser.Parse("yarn.lock", content)
+	res, err := parser.Parse("yarn.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -595,17 +595,17 @@ func TestPnpmLockV5(t *testing.T) {
 	}
 
 	parser := &pnpmLockParser{}
-	deps, err := parser.Parse("pnpm-lock.yaml", content)
+	res, err := parser.Parse("pnpm-lock.yaml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 108 {
-		t.Fatalf("expected 108 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string][]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = append(depMap[d.Name], d)
 	}
 
@@ -623,13 +623,13 @@ func TestPnpmLockV5(t *testing.T) {
 	}
 
 	for name, wantVer := range samples {
-		deps, ok := depMap[name]
+		entries, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if deps[0].Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, deps[0].Version, wantVer)
+		if entries[0].Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, entries[0].Version, wantVer)
 		}
 	}
 
@@ -642,42 +642,42 @@ func TestPnpmLockV6(t *testing.T) {
 	}
 
 	parser := &pnpmLockParser{}
-	deps, err := parser.Parse("pnpm-lock.yaml", content)
+	res, err := parser.Parse("pnpm-lock.yaml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 108 {
-		t.Fatalf("expected 108 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string][]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = append(depMap[d.Name], d)
 	}
 
 	// Sample of packages
 	samples := map[string]string{
-		"@babel/helper-string-parser":      "7.27.1",
+		"@babel/helper-string-parser":        "7.27.1",
 		"@babel/helper-validator-identifier": "7.27.1",
-		"@babel/types":                     "7.28.1",
-		"acorn-babel":                      "0.11.1-38",
-		"acorn":                            "5.7.4",
-		"amdefine":                         "1.0.1",
-		"brace-expansion":                  "1.1.12",
-		"chalk":                            "1.1.3",
-		"chokidar":                         "0.12.6",
-		"commander":                        "0.6.1",
+		"@babel/types":                       "7.28.1",
+		"acorn-babel":                        "0.11.1-38",
+		"acorn":                              "5.7.4",
+		"amdefine":                           "1.0.1",
+		"brace-expansion":                    "1.1.12",
+		"chalk":                              "1.1.3",
+		"chokidar":                           "0.12.6",
+		"commander":                          "0.6.1",
 	}
 
 	for name, wantVer := range samples {
-		deps, ok := depMap[name]
+		entries, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if deps[0].Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, deps[0].Version, wantVer)
+		if entries[0].Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, entries[0].Version, wantVer)
 		}
 	}
 }
@@ -689,17 +689,17 @@ func TestPnpmLockV9(t *testing.T) {
 	}
 
 	parser := &pnpmLockParser{}
-	deps, err := parser.Parse("pnpm-lock.yaml", content)
+	res, err := parser.Parse("pnpm-lock.yaml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 108 {
-		t.Fatalf("expected 108 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string][]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = append(depMap[d.Name], d)
 	}
 
@@ -716,13 +716,13 @@ func TestPnpmLockV9(t *testing.T) {
 	}
 
 	for name, wantVer := range expected {
-		deps, ok := depMap[name]
+		entries, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if deps[0].Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, deps[0].Version, wantVer)
+		if entries[0].Version != wantVer {
+			t.Errorf("%s version = %q, want %q", name, entries[0].Version, wantVer)
 		}
 	}
 
@@ -750,20 +750,20 @@ func TestYarnWithGitRepo(t *testing.T) {
 	}
 
 	parser := &yarnLockParser{}
-	deps, err := parser.Parse("yarn.lock", content)
+	res, err := parser.Parse("yarn.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
-	if deps[0].Name != "vue" {
-		t.Errorf("expected vue, got %s", deps[0].Name)
+	if res.Dependencies[0].Name != "vue" {
+		t.Errorf("expected vue, got %s", res.Dependencies[0].Name)
 	}
-	if deps[0].Version != "2.6.12" {
-		t.Errorf("vue version = %q, want %q", deps[0].Version, "2.6.12")
+	if res.Dependencies[0].Version != "2.6.12" {
+		t.Errorf("vue version = %q, want %q", res.Dependencies[0].Version, "2.6.12")
 	}
 }
 
@@ -774,20 +774,20 @@ func TestBowerJSON(t *testing.T) {
 	}
 
 	parser := &bowerParser{}
-	deps, err := parser.Parse("bower.json", content)
+	res, err := parser.Parse("bower.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
-	if deps[0].Name != "jquery" {
-		t.Errorf("expected jquery, got %s", deps[0].Name)
+	if res.Dependencies[0].Name != "jquery" {
+		t.Errorf("expected jquery, got %s", res.Dependencies[0].Name)
 	}
-	if deps[0].Version != ">= 1.9.1" {
-		t.Errorf("jquery version = %q, want %q", deps[0].Version, ">= 1.9.1")
+	if res.Dependencies[0].Version != ">= 1.9.1" {
+		t.Errorf("jquery version = %q, want %q", res.Dependencies[0].Version, ">= 1.9.1")
 	}
 }
 
@@ -798,26 +798,26 @@ func TestDenoJSON(t *testing.T) {
 	}
 
 	parser := &denoJSONParser{}
-	deps, err := parser.Parse("deno.json", content)
+	res, err := parser.Parse("deno.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All 4 packages
 	expected := map[string]string{
-		"chalk":      "5.3.0",
-		"lodash":     "",
-		"@std/path":  "^1.0.0",
-		"@std/fs":    "",
+		"chalk":     "5.3.0",
+		"lodash":    "",
+		"@std/path": "^1.0.0",
+		"@std/fs":   "",
 	}
 
 	for name, wantVer := range expected {
@@ -839,17 +839,17 @@ func TestDenoLock(t *testing.T) {
 	}
 
 	parser := &denoLockParser{}
-	deps, err := parser.Parse("deno.lock", content)
+	res, err := parser.Parse("deno.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -933,19 +933,19 @@ packages:
 `)
 
 	parser := &pnpmLockParser{}
-	deps, err := parser.Parse("pnpm-lock.yaml", content)
+	res, err := parser.Parse("pnpm-lock.yaml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d: %+v", len(deps), deps)
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d: %+v", len(res.Dependencies), res.Dependencies)
 	}
-	if deps[0].Name != "@typescript-eslint/eslint-plugin" || deps[0].Version != "8.59.3" {
-		t.Errorf("dep[0] = %s@%s, want @typescript-eslint/eslint-plugin@8.59.3", deps[0].Name, deps[0].Version)
+	if res.Dependencies[0].Name != "@typescript-eslint/eslint-plugin" || res.Dependencies[0].Version != "8.59.3" {
+		t.Errorf("dep[0] = %s@%s, want @typescript-eslint/eslint-plugin@8.59.3", res.Dependencies[0].Name, res.Dependencies[0].Version)
 	}
-	if deps[1].Name != "eslint" || deps[1].Version != "9.0.0" {
-		t.Errorf("dep[1] = %s@%s, want eslint@9.0.0", deps[1].Name, deps[1].Version)
+	if res.Dependencies[1].Name != "eslint" || res.Dependencies[1].Version != "9.0.0" {
+		t.Errorf("dep[1] = %s@%s, want eslint@9.0.0", res.Dependencies[1].Name, res.Dependencies[1].Version)
 	}
 }
 
@@ -1006,17 +1006,17 @@ func TestNpmLsJSON(t *testing.T) {
 	}
 
 	parser := &npmLsParser{}
-	deps, err := parser.Parse("npm-ls.json", content)
+	res, err := parser.Parse("npm-ls.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -1055,29 +1055,29 @@ func TestYarnV4Lock(t *testing.T) {
 	}
 
 	parser := &yarnLockParser{}
-	deps, err := parser.Parse("yarn.lock", content)
+	res, err := parser.Parse("yarn.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Should have 6 packages (excluding workspace)
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All packages with expected versions
 	expected := map[string]string{
-		"js-tokens":       "4.0.0",
-		"left-pad":        "1.3.0",
-		"loose-envify":    "1.4.0",
-		"react":           "18.3.1",
-		"fsevents":        "2.3.2",
-		"strip-ansi-cjs":  "6.0.1",
+		"js-tokens":      "4.0.0",
+		"left-pad":       "1.3.0",
+		"loose-envify":   "1.4.0",
+		"react":          "18.3.1",
+		"fsevents":       "2.3.2",
+		"strip-ansi-cjs": "6.0.1",
 	}
 
 	for name, wantVer := range expected {

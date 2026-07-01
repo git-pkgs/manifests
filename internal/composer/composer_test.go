@@ -14,17 +14,17 @@ func TestComposerJSON(t *testing.T) {
 	}
 
 	parser := &composerJSONParser{}
-	deps, err := parser.Parse("composer.json", content)
+	res, err := parser.Parse("composer.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -61,17 +61,17 @@ func TestComposerLock(t *testing.T) {
 	}
 
 	parser := &composerLockParser{}
-	deps, err := parser.Parse("composer.lock", content)
+	res, err := parser.Parse("composer.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 10 {
-		t.Fatalf("expected 10 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 10 {
+		t.Fatalf("expected 10 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -80,16 +80,16 @@ func TestComposerLock(t *testing.T) {
 		version string
 		scope   core.Scope
 	}{
-		"doctrine/annotations":      {"v1.2.1", core.Runtime},
-		"doctrine/cache":            {"v1.3.1", core.Runtime},
-		"doctrine/collections":      {"v1.2", core.Runtime},
-		"drupal/address":            {"1.9.0", core.Runtime},
-		"symfony/monolog-bundle":    {"v2.6.1", core.Runtime},
+		"doctrine/annotations":       {"v1.2.1", core.Runtime},
+		"doctrine/cache":             {"v1.3.1", core.Runtime},
+		"doctrine/collections":       {"v1.2", core.Runtime},
+		"drupal/address":             {"1.9.0", core.Runtime},
+		"symfony/monolog-bundle":     {"v2.6.1", core.Runtime},
 		"symfony/swiftmailer-bundle": {"v2.3.8", core.Runtime},
-		"symfony/symfony":           {"v2.6.1", core.Runtime},
-		"twig/extensions":           {"v1.2.0", core.Runtime},
-		"twig/twig":                 {"v1.16.2", core.Runtime},
-		"sensio/generator-bundle":   {"v2.5.0", core.Development},
+		"symfony/symfony":            {"v2.6.1", core.Runtime},
+		"twig/extensions":            {"v1.2.0", core.Runtime},
+		"twig/twig":                  {"v1.16.2", core.Runtime},
+		"sensio/generator-bundle":    {"v2.5.0", core.Development},
 	}
 
 	for name, exp := range expected {

@@ -16,8 +16,9 @@ func init() {
 
 type bazelModuleManifestParser struct{}
 
-func (p *bazelModuleManifestParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *bazelModuleManifestParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
+	var selfName, selfVersion string
 
 	moduleManifestTree, err := build.ParseModule(filename, content)
 	if err != nil {
@@ -31,9 +32,19 @@ func (p *bazelModuleManifestParser) Parse(filename string, content []byte) ([]co
 			continue
 		}
 
-		// Check if statement is a dependency declaration
 		ident, ok := callExperssion.X.(*build.Ident)
-		if !ok || ident.Name != "bazel_dep" {
+		if !ok {
+			continue
+		}
+
+		// module(name = "...", version = "...")
+		if ident.Name == "module" {
+			selfName, selfVersion = parseBazelModule(*callExperssion)
+			continue
+		}
+
+		// Check if statement is a dependency declaration
+		if ident.Name != "bazel_dep" {
 			continue
 		}
 
@@ -54,7 +65,31 @@ func (p *bazelModuleManifestParser) Parse(filename string, content []byte) ([]co
 		})
 
 	}
-	return deps, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
+}
+
+func parseBazelModule(call build.CallExpr) (name, version string) {
+	for _, arg := range call.List {
+		assign, ok := arg.(*build.AssignExpr)
+		if !ok || assign == nil {
+			continue
+		}
+		key, ok := assign.LHS.(*build.Ident)
+		if !ok {
+			continue
+		}
+		val, ok := assign.RHS.(*build.StringExpr)
+		if !ok {
+			continue
+		}
+		switch key.Name {
+		case "name":
+			name = val.Value
+		case "version":
+			version = val.Value
+		}
+	}
+	return name, version
 }
 
 type bazelDep struct {

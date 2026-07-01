@@ -52,7 +52,7 @@ type githubStep struct {
 	Uses string `yaml:"uses"`
 }
 
-func (p *githubWorkflowParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *githubWorkflowParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var workflow githubWorkflow
 	if err := yaml.Unmarshal(content, &workflow); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -67,7 +67,7 @@ func (p *githubWorkflowParser) Parse(filename string, content []byte) ([]core.De
 		deps = collectServiceImages(job.Services, deps, seen)
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // collectStepActions extracts action dependencies from job steps.

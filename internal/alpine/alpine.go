@@ -18,11 +18,13 @@ var (
 	apkVarRegex = regexp.MustCompile(`^(\w+)="([^"]*)"`)
 	// Matches multi-line variable start: depends="
 	apkVarStartRegex = regexp.MustCompile(`^(\w+)="([^"]*)$`)
+	// Matches unquoted scalar assignments like: pkgname=curl
+	apkScalarRegex = regexp.MustCompile(`^(\w+)=([^\s"]+)`)
 	// Matches package with optional version: pkg>=1.0 or pkg
 	apkDepRegex = regexp.MustCompile(`^([a-zA-Z0-9_][a-zA-Z0-9_+.-]*)(>=|<=|>|<|=)?(.*)$`)
 )
 
-func (p *apkbuildParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *apkbuildParser) Parse(filename string, content []byte) (*core.Result, error) {
 	vars := parseApkbuildVars(string(content))
 
 	var deps []core.Dependency
@@ -55,7 +57,7 @@ func (p *apkbuildParser) Parse(filename string, content []byte) ([]core.Dependen
 		deps = append(deps, dep)
 	}
 
-	return deps, nil
+	return &core.Result{Name: vars["pkgname"], Version: vars["pkgver"], Dependencies: deps}, nil
 }
 
 func parseApkbuildVars(content string) map[string]string {
@@ -97,6 +99,12 @@ func parseApkbuildVars(content string) map[string]string {
 		if match := apkVarStartRegex.FindStringSubmatch(line); match != nil {
 			currentVar = match[1]
 			currentValue.WriteString(match[2])
+			continue
+		}
+
+		// Check for unquoted scalar (pkgname=foo, pkgver=1.0)
+		if match := apkScalarRegex.FindStringSubmatch(line); match != nil {
+			vars[match[1]] = match[2]
 		}
 	}
 

@@ -18,15 +18,31 @@ var (
 	rpmBuildReqRegex = regexp.MustCompile(`(?i)^BuildRequires:\s*(.+)$`)
 	// Match: Requires: pkg or Requires: pkg >= version
 	rpmRequiresRegex = regexp.MustCompile(`(?i)^Requires(?:\([^)]*\))?:\s*(.+)$`)
+	// Match: Name: value
+	rpmNameRegex = regexp.MustCompile(`(?i)^Name:\s*(\S+)`)
+	// Match: Version: value
+	rpmVersionRegex = regexp.MustCompile(`(?i)^Version:\s*(\S+)`)
 )
 
-func (p *rpmSpecParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *rpmSpecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 	seen := make(map[string]bool)
+	var selfName, selfVersion string
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
+
+		if selfName == "" {
+			if m := rpmNameRegex.FindStringSubmatch(line); m != nil {
+				selfName = m[1]
+			}
+		}
+		if selfVersion == "" {
+			if m := rpmVersionRegex.FindStringSubmatch(line); m != nil {
+				selfVersion = m[1]
+			}
+		}
 
 		var reqStr string
 		var scope core.Scope
@@ -63,7 +79,7 @@ func (p *rpmSpecParser) Parse(filename string, content []byte) ([]core.Dependenc
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 // parseRPMDep parses an RPM dependency like "pkg >= 1.0"

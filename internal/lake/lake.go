@@ -40,7 +40,7 @@ type lakefileToml struct {
 	Require []lakeRequire `toml:"require"`
 }
 
-func (p *lakefileTomlParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *lakefileTomlParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lake lakefileToml
 	if err := toml.Unmarshal(content, &lake); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -82,7 +82,7 @@ func (p *lakefileTomlParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: lake.Name, Dependencies: deps}, nil
 }
 
 // lakefileLeanParser parses lakefile.lean files using regex.
@@ -99,6 +99,10 @@ const (
 	groupPath      = 8
 )
 
+var lakePackageRegex = regexp.MustCompile(
+	`(?m)^\s*package\s+(?:«([^»]+)»|([A-Za-z_][A-Za-z0-9_]*))`,
+)
+
 var lakeRequireRegex = regexp.MustCompile(
 	`require\s+` +
 		`(?:"([^"]+)"\s*/\s*)?` +
@@ -107,8 +111,16 @@ var lakeRequireRegex = regexp.MustCompile(
 		`(?:\s*from\s+(?:git\s+"([^"]+)"(?:\s*@\s*"([^"]+)")?|"([^"]+)"))?`,
 )
 
-func (p *lakefileLeanParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *lakefileLeanParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := stripLeanLineComments(string(content))
+
+	var selfName string
+	if m := lakePackageRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+		if selfName == "" {
+			selfName = m[2]
+		}
+	}
 
 	var deps []core.Dependency
 	for _, m := range lakeRequireRegex.FindAllStringSubmatch(text, -1) {
@@ -141,7 +153,7 @@ func (p *lakefileLeanParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: selfName, Dependencies: deps}, nil
 }
 
 func stripLeanLineComments(text string) string {
@@ -175,7 +187,7 @@ type lakeManifest struct {
 	Packages []lakeManifestPackage `json:"packages"`
 }
 
-func (p *lakeManifestParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *lakeManifestParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var manifest lakeManifest
 	if err := json.Unmarshal(content, &manifest); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -202,5 +214,5 @@ func (p *lakeManifestParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

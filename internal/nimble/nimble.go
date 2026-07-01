@@ -2,6 +2,7 @@ package nimble
 
 import (
 	"github.com/git-pkgs/manifests/internal/core"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -13,12 +14,22 @@ func init() {
 // nimbleParser parses *.nimble files (Nim).
 type nimbleParser struct{}
 
-var nimbleDepRegex = regexp.MustCompile(`"([^"]+)"`)
+var (
+	nimbleDepRegex     = regexp.MustCompile(`"([^"]+)"`)
+	nimbleVersionRegex = regexp.MustCompile(`(?m)^\s*version\s*=\s*"([^"]+)"`)
+)
 
-func (p *nimbleParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *nimbleParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 	seen := make(map[string]bool)
+
+	// Nimble has no name field; the package name is the filename stem.
+	selfName := strings.TrimSuffix(filepath.Base(filename), ".nimble")
+	var selfVersion string
+	if m := nimbleVersionRegex.FindStringSubmatch(text); m != nil {
+		selfVersion = m[1]
+	}
 
 	// Find all requires lines
 	lines := strings.Split(text, "\n")
@@ -46,7 +57,7 @@ func (p *nimbleParser) Parse(filename string, content []byte) ([]core.Dependency
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 // parseNimbleDep parses a nimble dependency string like "nim >= 1.6.0"

@@ -21,7 +21,7 @@ var (
 	cartfileGitRegex = regexp.MustCompile(`^\s*git\s+"([^"]+)"(?:\s+"([^"]*)")?`)
 )
 
-func (p *cartfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cartfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -71,7 +71,7 @@ func (p *cartfileParser) Parse(filename string, content []byte) ([]core.Dependen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // cartfileResolvedParser parses Cartfile.resolved lockfiles.
@@ -82,7 +82,7 @@ var (
 	cartfileResolvedRegex = regexp.MustCompile(`^\s*(github|git)\s+"([^"]+)"\s+"([^"]+)"`)
 )
 
-func (p *cartfileResolvedParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *cartfileResolvedParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -104,5 +104,5 @@ func (p *cartfileResolvedParser) Parse(filename string, content []byte) ([]core.
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

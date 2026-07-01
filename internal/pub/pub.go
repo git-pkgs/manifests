@@ -42,11 +42,13 @@ func extractPubspecVersion(line string) (string, bool) {
 type pubspecYAMLParser struct{}
 
 type pubspecYAML struct {
+	Name            string         `yaml:"name"`
+	Version         string         `yaml:"version"`
 	Dependencies    map[string]any `yaml:"dependencies"`
 	DevDependencies map[string]any `yaml:"dev_dependencies"`
 }
 
-func (p *pubspecYAMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pubspecYAMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var pubspec pubspecYAML
 	if err := yaml.Unmarshal(content, &pubspec); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -74,7 +76,7 @@ func (p *pubspecYAMLParser) Parse(filename string, content []byte) ([]core.Depen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: pubspec.Name, Version: pubspec.Version, Dependencies: deps}, nil
 }
 
 // parsePubVersion extracts version from a pubspec dependency spec.
@@ -93,7 +95,7 @@ func parsePubVersion(spec any) string {
 // pubspecLockParser parses pubspec.lock files using regex for speed.
 type pubspecLockParser struct{}
 
-func (p *pubspecLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pubspecLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -120,5 +122,5 @@ func (p *pubspecLockParser) Parse(filename string, content []byte) ([]core.Depen
 		return true
 	})
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

@@ -1,8 +1,8 @@
 package brew
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 	"regexp"
 	"strings"
 )
@@ -24,7 +24,7 @@ var (
 	brewTapRegex = regexp.MustCompile(`^\s*tap\s+["']([^"']+)["']`)
 )
 
-func (p *brewfileParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *brewfileParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 
@@ -37,25 +37,25 @@ func (p *brewfileParser) Parse(filename string, content []byte) ([]core.Dependen
 		if match := brewFormulaRegex.FindStringSubmatch(line); match != nil {
 			deps = append(deps, core.Dependency{
 				Name:   match[1],
-				Scope:   core.Runtime,
+				Scope:  core.Runtime,
 				Direct: true,
 			})
 		} else if match := brewCaskRegex.FindStringSubmatch(line); match != nil {
 			deps = append(deps, core.Dependency{
 				Name:   match[1],
-				Scope:   core.Runtime,
+				Scope:  core.Runtime,
 				Direct: true,
 			})
 		} else if match := brewTapRegex.FindStringSubmatch(line); match != nil {
 			deps = append(deps, core.Dependency{
 				Name:   match[1],
-				Scope:   core.Runtime,
+				Scope:  core.Runtime,
 				Direct: true,
 			})
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // brewfileLockParser parses Brewfile.lock.json.
@@ -78,7 +78,7 @@ type brewLockEntry struct {
 	} `json:"bottle"`
 }
 
-func (p *brewfileLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *brewfileLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock brewfileLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -98,7 +98,7 @@ func (p *brewfileLockParser) Parse(filename string, content []byte) ([]core.Depe
 		deps = append(deps, core.Dependency{
 			Name:      name,
 			Version:   entry.Version,
-			Scope:   core.Runtime,
+			Scope:     core.Runtime,
 			Integrity: integrity,
 			Direct:    true,
 		})
@@ -113,5 +113,5 @@ func (p *brewfileLockParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

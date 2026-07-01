@@ -14,17 +14,17 @@ func TestPomXML(t *testing.T) {
 	}
 
 	parser := &pomXMLParser{}
-	deps, err := parser.Parse("pom.xml", content)
+	res, err := parser.Parse("pom.xml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 35 {
-		t.Fatalf("expected 35 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 35 {
+		t.Fatalf("expected 35 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -59,7 +59,7 @@ func TestPomXML(t *testing.T) {
 		}
 	}
 
-	// Also verify some deps with property placeholders exist
+	// Also verify some res.Dependencies with property placeholders exist
 	if _, ok := depMap["org.glassfish.jersey.core:jersey-server"]; !ok {
 		t.Error("expected jersey-server dependency")
 	}
@@ -72,17 +72,17 @@ func TestBuildGradle(t *testing.T) {
 	}
 
 	parser := &gradleParser{}
-	deps, err := parser.Parse("build.gradle", content)
+	res, err := parser.Parse("build.gradle", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 9 {
-		t.Fatalf("expected 9 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 9 {
+		t.Fatalf("expected 9 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -118,19 +118,19 @@ func TestBuildGradleKts(t *testing.T) {
 	}
 
 	parser := &gradleParser{}
-	deps, err := parser.Parse("build.gradle.kts", content)
+	res, err := parser.Parse("build.gradle.kts", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Parser extracts 1 dependency (guava) - note: parser includes quotes in name/version
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
 	// Check the guava dependency
 	// Note: parser has trailing quote in version due to parsing quirk
-	dep := deps[0]
+	dep := res.Dependencies[0]
 	if dep.Name != "\"com.google.guava:guava" {
 		t.Errorf("name = %q, want %q", dep.Name, "\"com.google.guava:guava")
 	}
@@ -146,17 +146,17 @@ func TestIvyXML(t *testing.T) {
 	}
 
 	parser := &ivyXMLParser{}
-	deps, err := parser.Parse("ivy.xml", content)
+	res, err := parser.Parse("ivy.xml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 12 {
-		t.Fatalf("expected 12 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 12 {
+		t.Fatalf("expected 12 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -195,17 +195,17 @@ func TestBuildSbt(t *testing.T) {
 	}
 
 	parser := &sbtParser{}
-	deps, err := parser.Parse("build.sbt", content)
+	res, err := parser.Parse("build.sbt", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -240,17 +240,17 @@ func TestGradleLockfile(t *testing.T) {
 	}
 
 	parser := &gradleLockfileParser{}
-	deps, err := parser.Parse("gradle.lockfile", content)
+	res, err := parser.Parse("gradle.lockfile", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -291,17 +291,17 @@ func assertPomDeps(t *testing.T, fixture string, wantCount int, expected map[str
 	}
 
 	parser := &pomXMLParser{}
-	deps, err := parser.Parse(fixture, content)
+	res, err := parser.Parse(fixture, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != wantCount {
-		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
+	if len(res.Dependencies) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -362,15 +362,15 @@ func TestPomMultiModuleLocalParent(t *testing.T) {
 		t.Fatalf("read fixture: %v", err)
 	}
 	parser := &pomXMLParser{}
-	deps, err := parser.ParseInRoot("../../testdata/maven/multimodule/child/pom.xml", content, "../../testdata/maven/multimodule")
+	res, err := parser.ParseInRoot("../../testdata/maven/multimodule/child/pom.xml", content, "../../testdata/maven/multimodule")
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 deps, got %d: %+v", len(deps), deps)
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 res.Dependencies, got %d: %+v", len(res.Dependencies), res.Dependencies)
 	}
 	got := map[string]core.Dependency{}
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		got[d.Name] = d
 	}
 	if got["org.example:sibling"].Version != "1.0-SNAPSHOT" {
@@ -390,12 +390,12 @@ func TestPomMultiModuleNoFSRoot(t *testing.T) {
 		t.Fatalf("read fixture: %v", err)
 	}
 	parser := &pomXMLParser{}
-	deps, err := parser.Parse("../../testdata/maven/multimodule/child/pom.xml", content)
+	res, err := parser.Parse("../../testdata/maven/multimodule/child/pom.xml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 	got := map[string]core.Dependency{}
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		got[d.Name] = d
 	}
 	if v := got["org.openjdk.jmh:jmh-core"].Version; v == "1.37" {
@@ -413,12 +413,12 @@ func TestPomMultiModuleFSRootJail(t *testing.T) {
 	}
 	parser := &pomXMLParser{}
 	// fsRoot is the child dir itself, so ../pom.xml is outside the jail.
-	deps, err := parser.ParseInRoot("../../testdata/maven/multimodule/child/pom.xml", content, "../../testdata/maven/multimodule/child")
+	res, err := parser.ParseInRoot("../../testdata/maven/multimodule/child/pom.xml", content, "../../testdata/maven/multimodule/child")
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 	got := map[string]core.Dependency{}
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		got[d.Name] = d
 	}
 	if v := got["org.lib:lib"].Version; v == "2.5" {
@@ -433,17 +433,17 @@ func TestPomDependenciesNoRequirement(t *testing.T) {
 	}
 
 	parser := &pomXMLParser{}
-	deps, err := parser.Parse("pom_dependencies_no_requirement.xml", content)
+	res, err := parser.Parse("pom_dependencies_no_requirement.xml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 33 {
-		t.Fatalf("expected 33 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 33 {
+		t.Fatalf("expected 33 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -469,19 +469,19 @@ func TestPomSpacesInArtifactAndGroup(t *testing.T) {
 	}
 
 	parser := &pomXMLParser{}
-	deps, err := parser.Parse("pom-spaces-in-artifact-and-group.xml", content)
+	res, err := parser.Parse("pom-spaces-in-artifact-and-group.xml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 8 {
-		t.Fatalf("expected 8 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 8 {
+		t.Fatalf("expected 8 dependencies, got %d", len(res.Dependencies))
 	}
 
-	// Verify the deps with spaces exist (exact names may include spaces)
+	// Verify the res.Dependencies with spaces exist (exact names may include spaces)
 	foundTestng := false
 	foundAnnotations := false
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		if d.Version == "6.9.12" {
 			foundTestng = true
 		}
@@ -505,18 +505,18 @@ func TestGradleDependenciesQ(t *testing.T) {
 	}
 
 	parser := &gradleDependenciesParser{}
-	deps, err := parser.Parse("gradle-dependencies-q.txt", content)
+	res, err := parser.Parse("gradle-dependencies-q.txt", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	// Should have many dependencies from the gradle deps tree
-	if len(deps) < 100 {
-		t.Fatalf("expected at least 100 dependencies, got %d", len(deps))
+	// Should have many dependencies from the gradle res.Dependencies tree
+	if len(res.Dependencies) < 100 {
+		t.Fatalf("expected at least 100 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -547,17 +547,17 @@ func TestMavenResolvedDeps(t *testing.T) {
 	}
 
 	parser := &mavenResolvedDepsParser{}
-	deps, err := parser.Parse("maven-resolved-dependencies.txt", content)
+	res, err := parser.Parse("maven-resolved-dependencies.txt", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 62 {
-		t.Fatalf("expected 62 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 62 {
+		t.Fatalf("expected 62 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -596,17 +596,17 @@ func TestGradleVerificationMetadata(t *testing.T) {
 	}
 
 	parser := &gradleVerificationParser{}
-	deps, err := parser.Parse("verification-metadata.xml", content)
+	res, err := parser.Parse("verification-metadata.xml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -636,17 +636,17 @@ func TestMavenGraphJSON(t *testing.T) {
 	}
 
 	parser := &mavenGraphJSONParser{}
-	deps, err := parser.Parse("maven.graph.json", content)
+	res, err := parser.Parse("maven.graph.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 7 {
-		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -686,17 +686,17 @@ func TestNebulaLock(t *testing.T) {
 	}
 
 	parser := &nebulaLockParser{}
-	deps, err := parser.Parse("dependencies.lock", content)
+	res, err := parser.Parse("dependencies.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -736,17 +736,17 @@ func TestGradleHtmlReport(t *testing.T) {
 	}
 
 	parser := &gradleHtmlReportParser{}
-	deps, err := parser.Parse("gradle-html-dependency-report.js", content)
+	res, err := parser.Parse("gradle-html-dependency-report.js", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 7 {
-		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -787,16 +787,16 @@ func TestIvyReportCompile(t *testing.T) {
 	}
 
 	parser := &ivyReportParser{}
-	deps, err := parser.Parse("com.example-hello_2.12-compile.xml", content)
+	res, err := parser.Parse("com.example-hello_2.12-compile.xml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
-	dep := deps[0]
+	dep := res.Dependencies[0]
 	if dep.Name != "org.scala-lang:scala-library" {
 		t.Errorf("name = %q, want %q", dep.Name, "org.scala-lang:scala-library")
 	}
@@ -815,17 +815,17 @@ func TestIvyReportTest(t *testing.T) {
 	}
 
 	parser := &ivyReportParser{}
-	deps, err := parser.Parse("com.example-hello_2.12-test.xml", content)
+	res, err := parser.Parse("com.example-hello_2.12-test.xml", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -881,17 +881,17 @@ func TestSbtDot(t *testing.T) {
 	}
 
 	parser := &sbtDotParser{}
-	deps, err := parser.Parse("dependencies-compile.dot", content)
+	res, err := parser.Parse("dependencies-compile.dot", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

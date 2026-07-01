@@ -14,26 +14,26 @@ func TestElmPackageJSON(t *testing.T) {
 	}
 
 	parser := &elmPackageJSONParser{}
-	deps, err := parser.Parse("elm-package.json", content)
+	res, err := parser.Parse("elm-package.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All 4 packages with versions
 	expected := map[string]string{
-		"elm-lang/core":         "1.0.0 <= v < 2.0.0",
-		"evancz/elm-markdown":   "1.1.0 <= v < 2.0.0",
-		"evancz/elm-html":       "1.0.0 <= v < 2.0.0",
-		"evancz/local-channel":  "1.0.0 <= v < 2.0.0",
+		"elm-lang/core":        "1.0.0 <= v < 2.0.0",
+		"evancz/elm-markdown":  "1.1.0 <= v < 2.0.0",
+		"evancz/elm-html":      "1.0.0 <= v < 2.0.0",
+		"evancz/local-channel": "1.0.0 <= v < 2.0.0",
 	}
 
 	for name, wantVer := range expected {
@@ -59,23 +59,23 @@ func TestElmLegacyJSON(t *testing.T) {
 
 	// Legacy format is similar to elm-package.json
 	parser := &elmPackageJSONParser{}
-	deps, err := parser.Parse("elm-package.json", content)
+	res, err := parser.Parse("elm-package.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All 2 packages with versions
 	expected := map[string]string{
-		"johnpmayer/elm-webgl":         "0.1.1",
+		"johnpmayer/elm-webgl":          "0.1.1",
 		"johnpmayer/elm-linear-algebra": "1.0.1",
 	}
 

@@ -1,8 +1,8 @@
 package vcpkg
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -13,10 +13,13 @@ func init() {
 type vcpkgJSONParser struct{}
 
 type vcpkgJSON struct {
-	Dependencies []any `json:"dependencies"`
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	VersionString string `json:"version-string"`
+	Dependencies  []any  `json:"dependencies"`
 }
 
-func (p *vcpkgJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *vcpkgJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var pkg vcpkgJSON
 	if err := json.Unmarshal(content, &pkg); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -44,10 +47,14 @@ func (p *vcpkgJSONParser) Parse(filename string, content []byte) ([]core.Depende
 
 		deps = append(deps, core.Dependency{
 			Name:   name,
-			Scope:   core.Runtime,
+			Scope:  core.Runtime,
 			Direct: true,
 		})
 	}
 
-	return deps, nil
+	version := pkg.Version
+	if version == "" {
+		version = pkg.VersionString
+	}
+	return &core.Result{Name: pkg.Name, Version: version, Dependencies: deps}, nil
 }

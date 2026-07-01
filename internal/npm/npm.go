@@ -22,13 +22,15 @@ func init() {
 type npmPackageJSONParser struct{}
 
 type packageJSON struct {
+	Name                 string         `json:"name"`
+	Version              string         `json:"version"`
 	Dependencies         map[string]any `json:"dependencies"`
 	DevDependencies      map[string]any `json:"devDependencies"`
 	OptionalDependencies map[string]any `json:"optionalDependencies"`
 	PeerDependencies     map[string]any `json:"peerDependencies"`
 }
 
-func (p *npmPackageJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var pkg packageJSON
 	if err := json.Unmarshal(content, &pkg); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -104,7 +106,7 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) ([]core.De
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: pkg.Name, Version: pkg.Version, Dependencies: deps}, nil
 }
 
 // isNpmComment checks if a dependency name is actually a comment.
@@ -145,7 +147,7 @@ type packageLockDep struct {
 	Dependencies map[string]packageLockDep `json:"dependencies"`
 }
 
-func (p *npmPackageLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *npmPackageLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	// Quick check for lockfile version to determine parsing strategy
 	// v3 (lockfileVersion >= 2 with packages) uses line-based parsing
 	// v1 uses JSON parsing for nested dependencies
@@ -156,7 +158,7 @@ func (p *npmPackageLockParser) Parse(filename string, content []byte) ([]core.De
 	// v2+ with packages section uses line-based v3 parsing
 	if strings.Contains(header, `"lockfileVersion": 3`) ||
 		(strings.Contains(header, `"lockfileVersion": 2`) && strings.Contains(string(content[:min(packagesPeekSize, len(content))]), `"packages"`)) {
-		return parsePackageLockV3Lines(content), nil
+		return &core.Result{Dependencies: parsePackageLockV3Lines(content)}, nil
 	}
 
 	// v1 format uses JSON (nested dependencies make line parsing complex)
@@ -164,7 +166,7 @@ func (p *npmPackageLockParser) Parse(filename string, content []byte) ([]core.De
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
-	return parsePackageLockV1(lock.Dependencies), nil
+	return &core.Result{Dependencies: parsePackageLockV1(lock.Dependencies)}, nil
 }
 
 func parsePackageLockV1(deps map[string]packageLockDep) []core.Dependency {
@@ -401,20 +403,20 @@ type npmLsJSON struct {
 }
 
 type npmLsDep struct {
-	Version      string                 `json:"version"`
-	Resolved     string                 `json:"resolved"`
-	Integrity    string                 `json:"integrity"`
-	Dev          bool                   `json:"dev"`
-	Dependencies map[string]npmLsDep    `json:"dependencies"`
+	Version      string              `json:"version"`
+	Resolved     string              `json:"resolved"`
+	Integrity    string              `json:"integrity"`
+	Dev          bool                `json:"dev"`
+	Dependencies map[string]npmLsDep `json:"dependencies"`
 }
 
-func (p *npmLsParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *npmLsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var ls npmLsJSON
 	if err := json.Unmarshal(content, &ls); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
-	return parseNpmLsDeps(ls.Dependencies, make(map[string]bool)), nil
+	return &core.Result{Dependencies: parseNpmLsDeps(ls.Dependencies, make(map[string]bool))}, nil
 }
 
 func parseNpmLsDeps(deps map[string]npmLsDep, seen map[string]bool) []core.Dependency {

@@ -14,20 +14,20 @@ func TestP5mParse(t *testing.T) {
 	}
 
 	parser := &p5mParser{}
-	deps, err := parser.Parse("sample.p5m", content)
+	res, err := parser.Parse("sample.p5m", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 8 {
-		for i, d := range deps {
+	if len(res.Dependencies) != 8 {
+		for i, d := range res.Dependencies {
 			t.Logf("dep[%d]: %s %s %s", i, d.Name, d.Version, d.Scope)
 		}
-		t.Fatalf("expected 8 dependencies, got %d", len(deps))
+		t.Fatalf("expected 8 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -106,16 +106,16 @@ depend type=require fmri=pkg:/library/libxml2@2.9
 `)
 
 	parser := &p5mParser{}
-	deps, err := parser.Parse("test.p5m", content)
+	res, err := parser.Parse("test.p5m", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency (skipping macro and TBD), got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency (skipping macro and TBD), got %d", len(res.Dependencies))
 	}
-	if deps[0].Name != "library/libxml2" {
-		t.Errorf("expected library/libxml2, got %s", deps[0].Name)
+	if res.Dependencies[0].Name != "library/libxml2" {
+		t.Errorf("expected library/libxml2, got %s", res.Dependencies[0].Name)
 	}
 }
 
@@ -126,20 +126,20 @@ func TestP5mMultilineContinuation(t *testing.T) {
 `)
 
 	parser := &p5mParser{}
-	deps, err := parser.Parse("test.p5m", content)
+	res, err := parser.Parse("test.p5m", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies from require-any, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies from require-any, got %d", len(res.Dependencies))
 	}
 
 	names := map[string]string{
 		"editor/vim":    "9.0",
 		"editor/neovim": "0.9",
 	}
-	for _, dep := range deps {
+	for _, dep := range res.Dependencies {
 		wantVer, ok := names[dep.Name]
 		if !ok {
 			t.Errorf("unexpected dependency %s", dep.Name)

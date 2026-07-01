@@ -14,17 +14,17 @@ func TestHaxelibJSON(t *testing.T) {
 	}
 
 	parser := &haxelibJSONParser{}
-	deps, err := parser.Parse("haxelib.json", content)
+	res, err := parser.Parse("haxelib.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

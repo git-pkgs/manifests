@@ -1,8 +1,8 @@
 package composer
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
 	"encoding/json"
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -14,11 +14,13 @@ func init() {
 type composerJSONParser struct{}
 
 type composerJSON struct {
+	Name       string            `json:"name"`
+	Version    string            `json:"version"`
 	Require    map[string]string `json:"require"`
 	RequireDev map[string]string `json:"require-dev"`
 }
 
-func (p *composerJSONParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *composerJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var composer composerJSON
 	if err := json.Unmarshal(content, &composer); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -57,7 +59,7 @@ func (p *composerJSONParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: composer.Name, Version: composer.Version, Dependencies: deps}, nil
 }
 
 // composerLockParser parses composer.lock files.
@@ -72,13 +74,13 @@ type composerPackage struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 	Dist    struct {
-		URL     string `json:"url"`
-		SHA     string `json:"shasum"`
-		SHA256  string `json:"sha256"`
+		URL    string `json:"url"`
+		SHA    string `json:"shasum"`
+		SHA256 string `json:"sha256"`
 	} `json:"dist"`
 }
 
-func (p *composerLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *composerLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock composerLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -122,5 +124,5 @@ func (p *composerLockParser) Parse(filename string, content []byte) ([]core.Depe
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

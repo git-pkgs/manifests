@@ -19,17 +19,17 @@ func assertParseDeps(t *testing.T, fixturePath string, parser core.Parser, parse
 		t.Fatalf("failed to read fixture: %v", err)
 	}
 
-	deps, err := parser.Parse(parseFilename, content)
+	res, err := parser.Parse(parseFilename, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != wantCount {
-		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
+	if len(res.Dependencies) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -65,17 +65,17 @@ func TestNuspec(t *testing.T) {
 	}
 
 	parser := &nuspecParser{}
-	deps, err := parser.Parse("example.nuspec", content)
+	res, err := parser.Parse("example.nuspec", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -109,29 +109,29 @@ func TestPackagesConfig(t *testing.T) {
 	}
 
 	parser := &packagesConfigParser{}
-	deps, err := parser.Parse("packages.config", content)
+	res, err := parser.Parse("packages.config", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 7 {
-		t.Fatalf("expected 7 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All 7 packages with exact versions
 	expected := map[string]string{
-		"AutoMapper":                 "2.1.267",
+		"AutoMapper":                   "2.1.267",
 		"Microsoft.Web.Infrastructure": "1.0.0.0",
-		"Mvc3Futures":                "3.0.20105.0",
-		"Ninject":                    "3.0.1.10",
-		"Ninject.Web.Common":         "3.0.0.7",
-		"WebActivator":               "1.5",
-		"Microsoft.Net.Compilers":    testVersion100,
+		"Mvc3Futures":                  "3.0.20105.0",
+		"Ninject":                      "3.0.1.10",
+		"Ninject.Web.Common":           "3.0.0.7",
+		"WebActivator":                 "1.5",
+		"Microsoft.Net.Compilers":      testVersion100,
 	}
 
 	for name, wantVer := range expected {
@@ -160,17 +160,17 @@ func TestProjectAssets(t *testing.T) {
 	}
 
 	parser := &projectAssetsParser{}
-	deps, err := parser.Parse("project.assets.json", content)
+	res, err := parser.Parse("project.assets.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
+	if len(res.Dependencies) == 0 {
 		t.Fatal("expected dependencies, got none")
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -208,26 +208,26 @@ func TestPaketLock(t *testing.T) {
 	}
 
 	parser := &paketLockParser{}
-	deps, err := parser.Parse("paket.lock", content)
+	res, err := parser.Parse("paket.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All 5 packages with versions
 	expected := map[string]string{
-		"Argu":           "2.1",
-		"Mono.Cecil":     "0.9.6.1",
-		"Chessie":        "0.5.1",
-		"FSharp.Core":    "4.0.0.1",
+		"Argu":            "2.1",
+		"Mono.Cecil":      "0.9.6.1",
+		"Chessie":         "0.5.1",
+		"FSharp.Core":     "4.0.0.1",
 		"Newtonsoft.Json": "9.0.1",
 	}
 
@@ -244,93 +244,29 @@ func TestPaketLock(t *testing.T) {
 }
 
 func TestExampleNoVersionCsproj(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/nuget/example-no-version.csproj")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &csprojParser{}
-	deps, err := parser.Parse("example-no-version.csproj", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All 2 packages
-	expected := map[string]string{
+	assertParseDeps(t, "../../testdata/nuget/example-no-version.csproj", &csprojParser{}, "example-no-version.csproj", 2, map[string]string{
 		"Microsoft.AspNetCore.App":          "",
 		"Microsoft.AspNetCore.Razor.Design": "2.2.0",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestExampleUpdateCsproj(t *testing.T) {
-	content, err := os.ReadFile("../../testdata/nuget/example-update.csproj")
-	if err != nil {
-		t.Fatalf("failed to read fixture: %v", err)
-	}
-
-	parser := &csprojParser{}
-	deps, err := parser.Parse("example-update.csproj", content)
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
-
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
-	}
-
-	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
-		depMap[d.Name] = d
-	}
-
-	// All 2 packages
-	expected := map[string]string{
+	assertParseDeps(t, "../../testdata/nuget/example-update.csproj", &csprojParser{}, "example-update.csproj", 2, map[string]string{
 		"Microsoft.AspNetCore":             "1.1.1",
 		"Microsoft.AspNetCore.StaticFiles": "2.2.0",
-	}
-
-	for name, wantVer := range expected {
-		dep, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
-		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
-		}
-	}
+	})
 }
 
 func TestPackagesLockJson(t *testing.T) {
 	assertParseDeps(t, "../../testdata/nuget/packages.lock.json", &packagesLockParser{}, "packages.lock.json", 284, map[string]string{
-		"System.IO.Pipelines":                     "4.5.2",
-		"System.Reflection.Metadata":              "1.6.0",
-		"Microsoft.AspNetCore.Http.Abstractions":  "2.2.0",
-		"Microsoft.AspNetCore.Identity.UI":        "2.2.0",
-		"Microsoft.EntityFrameworkCore.Design":     "2.2.0",
-		"Microsoft.NETCore.Platforms":              "2.2.0",
-		"System.IdentityModel.Tokens.Jwt":         "5.3.0",
-		"Microsoft.NETCore.App":                   "2.2.0",
+		"System.IO.Pipelines":                    "4.5.2",
+		"System.Reflection.Metadata":             "1.6.0",
+		"Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
+		"Microsoft.AspNetCore.Identity.UI":       "2.2.0",
+		"Microsoft.EntityFrameworkCore.Design":   "2.2.0",
+		"Microsoft.NETCore.Platforms":            "2.2.0",
+		"System.IdentityModel.Tokens.Jwt":        "5.3.0",
+		"Microsoft.NETCore.App":                  "2.2.0",
 	})
 }
 
@@ -339,8 +275,8 @@ func TestProjectLockJson(t *testing.T) {
 		"EntityFramework.InMemory":              "7.0.0-beta7",
 		"System.ComponentModel.Annotations":     "4.0.11-beta-23225",
 		"Microsoft.AspNet.Mvc.Cors":             "6.0.0-beta7",
-		"Newtonsoft.Json":                        "6.0.6",
-		"System.Diagnostics.Process":             "4.0.0-beta-23225",
+		"Newtonsoft.Json":                       "6.0.6",
+		"System.Diagnostics.Process":            "4.0.0-beta-23225",
 		"Microsoft.AspNet.Hosting.Abstractions": "1.0.0-beta7",
 		"Microsoft.AspNet.Routing":              "1.0.0-beta7",
 		"Microsoft.AspNet.StaticFiles":          "1.0.0-beta7",
@@ -354,35 +290,35 @@ func TestProjectJSON(t *testing.T) {
 	}
 
 	parser := &projectJSONParser{}
-	deps, err := parser.Parse("Project.json", content)
+	res, err := parser.Parse("Project.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 13 {
-		t.Fatalf("expected 13 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 13 {
+		t.Fatalf("expected 13 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All packages with expected versions
 	expected := map[string]string{
-		"Microsoft.AspNet.Server.Kestrel":                   "1.0.0-beta7",
-		"Microsoft.AspNet.Server.IIS":                       "1.0.0-beta7",
-		"Microsoft.AspNet.Mvc":                              "6.0.0-beta7",
-		"Microsoft.AspNet.Server.WebListener":               "1.0.0-beta7",
-		"Microsoft.AspNet.StaticFiles":                      "1.0.0-beta7",
-		"EntityFramework.InMemory":                          "7.0.0-beta7",
-		"EntityFramework.SqlServer":                         "7.0.0-beta7",
-		"Microsoft.AspNet.Authentication.Cookies":           "1.0.0-beta7",
-		"Microsoft.AspNet.Identity.EntityFramework":         "3.0.0-beta7",
-		"Microsoft.Framework.Configuration":                 "1.0.0-beta7",
+		"Microsoft.AspNet.Server.Kestrel":                        "1.0.0-beta7",
+		"Microsoft.AspNet.Server.IIS":                            "1.0.0-beta7",
+		"Microsoft.AspNet.Mvc":                                   "6.0.0-beta7",
+		"Microsoft.AspNet.Server.WebListener":                    "1.0.0-beta7",
+		"Microsoft.AspNet.StaticFiles":                           "1.0.0-beta7",
+		"EntityFramework.InMemory":                               "7.0.0-beta7",
+		"EntityFramework.SqlServer":                              "7.0.0-beta7",
+		"Microsoft.AspNet.Authentication.Cookies":                "1.0.0-beta7",
+		"Microsoft.AspNet.Identity.EntityFramework":              "3.0.0-beta7",
+		"Microsoft.Framework.Configuration":                      "1.0.0-beta7",
 		"Microsoft.Framework.Configuration.EnvironmentVariables": "1.0.0-beta7",
-		"Microsoft.Framework.Configuration.Json":            "1.0.0-beta7",
-		"AutoMapper":                                        "4.0.0-alpha1",
+		"Microsoft.Framework.Configuration.Json":                 "1.0.0-beta7",
+		"AutoMapper":                                             "4.0.0-alpha1",
 	}
 
 	for name, wantVer := range expected {
@@ -407,25 +343,25 @@ func TestDepsJSON(t *testing.T) {
 	}
 
 	parser := &depsJSONParser{}
-	deps, err := parser.Parse("example.deps.json", content)
+	res, err := parser.Parse("example.deps.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All packages with expected versions
 	expected := map[string]string{
-		"Newtonsoft.Json":                     "13.0.1",
+		"Newtonsoft.Json":                          "13.0.1",
 		"Microsoft.Extensions.DependencyInjection": "6.0.0",
-		"Serilog":                             "2.10.0",
+		"Serilog": "2.10.0",
 	}
 
 	for name, wantVer := range expected {
@@ -447,26 +383,26 @@ func TestCsprojReferences(t *testing.T) {
 	}
 
 	parser := &csprojParser{}
-	deps, err := parser.Parse("example-references-tag.csproj", content)
+	res, err := parser.Parse("example-references-tag.csproj", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Should have 3 non-system dependencies (System.Runtime.* is filtered as system)
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All packages with expected versions
 	expected := map[string]string{
-		"FluentCommandLineParser":       "1.0.25.0",
-		"log4net":                        "2.0.15.0",
-		"Sequel.Core.Cryptography":       "1.0.0.0",
+		"FluentCommandLineParser":  "1.0.25.0",
+		"log4net":                  "2.0.15.0",
+		"Sequel.Core.Cryptography": "1.0.0.0",
 	}
 
 	for name, wantVer := range expected {

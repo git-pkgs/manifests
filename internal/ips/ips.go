@@ -12,7 +12,7 @@ func init() {
 
 type p5mParser struct{}
 
-func (p *p5mParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *p5mParser) Parse(filename string, content []byte) (*core.Result, error) {
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 	text := string(content)
 
@@ -73,7 +73,7 @@ func (p *p5mParser) Parse(filename string, content []byte) ([]core.Dependency, e
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // parseFMRI extracts name and version from an IPS FMRI like

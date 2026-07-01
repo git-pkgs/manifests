@@ -14,17 +14,17 @@ func TestRockspec(t *testing.T) {
 	}
 
 	parser := &rockspecParser{}
-	deps, err := parser.Parse("example.rockspec", content)
+	res, err := parser.Parse("example.rockspec", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 4 {
-		t.Fatalf("expected 4 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

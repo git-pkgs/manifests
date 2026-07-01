@@ -14,28 +14,28 @@ func TestProjectClj(t *testing.T) {
 	}
 
 	parser := &projectCljParser{}
-	deps, err := parser.Parse("project.clj", content)
+	res, err := parser.Parse("project.clj", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
 	// All 6 packages with versions
 	expected := map[string]string{
-		"org.clojure/clojure":    "1.6.0",
-		"cheshire":               "5.4.0",
-		"compojure":              "1.3.2",
-		"ring/ring-defaults":     "0.1.2",
+		"org.clojure/clojure":     "1.6.0",
+		"cheshire":                "5.4.0",
+		"compojure":               "1.3.2",
+		"ring/ring-defaults":      "0.1.2",
 		"ring/ring-jetty-adapter": "1.2.1",
-		"lein-ring":              "0.8.13",
+		"lein-ring":               "0.8.13",
 	}
 
 	for name, wantVer := range expected {

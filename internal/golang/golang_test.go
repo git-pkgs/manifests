@@ -14,17 +14,17 @@ func TestGoMod(t *testing.T) {
 	}
 
 	parser := &goModParser{}
-	deps, err := parser.Parse("go.mod", content)
+	res, err := parser.Parse("go.mod", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) == 0 {
+	if len(res.Dependencies) == 0 {
 		t.Fatal("expected dependencies, got none")
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -85,19 +85,19 @@ func TestGoSum(t *testing.T) {
 	}
 
 	parser := &goSumParser{}
-	deps, err := parser.Parse("go.sum", content)
+	res, err := parser.Parse("go.sum", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// go.sum has 6 unique packages with h1: hashes
 	// kr/pty only has /go.mod entry (no h1: hash) so it's excluded
-	if len(deps) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -106,12 +106,12 @@ func TestGoSum(t *testing.T) {
 		version   string
 		integrity string
 	}{
-		"github.com/go-check/check":        {"v0.0.0-20180628173108-788fd7840127", "h1:0gkP6mzaMqkmpcJYCFOLkIBwI7xFExG03bbkOkCvUPI="},
-		"github.com/gomodule/redigo":       {"v2.0.0+incompatible", "h1:K/R+8tc58AaqLkqG2Ol3Qk+DR/TlNuhuh457pBFPtt0="},
-		"github.com/kr/pretty":             {"v0.1.0", "h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI="},
-		"github.com/kr/text":               {"v0.1.0", "h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE="},
+		"github.com/go-check/check":         {"v0.0.0-20180628173108-788fd7840127", "h1:0gkP6mzaMqkmpcJYCFOLkIBwI7xFExG03bbkOkCvUPI="},
+		"github.com/gomodule/redigo":        {"v2.0.0+incompatible", "h1:K/R+8tc58AaqLkqG2Ol3Qk+DR/TlNuhuh457pBFPtt0="},
+		"github.com/kr/pretty":              {"v0.1.0", "h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI="},
+		"github.com/kr/text":                {"v0.1.0", "h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE="},
 		"github.com/replicon/fast-archiver": {"v0.0.0-20121220195659-060bf9adec25", "h1:aq3XSz9htmdvrxpK6eBIbjs3SaN8G1D9RuKkDo4PRnw="},
-		"gopkg.in/yaml.v1":                 {"v1.0.0-20140924161607-9f9df34309c0", "h1:POO/ycCATvegFmVuPpQzZFJ+pGZeX22Ufu6fibxDVjU="},
+		"gopkg.in/yaml.v1":                  {"v1.0.0-20140924161607-9f9df34309c0", "h1:POO/ycCATvegFmVuPpQzZFJ+pGZeX22Ufu6fibxDVjU="},
 	}
 
 	for name, exp := range expected {
@@ -141,17 +141,17 @@ func checkDeps(t *testing.T, p core.Parser, fixture string, filename string, wan
 		t.Fatalf("failed to read fixture: %v", err)
 	}
 
-	deps, err := p.Parse(filename, content)
+	res, err := p.Parse(filename, content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != wantCount {
-		t.Fatalf("expected %d dependencies, got %d", wantCount, len(deps))
+	if len(res.Dependencies) != wantCount {
+		t.Fatalf("expected %d dependencies, got %d", wantCount, len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -175,20 +175,20 @@ func checkDeps(t *testing.T, p core.Parser, fixture string, filename string, wan
 
 func TestGodepsJSON(t *testing.T) {
 	checkDeps(t, &godepsJSONParser{}, "../../testdata/golang/Godeps.json", "Godeps.json", 14, map[string]string{
-		"github.com/BurntSushi/toml":                "v0.1.0-9-g3883ac1",
-		"github.com/Sirupsen/logrus":                "v0.8.7",
+		"github.com/BurntSushi/toml":                 "v0.1.0-9-g3883ac1",
+		"github.com/Sirupsen/logrus":                 "v0.8.7",
 		"github.com/ayufan/golang-kardianos-service": "9ce7ccf10c81705a8880170bbf506bd539bc69b2",
-		"github.com/codegangsta/cli":                "1.2.0-139-g142e6cd",
-		"github.com/fsouza/go-dockerclient":         "163268693e2cf8be2920158b59ef438fc77b85e2",
-		"github.com/golang/mock/gomock":             "06883d979f10cc178f2716846215c8cf90f9e363",
-		"github.com/kardianos/osext":                "efacde03154693404c65e7aa7d461ac9014acd0c",
-		"github.com/ramr/go-reaper":                 "1a6cbc07ef2f7e248769ef4efd80aaa16f97ec12",
-		"github.com/stretchr/objx":                  "cbeaeb16a013161a98496fad62933b1d21786672",
-		"github.com/stretchr/testify/assert":        "1297dc01ed0a819ff634c89707081a4df43baf6b",
-		"github.com/stretchr/testify/mock":          "1297dc01ed0a819ff634c89707081a4df43baf6b",
-		"gitlab.com/ayufan/golang-cli-helpers":      "0a14b63a7466ee44de4a90f998fad73afa8482bf",
-		"golang.org/x/crypto/ssh":                   "1351f936d976c60a0a48d728281922cf63eafb8d",
-		"gopkg.in/yaml.v1":                          "9f9df34309c04878acc86042b16630b0f696e1de",
+		"github.com/codegangsta/cli":                 "1.2.0-139-g142e6cd",
+		"github.com/fsouza/go-dockerclient":          "163268693e2cf8be2920158b59ef438fc77b85e2",
+		"github.com/golang/mock/gomock":              "06883d979f10cc178f2716846215c8cf90f9e363",
+		"github.com/kardianos/osext":                 "efacde03154693404c65e7aa7d461ac9014acd0c",
+		"github.com/ramr/go-reaper":                  "1a6cbc07ef2f7e248769ef4efd80aaa16f97ec12",
+		"github.com/stretchr/objx":                   "cbeaeb16a013161a98496fad62933b1d21786672",
+		"github.com/stretchr/testify/assert":         "1297dc01ed0a819ff634c89707081a4df43baf6b",
+		"github.com/stretchr/testify/mock":           "1297dc01ed0a819ff634c89707081a4df43baf6b",
+		"gitlab.com/ayufan/golang-cli-helpers":       "0a14b63a7466ee44de4a90f998fad73afa8482bf",
+		"golang.org/x/crypto/ssh":                    "1351f936d976c60a0a48d728281922cf63eafb8d",
+		"gopkg.in/yaml.v1":                           "9f9df34309c04878acc86042b16630b0f696e1de",
 	}, false)
 }
 
@@ -259,16 +259,16 @@ func TestGoSingleRequireMod(t *testing.T) {
 	}
 
 	parser := &goModParser{}
-	deps, err := parser.Parse("go.mod", content)
+	res, err := parser.Parse("go.mod", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
-	dep := deps[0]
+	dep := res.Dependencies[0]
 	if dep.Name != "github.com/go-check/check" {
 		t.Errorf("name = %q, want %q", dep.Name, "github.com/go-check/check")
 	}
@@ -300,17 +300,17 @@ tool (
 `)
 
 	parser := &goModParser{}
-	deps, err := parser.Parse("go.mod", content)
+	res, err := parser.Parse("go.mod", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -343,18 +343,18 @@ func TestGoResolvedDepsJSON(t *testing.T) {
 	}
 
 	parser := &goResolvedDepsParser{}
-	deps, err := parser.Parse("go-resolved-dependencies.json", content)
+	res, err := parser.Parse("go-resolved-dependencies.json", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Should have 15 dependencies (excluding main module and local replacements)
-	if len(deps) != 15 {
-		t.Fatalf("expected 15 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 15 {
+		t.Fatalf("expected 15 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -405,16 +405,16 @@ func TestGbManifest(t *testing.T) {
 	}
 
 	parser := &gbManifestParser{}
-	deps, err := parser.Parse("vendor/manifest", content)
+	res, err := parser.Parse("vendor/manifest", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(deps))
+	if len(res.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
 	}
 
-	dep := deps[0]
+	dep := res.Dependencies[0]
 	if dep.Name != "github.com/gorilla/mux" {
 		t.Errorf("name = %q, want %q", dep.Name, "github.com/gorilla/mux")
 	}
@@ -428,10 +428,10 @@ func TestGbManifest(t *testing.T) {
 
 func TestGodepsText(t *testing.T) {
 	checkDeps(t, &godepsTextParser{}, "../../testdata/golang/Godeps", "Godeps", 5, map[string]string{
-		"github.com/nu7hatch/gotrail":                "v0.0.2",
-		"github.com/replicon/fast-archiver":           "v1.02",
-		"github.com/garyburd/redigo/redis":            "a6a0a737c00caf4d4c2bb589941ace0d688168bb",
-		"launchpad.net/gocheck":                       "r2013.03.03",
+		"github.com/nu7hatch/gotrail":            "v0.0.2",
+		"github.com/replicon/fast-archiver":      "v1.02",
+		"github.com/garyburd/redigo/redis":       "a6a0a737c00caf4d4c2bb589941ace0d688168bb",
+		"launchpad.net/gocheck":                  "r2013.03.03",
 		"code.google.com/p/go.example/hello/...": "ae081cd1d6cc",
 	}, true)
 }
@@ -443,18 +443,18 @@ func TestGoGraph(t *testing.T) {
 	}
 
 	parser := &goGraphParser{}
-	deps, err := parser.Parse("go.graph", content)
+	res, err := parser.Parse("go.graph", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Should have 8 unique dependencies
-	if len(deps) != 8 {
-		t.Fatalf("expected 8 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 8 {
+		t.Fatalf("expected 8 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

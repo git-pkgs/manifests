@@ -15,7 +15,7 @@ func init() {
 // descriptionParser parses R DESCRIPTION files.
 type descriptionParser struct{}
 
-func (p *descriptionParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *descriptionParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	text := string(content)
 
@@ -70,7 +70,7 @@ func (p *descriptionParser) Parse(filename string, content []byte) ([]core.Depen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Name: fields["Package"], Version: fields["Version"], Dependencies: deps}, nil
 }
 
 // parseDescriptionFields parses DESCRIPTION file key-value pairs.
@@ -169,7 +169,7 @@ type renvPackage struct {
 	Hash    string `json:"Hash"`
 }
 
-func (p *renvLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *renvLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock renvLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -186,11 +186,11 @@ func (p *renvLockParser) Parse(filename string, content []byte) ([]core.Dependen
 		deps = append(deps, core.Dependency{
 			Name:      pkg.Package,
 			Version:   pkg.Version,
-			Scope:   core.Runtime,
+			Scope:     core.Runtime,
 			Integrity: integrity,
 			Direct:    false,
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

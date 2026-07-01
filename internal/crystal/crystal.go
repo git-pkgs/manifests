@@ -35,6 +35,8 @@ func extractShardValue(line, prefix string) (string, bool) {
 type shardYMLParser struct{}
 
 type shardYML struct {
+	Name                    string              `yaml:"name"`
+	Version                 string              `yaml:"version"`
 	Dependencies            map[string]shardDep `yaml:"dependencies"`
 	DevelopmentDependencies map[string]shardDep `yaml:"development_dependencies"`
 }
@@ -50,7 +52,7 @@ type shardDep struct {
 	Commit  string `yaml:"commit"`
 }
 
-func (p *shardYMLParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *shardYMLParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var shard shardYML
 	if err := yaml.Unmarshal(content, &shard); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
@@ -76,7 +78,7 @@ func (p *shardYMLParser) Parse(filename string, content []byte) ([]core.Dependen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: shard.Name, Version: shard.Version, Dependencies: deps}, nil
 }
 
 func getShardVersion(dep shardDep) string {
@@ -95,7 +97,7 @@ func getShardVersion(dep shardDep) string {
 // shardLockParser parses shard.lock files using regex for speed.
 type shardLockParser struct{}
 
-func (p *shardLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *shardLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
 	deps := make([]core.Dependency, 0, core.EstimateDeps(len(content)))
 
@@ -153,5 +155,5 @@ func (p *shardLockParser) Parse(filename string, content []byte) ([]core.Depende
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }

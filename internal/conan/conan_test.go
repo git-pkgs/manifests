@@ -14,17 +14,17 @@ func TestConanfileTxt(t *testing.T) {
 	}
 
 	parser := &conanfileTxtParser{}
-	deps, err := parser.Parse("conanfile.txt", content)
+	res, err := parser.Parse("conanfile.txt", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -66,17 +66,17 @@ func TestConanfilePy(t *testing.T) {
 	}
 
 	parser := &conanfilePyParser{}
-	deps, err := parser.Parse("conanfile.py", content)
+	res, err := parser.Parse("conanfile.py", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 2 {
-		t.Fatalf("expected 2 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 2 {
+		t.Fatalf("expected 2 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -102,17 +102,17 @@ func TestConanLock(t *testing.T) {
 	}
 
 	parser := &conanLockParser{}
-	deps, err := parser.Parse("conan.lock", content)
+	res, err := parser.Parse("conan.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

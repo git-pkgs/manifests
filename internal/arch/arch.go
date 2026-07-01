@@ -16,11 +16,13 @@ type pkgbuildParser struct{}
 var (
 	// Matches array assignments: depends=('foo' 'bar') or depends=("foo" "bar")
 	pkgbuildArrayRegex = regexp.MustCompile(`^(\w+)=\(([^)]*)\)`)
+	// Matches scalar assignments: pkgname=foo or pkgver=1.0
+	pkgbuildScalarRegex = regexp.MustCompile(`^(\w+)=([^\s('"]+)`)
 	// Matches package with optional version constraint: pkg>=1.0 or pkg
 	pkgbuildDepRegex = regexp.MustCompile(`^([a-zA-Z0-9_][a-zA-Z0-9_+@.-]*)(>=|<=|>|<|=)?([^'"]*)$`)
 )
 
-func (p *pkgbuildParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *pkgbuildParser) Parse(filename string, content []byte) (*core.Result, error) {
 	vars := parsePkgbuildVars(string(content))
 
 	var deps []core.Dependency
@@ -53,7 +55,7 @@ func (p *pkgbuildParser) Parse(filename string, content []byte) ([]core.Dependen
 		deps = append(deps, dep)
 	}
 
-	return deps, nil
+	return &core.Result{Name: vars["pkgname"], Version: vars["pkgver"], Dependencies: deps}, nil
 }
 
 func parsePkgbuildVars(content string) map[string]string {
@@ -69,6 +71,11 @@ func parsePkgbuildVars(content string) map[string]string {
 		}
 
 		if match := pkgbuildArrayRegex.FindStringSubmatch(line); match != nil {
+			vars[match[1]] = match[2]
+			continue
+		}
+
+		if match := pkgbuildScalarRegex.FindStringSubmatch(line); match != nil {
 			vars[match[1]] = match[2]
 		}
 	}

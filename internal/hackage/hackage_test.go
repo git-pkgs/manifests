@@ -14,17 +14,17 @@ func TestCabal(t *testing.T) {
 	}
 
 	parser := &cabalParser{}
-	deps, err := parser.Parse("example.cabal", content)
+	res, err := parser.Parse("example.cabal", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 19 {
-		t.Fatalf("expected 19 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 19 {
+		t.Fatalf("expected 19 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -60,17 +60,17 @@ func TestStackLock(t *testing.T) {
 	}
 
 	parser := &stackLockParser{}
-	deps, err := parser.Parse("stack.yaml.lock", content)
+	res, err := parser.Parse("stack.yaml.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -100,17 +100,17 @@ func TestCabalConfig(t *testing.T) {
 	}
 
 	parser := &cabalConfigParser{}
-	deps, err := parser.Parse("cabal.config", content)
+	res, err := parser.Parse("cabal.config", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 108 {
-		t.Fatalf("expected 108 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 108 {
+		t.Fatalf("expected 108 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 
@@ -143,17 +143,17 @@ func TestCabalProjectFreeze(t *testing.T) {
 	}
 
 	parser := &cabalFreezeParser{}
-	deps, err := parser.Parse("cabal.project.freeze", content)
+	res, err := parser.Parse("cabal.project.freeze", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 5 {
-		t.Fatalf("expected 5 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 5 {
+		t.Fatalf("expected 5 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

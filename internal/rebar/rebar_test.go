@@ -14,17 +14,17 @@ func TestRebarLock(t *testing.T) {
 	}
 
 	parser := &rebarLockParser{}
-	deps, err := parser.Parse("rebar.lock", content)
+	res, err := parser.Parse("rebar.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(deps) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(deps))
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
-	for _, d := range deps {
+	for _, d := range res.Dependencies {
 		depMap[d.Name] = d
 	}
 

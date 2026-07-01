@@ -45,7 +45,7 @@ func (s *yarnParseState) collectDep(deps []core.Dependency, seen map[string]bool
 	})
 }
 
-func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *yarnLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
 	seen := make(map[string]bool)
@@ -74,7 +74,7 @@ func (p *yarnLockParser) Parse(filename string, content []byte) ([]core.Dependen
 		}
 	}
 
-	return deps, nil
+	return &core.Result{Dependencies: deps}, nil
 }
 
 // skipYarnLine returns true for lines that should be ignored: empty lines,

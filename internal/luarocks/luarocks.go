@@ -16,21 +16,33 @@ type rockspecParser struct{}
 var (
 	// Match dependency strings like "lua >= 5.1" or "luafilesystem >= 1.8.0"
 	rockspecDepRegex = regexp.MustCompile(`"([^"]+)"`)
+	// Match top-level package = "..."
+	rockspecPackageRegex = regexp.MustCompile(`(?m)^\s*package\s*=\s*"([^"]+)"`)
+	// Match top-level version = "..."
+	rockspecVersionRegex = regexp.MustCompile(`(?m)^\s*version\s*=\s*"([^"]+)"`)
 )
 
-func (p *rockspecParser) Parse(filename string, content []byte) ([]core.Dependency, error) {
+func (p *rockspecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	text := string(content)
+
+	var selfName, selfVersion string
+	if m := rockspecPackageRegex.FindStringSubmatch(text); m != nil {
+		selfName = m[1]
+	}
+	if m := rockspecVersionRegex.FindStringSubmatch(text); m != nil {
+		selfVersion = m[1]
+	}
 
 	// Find the dependencies section
 	depsStart := strings.Index(text, "dependencies")
 	if depsStart == -1 {
-		return nil, nil
+		return &core.Result{Name: selfName, Version: selfVersion}, nil
 	}
 
 	// Find the opening brace
 	braceStart := strings.Index(text[depsStart:], "{")
 	if braceStart == -1 {
-		return nil, nil
+		return &core.Result{Name: selfName, Version: selfVersion}, nil
 	}
 
 	// Find matching closing brace
@@ -50,7 +62,7 @@ func (p *rockspecParser) Parse(filename string, content []byte) ([]core.Dependen
 	}
 
 	if braceEnd == -1 {
-		return nil, nil
+		return &core.Result{Name: selfName, Version: selfVersion}, nil
 	}
 
 	depsSection := text[start:braceEnd]
@@ -76,7 +88,7 @@ func (p *rockspecParser) Parse(filename string, content []byte) ([]core.Dependen
 		})
 	}
 
-	return deps, nil
+	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
 }
 
 // parseRockspecDep parses a rockspec dependency string like "lua >= 5.1"
