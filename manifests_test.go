@@ -401,6 +401,10 @@ func TestIdentifyFiles(t *testing.T) {
 		{"Dockerfile", "docker", Manifest, true},
 		{"docker-compose.yml", "docker", Manifest, true},
 
+		// github-actions
+		{".github/workflows/ci.yml", "github-actions", Manifest, true},
+		{".github/workflows/actions.lock", "github-actions", Lockfile, true},
+
 		// unknown
 		{"unknown.txt", "", "", false},
 		{"random.file", "", "", false},
