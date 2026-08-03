@@ -61,7 +61,7 @@ func main() {
 | elm | elm.json, elm-package.json | |
 | gem | Gemfile, gems.rb, *.gemspec | Gemfile.lock, gems.locked |
 | git | .gitmodules | |
-| github-actions | .github/workflows/*.yml | |
+| github-actions | .github/workflows/*.yml | actions.lock |
 | golang | go.mod, Godeps, glide.yaml, Gopkg.toml | Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest |
 | guix | manifest.scm | |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
