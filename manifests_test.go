@@ -502,6 +502,56 @@ func TestPURL(t *testing.T) {
 	t.Error("express dependency not found")
 }
 
+func TestParsePEP508ParenthesizedRequirements(t *testing.T) {
+	content, err := os.ReadFile("testdata/pypi/pep508-parenthesized/pyproject.toml")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	result, err := Parse("pyproject.toml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if len(result.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(result.Dependencies))
+	}
+
+	expected := map[string]struct {
+		version string
+		purl    string
+	}{
+		"requests":     {version: ">=2.26,<3.0", purl: "pkg:pypi/requests"},
+		"packaging":    {version: ">=24.2", purl: "pkg:pypi/packaging"},
+		"platformdirs": {version: ">=3.0.0,<5", purl: "pkg:pypi/platformdirs"},
+		"importlib-metadata": {
+			version: ">=6.0",
+			purl:    "pkg:pypi/importlib-metadata",
+		},
+	}
+
+	dependencies := make(map[string]Dependency, len(result.Dependencies))
+	for _, dependency := range result.Dependencies {
+		if _, exists := dependencies[dependency.Name]; exists {
+			t.Errorf("duplicate dependency %q", dependency.Name)
+		}
+		dependencies[dependency.Name] = dependency
+	}
+
+	for name, want := range expected {
+		dependency, ok := dependencies[name]
+		if !ok {
+			t.Errorf("expected dependency %q", name)
+			continue
+		}
+		if dependency.Version != want.version {
+			t.Errorf("%s version = %q, want %q", dependency.Name, dependency.Version, want.version)
+		}
+		if dependency.PURL != want.purl {
+			t.Errorf("%s PURL = %q, want %q", dependency.Name, dependency.PURL, want.purl)
+		}
+	}
+}
+
 func TestRegistryURLNotIncludedForDefaultRegistry(t *testing.T) {
 	// Test that default registry URLs don't add repository_url qualifier
 	testCases := []struct {

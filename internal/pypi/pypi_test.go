@@ -437,6 +437,10 @@ func TestParsePEP508(t *testing.T) {
 		wantVersion string
 	}{
 		{"requests>=2.0", "requests", ">=2.0"},
+		{"requests (>=2.26,<3.0)", "requests", ">=2.26,<3.0"},
+		{"packaging (>=24.2)", "packaging", ">=24.2"},
+		{"platformdirs (>=3.0.0,<5)", "platformdirs", ">=3.0.0,<5"},
+		{"importlib-metadata[perf] (>=6.0); python_version < '3.12'", "importlib-metadata", ">=6.0"},
 		{"requests[security]>=2.0", "requests", ">=2.0"},
 		{"Django>=3.0,<4.0", "Django", ">=3.0,<4.0"},
 		{"pytest", "pytest", ""},
@@ -454,6 +458,24 @@ func TestParsePEP508(t *testing.T) {
 				t.Errorf("version = %q, want %q", gotVer, tt.wantVersion)
 			}
 		})
+	}
+}
+
+func BenchmarkParsePEP508(b *testing.B) {
+	inputs := []string{
+		"requests>=2.0",
+		"requests[security] (>=2.26,<3.0); python_version < '3.12'",
+		"platformdirs (>=3.0.0,<5)",
+	}
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, input := range inputs {
+			name, _ := parsePEP508(input)
+			if name == "" {
+				b.Fatal("empty dependency name")
+			}
+		}
 	}
 }
 

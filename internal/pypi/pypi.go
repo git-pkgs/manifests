@@ -449,6 +449,10 @@ func parsePEP508(dep string) (string, string) {
 	for i, c := range dep {
 		if c == '>' || c == '<' || c == '=' || c == '~' || c == '!' || c == ';' {
 			name := strings.TrimSpace(dep[:i])
+			parenthesized := strings.HasSuffix(name, "(")
+			if parenthesized {
+				name = strings.TrimSpace(strings.TrimSuffix(name, "("))
+			}
 			// Remove extras
 			if idx := strings.Index(name, "["); idx >= 0 {
 				name = name[:idx]
@@ -461,6 +465,9 @@ func parsePEP508(dep string) (string, string) {
 					rest = rest[:idx]
 				}
 				version = strings.TrimSpace(rest)
+				if parenthesized {
+					version = strings.TrimSpace(strings.TrimSuffix(version, ")"))
+				}
 			}
 			return name, version
 		}

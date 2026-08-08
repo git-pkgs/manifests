@@ -1,0 +1,9 @@
+[project]
+name = "pep508-parenthesized"
+version = "1.0.0"
+dependencies = [
+  "requests (>=2.26,<3.0)",
+  "packaging (>=24.2)",
+  "platformdirs (>=3.0.0,<5)",
+  "importlib-metadata[perf] (>=6.0); python_version < '3.12'",
+]
