@@ -66,8 +66,9 @@ func init() {
 // gemfileParser parses Gemfile and gems.rb files.
 type gemfileParser struct{}
 
-// extractGemDecl extracts gem name and version from a gem declaration line
-// Handles: gem "name" or gem "name", "version"
+// extractGemDecl extracts gem name and version from a gem declaration line.
+// Multiple positional version constraints are joined with a comma. Keyword
+// arguments are ignored.
 func extractGemDecl(line string) (name, version string, ok bool) {
 	trimmed := strings.TrimSpace(line)
 	if !strings.HasPrefix(trimmed, "gem ") && !strings.HasPrefix(trimmed, "gem\t") {
@@ -88,20 +89,31 @@ func extractGemDecl(line string) (name, version string, ok bool) {
 	}
 	name = trimmed[start+1 : start+1+end]
 
-	// Look for version
+	// Collect consecutive positional version arguments. Keyword arguments start
+	// with an identifier or symbol, so their quoted values are not considered.
 	rest := trimmed[start+1+end+1:]
-	if idx := strings.IndexByte(rest, ','); idx >= 0 {
-		rest = rest[idx+1:]
-		// Find version quote
-		vstart := strings.IndexAny(rest, "'\"")
-		if vstart >= 0 {
-			vquote := rest[vstart]
-			vend := strings.IndexByte(rest[vstart+1:], vquote)
-			if vend >= 0 {
-				version = rest[vstart+1 : vstart+1+vend]
-			}
+	versions := make([]string, 0, 1)
+	for {
+		rest = strings.TrimSpace(rest)
+		if !strings.HasPrefix(rest, ",") {
+			break
 		}
+
+		rest = strings.TrimSpace(rest[1:])
+		if len(rest) == 0 || (rest[0] != '\'' && rest[0] != '"') {
+			break
+		}
+
+		quote := rest[0]
+		end := strings.IndexByte(rest[1:], quote)
+		if end < 0 {
+			break
+		}
+
+		versions = append(versions, rest[1:end+1])
+		rest = rest[end+2:]
 	}
+	version = strings.Join(versions, ", ")
 
 	return name, version, true
 }

@@ -65,6 +65,80 @@ func TestGemfile(t *testing.T) {
 	})
 }
 
+func TestExtractGemDecl(t *testing.T) {
+	tests := []struct {
+		name        string
+		line        string
+		wantName    string
+		wantVersion string
+	}{
+		{
+			name:        "exact version",
+			line:        `gem "x", "1.2.3"`,
+			wantName:    "x",
+			wantVersion: "1.2.3",
+		},
+		{
+			name:        "pessimistic version",
+			line:        `gem "x", "~> 1.2"`,
+			wantName:    "x",
+			wantVersion: "~> 1.2",
+		},
+		{
+			name:        "multiple version constraints",
+			line:        `gem "rails", ">= 6.0", "< 7.0"`,
+			wantName:    "rails",
+			wantVersion: ">= 6.0, < 7.0",
+		},
+		{
+			name:     "git keyword",
+			line:     `gem "foo", git: "https://github.com/o/r"`,
+			wantName: "foo",
+		},
+		{
+			name:     "path keyword",
+			line:     `gem "foo", path: "../foo"`,
+			wantName: "foo",
+		},
+		{
+			name:     "github and branch keywords",
+			line:     `gem "foo", github: "o/r", branch: "main"`,
+			wantName: "foo",
+		},
+		{
+			name:     "require keyword",
+			line:     `gem "foo", require: "foo/bar"`,
+			wantName: "foo",
+		},
+		{
+			name:     "hash rocket git keyword",
+			line:     `gem "foo", :git => "https://github.com/o/r"`,
+			wantName: "foo",
+		},
+		{
+			name:        "version followed by keyword",
+			line:        `gem "foo", "1.2.3", require: "foo/bar"`,
+			wantName:    "foo",
+			wantVersion: "1.2.3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			name, version, ok := extractGemDecl(tt.line)
+			if !ok {
+				t.Fatal("extractGemDecl returned ok = false")
+			}
+			if name != tt.wantName {
+				t.Errorf("name = %q, want %q", name, tt.wantName)
+			}
+			if version != tt.wantVersion {
+				t.Errorf("version = %q, want %q", version, tt.wantVersion)
+			}
+		})
+	}
+}
+
 func TestGemfileGroups(t *testing.T) {
 	assertDepsWithScopes(t, &gemfileParser{}, "../../testdata/gem/GemfileGroups", "Gemfile", 10, map[string]expectedDep{
 		"rake":      {"", core.Runtime},
