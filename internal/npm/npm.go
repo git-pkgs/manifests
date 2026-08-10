@@ -1,6 +1,7 @@
 package npm
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 
@@ -178,6 +179,13 @@ type packageLockDep struct {
 	Dependencies map[string]packageLockDep `json:"dependencies"`
 }
 
+type packageLockRoot struct {
+	Dependencies         map[string]json.RawMessage `json:"dependencies"`
+	DevDependencies      map[string]json.RawMessage `json:"devDependencies"`
+	OptionalDependencies map[string]json.RawMessage `json:"optionalDependencies"`
+	PeerDependencies     map[string]json.RawMessage `json:"peerDependencies"`
+}
+
 func (p *npmPackageLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	// Quick check for lockfile version to determine parsing strategy
 	// v3 (lockfileVersion >= 2 with packages) uses line-based parsing
@@ -256,7 +264,7 @@ func (e *v3PackageEntry) hasContent() bool {
 	return e.path != "" && (e.version != "" || e.link)
 }
 
-func (e *v3PackageEntry) toDependency() (core.Dependency, bool) {
+func (e *v3PackageEntry) toDependency(directDependencies map[string]bool) (core.Dependency, bool) {
 	name := extractPackageName(e.path)
 	if name == "" {
 		return core.Dependency{}, false
@@ -267,7 +275,8 @@ func (e *v3PackageEntry) toDependency() (core.Dependency, bool) {
 	} else if e.optional {
 		scope = core.Optional
 	}
-	direct := !strings.Contains(strings.TrimPrefix(e.path, "node_modules/"), "node_modules/")
+	topLevel := !strings.Contains(strings.TrimPrefix(e.path, "node_modules/"), "node_modules/")
+	direct := topLevel && directDependencies[name]
 	return core.Dependency{
 		Name:        name,
 		Version:     e.version,
@@ -276,6 +285,88 @@ func (e *v3PackageEntry) toDependency() (core.Dependency, bool) {
 		Direct:      direct,
 		RegistryURL: e.resolved,
 	}, true
+}
+
+func parsePackageLockDirectDependencies(content []byte) map[string]bool {
+	decoder := json.NewDecoder(bytes.NewReader(content))
+	if !decodeJSONObjectOpening(decoder) {
+		return nil
+	}
+
+	for decoder.More() {
+		key, ok := decodeJSONKey(decoder)
+		if !ok {
+			return nil
+		}
+		if key == "packages" {
+			return decodePackageLockRootDependencies(decoder)
+		}
+		if !discardJSONValue(decoder) {
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func decodePackageLockRootDependencies(decoder *json.Decoder) map[string]bool {
+	if !decodeJSONObjectOpening(decoder) {
+		return nil
+	}
+
+	for decoder.More() {
+		path, ok := decodeJSONKey(decoder)
+		if !ok {
+			return nil
+		}
+		if path == "" {
+			return decodePackageLockRoot(decoder)
+		}
+		if !discardJSONValue(decoder) {
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func decodePackageLockRoot(decoder *json.Decoder) map[string]bool {
+	var root packageLockRoot
+	if err := decoder.Decode(&root); err != nil {
+		return nil
+	}
+
+	directDependencies := make(map[string]bool)
+	collectPackageLockDependencyNames(directDependencies, root.Dependencies)
+	collectPackageLockDependencyNames(directDependencies, root.DevDependencies)
+	collectPackageLockDependencyNames(directDependencies, root.OptionalDependencies)
+	collectPackageLockDependencyNames(directDependencies, root.PeerDependencies)
+	return directDependencies
+}
+
+func decodeJSONObjectOpening(decoder *json.Decoder) bool {
+	opening, err := decoder.Token()
+	return err == nil && opening == json.Delim('{')
+}
+
+func decodeJSONKey(decoder *json.Decoder) (string, bool) {
+	token, err := decoder.Token()
+	if err != nil {
+		return "", false
+	}
+	key, ok := token.(string)
+	return key, ok
+}
+
+func discardJSONValue(decoder *json.Decoder) bool {
+	var discarded json.RawMessage
+	return decoder.Decode(&discarded) == nil
+}
+
+func collectPackageLockDependencyNames(directDependencies map[string]bool, dependencies map[string]json.RawMessage) {
+	for name := range dependencies {
+		directDependencies[name] = true
+	}
 }
 
 // updateFromLine reads a trimmed line and updates the entry's fields.
@@ -336,6 +427,7 @@ func isPackagesSectionEnd(line, trimmed string) bool {
 func parsePackageLockV3Lines(content []byte) []core.Dependency {
 	var deps []core.Dependency
 	lines := strings.Split(string(content), "\n")
+	directDependencies := parsePackageLockDirectDependencies(content)
 
 	inPackages := false
 	var entry v3PackageEntry
@@ -356,7 +448,7 @@ func parsePackageLockV3Lines(content []byte) []core.Dependency {
 
 		if isPackagePathLine(trimmed) {
 			if entry.hasContent() {
-				if dep, ok := entry.toDependency(); ok {
+				if dep, ok := entry.toDependency(directDependencies); ok {
 					deps = append(deps, dep)
 				}
 			}
@@ -369,7 +461,7 @@ func parsePackageLockV3Lines(content []byte) []core.Dependency {
 
 	// Don't forget the last package
 	if entry.hasContent() {
-		if dep, ok := entry.toDependency(); ok {
+		if dep, ok := entry.toDependency(directDependencies); ok {
 			deps = append(deps, dep)
 		}
 	}

@@ -184,6 +184,71 @@ func TestNpmPackageLockV2(t *testing.T) {
 	}
 }
 
+func TestNpmPackageLockV2HoistedTransitiveIsNotDirect(t *testing.T) {
+	content := []byte(`{
+  "name": "example",
+  "version": "1.0.0",
+  "lockfileVersion": 2,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "example",
+      "version": "1.0.0",
+      "dependencies": {
+        "direct-dependency": "1.0.0"
+      }
+    },
+    "node_modules/direct-dependency": {
+      "version": "1.0.0",
+      "dependencies": {
+        "hoisted-transitive": "1.0.0"
+      }
+    },
+    "node_modules/hoisted-transitive": {
+      "version": "1.0.0"
+    }
+  },
+  "dependencies": {
+    "direct-dependency": {
+      "version": "1.0.0",
+      "requires": {
+        "hoisted-transitive": "1.0.0"
+      }
+    },
+    "hoisted-transitive": {
+      "version": "1.0.0"
+    }
+  }
+}`)
+
+	parser := &npmPackageLockParser{}
+	res, err := parser.Parse("package-lock.json", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	depMap := make(map[string]core.Dependency)
+	for _, dependency := range res.Dependencies {
+		depMap[dependency.Name] = dependency
+	}
+
+	directDependency, ok := depMap["direct-dependency"]
+	if !ok {
+		t.Fatal("expected direct-dependency")
+	}
+	if !directDependency.Direct {
+		t.Error("direct-dependency should be direct")
+	}
+
+	hoistedTransitive, ok := depMap["hoisted-transitive"]
+	if !ok {
+		t.Fatal("expected hoisted-transitive")
+	}
+	if hoistedTransitive.Direct {
+		t.Error("hoisted-transitive should not be direct")
+	}
+}
+
 func TestNpmPackageLockV3(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/npm/npm-lockfile-version-3/package-lock.json")
 	if err != nil {
