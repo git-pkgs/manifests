@@ -65,6 +65,21 @@ func TestGemfile(t *testing.T) {
 	})
 }
 
+func TestGemfileGroups(t *testing.T) {
+	assertDepsWithScopes(t, &gemfileParser{}, "../../testdata/gem/GemfileGroups", "Gemfile", 10, map[string]expectedDep{
+		"rake":      {"", core.Runtime},
+		"rubocop":   {"", core.Development},
+		"minitest":  {"", core.Test},
+		"ruby-prof": {"", core.Optional},    // group :prof, optional: true
+		"stackprof": {"", core.Optional},    // group :extra, :optional => true
+		"simplecov": {"", core.Runtime},     // optional: false, unmapped group name
+		"yard":      {"", core.Development}, // inline group: :development
+		"webmock":   {"~> 3.0", core.Test},  // inline :group => :test with version
+		"listen":    {"", core.Development}, // inline groups: [:development, :test]
+		"irb":       {"", core.Runtime},     // inline group: :repl (unmapped)
+	})
+}
+
 func TestGemfileLock(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/gem/Gemfile.lock")
 	if err != nil {

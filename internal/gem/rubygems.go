@@ -106,6 +106,28 @@ func extractGemDecl(line string) (name, version string, ok bool) {
 	return name, version, true
 }
 
+// gemGroupOptionalRegex matches Bundler's `optional: true` / `:optional => true`
+// keyword argument on a `group` block.
+var gemGroupOptionalRegex = regexp.MustCompile(`(?i)(?::optional\s*=>|\boptional:)\s*true\b`)
+
+// gemInlineGroupRegex matches the `group:` / `groups:` / `:group =>` /
+// `:groups =>` keyword argument on a `gem` line and captures the value
+// (a symbol, string, or array).
+var gemInlineGroupRegex = regexp.MustCompile(`(?i)(?::groups?\s*=>|\bgroups?:)\s*(\[[^\]]*\]|\S+)`)
+
+// mapGroupScope maps Bundler group name symbols found in s to a scope.
+// s is expected to be lower-cased. Returns false when no known group
+// name is present.
+func mapGroupScope(s string) (core.Scope, bool) {
+	if strings.Contains(s, ":development") || strings.Contains(s, ":dev") {
+		return core.Development, true
+	}
+	if strings.Contains(s, ":test") {
+		return core.Test, true
+	}
+	return core.Runtime, false
+}
+
 // extractGemfileGroup extracts scope from group declaration
 func extractGemfileGroup(line string) (scope core.Scope, ok bool) {
 	trimmed := strings.TrimSpace(line)
@@ -117,11 +139,25 @@ func extractGemfileGroup(line string) (scope core.Scope, ok bool) {
 	}
 
 	lower := strings.ToLower(trimmed)
-	if strings.Contains(lower, ":development") || strings.Contains(lower, ":dev") {
-		return core.Development, true
+	if scope, mapped := mapGroupScope(lower); mapped {
+		return scope, true
 	}
-	if strings.Contains(lower, ":test") {
-		return core.Test, true
+	if gemGroupOptionalRegex.MatchString(lower) {
+		return core.Optional, true
+	}
+	return core.Runtime, true
+}
+
+// extractInlineGemGroup returns the scope declared by a `group:` or `groups:`
+// keyword argument on a `gem` line, if any. Bundler treats the inline form
+// identically to enclosing the gem in a `group ... do` block.
+func extractInlineGemGroup(line string) (core.Scope, bool) {
+	m := gemInlineGroupRegex.FindStringSubmatch(line)
+	if m == nil {
+		return core.Runtime, false
+	}
+	if scope, mapped := mapGroupScope(strings.ToLower(m[1])); mapped {
+		return scope, true
 	}
 	return core.Runtime, true
 }
@@ -153,10 +189,14 @@ func (p *gemfileParser) Parse(filename string, content []byte) (*core.Result, er
 
 		// Parse gem declarations
 		if name, version, ok := extractGemDecl(line); ok {
+			scope := currentScope
+			if inline, ok := extractInlineGemGroup(line); ok {
+				scope = inline
+			}
 			deps = append(deps, core.Dependency{
 				Name:    name,
 				Version: version,
-				Scope:   currentScope,
+				Scope:   scope,
 				Direct:  true,
 			})
 		}
