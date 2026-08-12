@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	core.Register("github-actions", core.Manifest, &githubWorkflowParser{}, githubWorkflowMatch)
+	core.Register("github-actions", core.Manifest, &githubWorkflowParser{}, core.CustomMatch(githubWorkflowMatch))
 }
 
 // githubWorkflowMatch matches GitHub workflow files in .github/workflows/

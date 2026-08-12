@@ -10,7 +10,7 @@ func init() {
 	core.Register("maven", core.Manifest, &sbtParser{}, core.ExactMatch("build.sbt"))
 
 	// dependencies-*.dot - lockfile (sbt dependencyDot output)
-	core.Register("maven", core.Lockfile, &sbtDotParser{}, sbtDotMatcher)
+	core.Register("maven", core.Lockfile, &sbtDotParser{}, core.CustomMatch(sbtDotMatcher))
 }
 
 // sbtParser parses build.sbt files.

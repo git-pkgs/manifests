@@ -3,8 +3,11 @@ package manifests
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
+
+var benchmarkIdentifyMatches int
 
 // Benchmark fixtures grouped by parser type
 var benchmarkFixtures = map[string][]string{
@@ -174,6 +177,131 @@ func BenchmarkIdentifyAll(b *testing.B) {
 			IdentifyAll(name)
 		}
 	}
+}
+
+func BenchmarkIdentifyCommonExact(b *testing.B) {
+	filenames := []string{
+		"package.json",
+		"services/api/package-lock.json",
+		"go.mod",
+		"crates/cli/Cargo.toml",
+		"pom.xml",
+	}
+
+	for _, filename := range filenames {
+		b.Run(filename, func(b *testing.B) {
+			b.ReportAllocs()
+			matches := 0
+			for i := 0; i < b.N; i++ {
+				_, _, ok := Identify(filename)
+				if ok {
+					matches++
+				}
+			}
+			benchmarkIdentifyMatches = matches
+		})
+	}
+}
+
+func BenchmarkIdentifyUnknown(b *testing.B) {
+	filenames := []string{
+		"README.md",
+		"src/internal/server.go",
+		"web/assets/application.js",
+		"docs/package.json.example",
+	}
+
+	for _, filename := range filenames {
+		b.Run(filename, func(b *testing.B) {
+			b.ReportAllocs()
+			matches := 0
+			for i := 0; i < b.N; i++ {
+				_, _, ok := Identify(filename)
+				if ok {
+					matches++
+				}
+			}
+			benchmarkIdentifyMatches = matches
+		})
+	}
+}
+
+func BenchmarkIdentifyPathSensitive(b *testing.B) {
+	filenames := []string{
+		".github/workflows/ci.yml",
+		"requirements/development.txt",
+		"vendor/manifest",
+	}
+
+	for _, filename := range filenames {
+		b.Run(filename, func(b *testing.B) {
+			b.ReportAllocs()
+			matches := 0
+			for i := 0; i < b.N; i++ {
+				_, _, ok := Identify(filename)
+				if ok {
+					matches++
+				}
+			}
+			benchmarkIdentifyMatches = matches
+		})
+	}
+}
+
+func BenchmarkIdentifyRepositoryScan(b *testing.B) {
+	for _, size := range []int{10_000, 100_000} {
+		paths := realisticRepositoryPaths(size)
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
+			b.ReportAllocs()
+			matches := 0
+			for i := 0; i < b.N; i++ {
+				for _, path := range paths {
+					_, _, ok := Identify(path)
+					if ok {
+						matches++
+					}
+				}
+			}
+			benchmarkIdentifyMatches = matches
+		})
+	}
+}
+
+func realisticRepositoryPaths(size int) []string {
+	directories := []string{
+		"cmd/server",
+		"internal/api",
+		"pkg/client",
+		"src/components",
+		"test/integration",
+		"docs/guides",
+		"web/assets",
+		"vendor/example",
+	}
+	extensions := []string{".go", ".ts", ".rb", ".py", ".md", ".json", ".yaml", ".txt"}
+	manifestPaths := []string{
+		"package.json",
+		"services/api/package-lock.json",
+		"services/worker/go.mod",
+		"crates/cli/Cargo.toml",
+		"java/service/pom.xml",
+		"ruby/example.gemspec",
+		"containers/Dockerfile.dev",
+		"requirements/development.txt",
+		".github/workflows/ci.yml",
+		"vendor/manifest",
+	}
+
+	paths := make([]string, size)
+	for i := range paths {
+		if i%100 == 0 {
+			paths[i] = manifestPaths[(i/100)%len(manifestPaths)]
+			continue
+		}
+
+		paths[i] = directories[i%len(directories)] + "/file_" + strconv.Itoa(i) + extensions[i%len(extensions)]
+	}
+	return paths
 }
 
 // BenchmarkLargeFiles tests parsing performance on larger files

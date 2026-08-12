@@ -11,7 +11,7 @@ func init() {
 
 	// ivy-report.xml - lockfile (sbt dependencyLookup output)
 	// Files are named {org}-{module}-{conf}.xml (e.g., com.example-hello_2.12-compile.xml)
-	core.Register("maven", core.Lockfile, &ivyReportParser{}, ivyReportMatcher)
+	core.Register("maven", core.Lockfile, &ivyReportParser{}, core.CustomMatch(ivyReportMatcher))
 }
 
 // ivyXMLParser parses ivy.xml files.
