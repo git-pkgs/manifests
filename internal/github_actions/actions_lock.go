@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	core.Register("github-actions", core.Lockfile, &actionsLockParser{}, actionsLockMatch)
+	core.Register("github-actions", core.Lockfile, &actionsLockParser{}, core.CustomMatch(actionsLockMatch))
 }
 
 const actionsLockPath = ".github/workflows/actions.lock"
