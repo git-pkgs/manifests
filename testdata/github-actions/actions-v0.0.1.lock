@@ -1,0 +1,21 @@
+version: v0.0.1
+workflows:
+  .github/workflows/ci.yml:
+    - actions/checkout@v4:sha1-1111111111111111111111111111111111111111
+    - example/branch@main:sha1-2222222222222222222222222222222222222222
+dependencies:
+  actions/checkout@v4:sha1-1111111111111111111111111111111111111111:
+    tag: v4
+    branch: main
+    commit: sha1-1111111111111111111111111111111111111111
+    owner_id: 1
+    repo_id: 2
+  example/branch@main:sha1-2222222222222222222222222222222222222222:
+    branch: main
+    commit: sha1-2222222222222222222222222222222222222222
+    owner_id: 3
+    repo_id: 4
+  example/fallback@v2:sha1-3333333333333333333333333333333333333333:
+    commit: sha1-3333333333333333333333333333333333333333
+    owner_id: 5
+    repo_id: 6

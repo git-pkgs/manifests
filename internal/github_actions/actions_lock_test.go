@@ -58,15 +58,71 @@ func TestActionsLock(t *testing.T) {
 	}
 }
 
+func TestActionsLockV001(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/github-actions/actions-v0.0.1.lock")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	parser := &actionsLockParser{}
+	res, err := parser.Parse("actions.lock", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	if len(res.Dependencies) != 3 {
+		t.Fatalf("expected 3 dependencies, got %d: %+v", len(res.Dependencies), res.Dependencies)
+	}
+
+	wantVersions := map[string]string{
+		"actions/checkout": "v4",
+		"example/branch":   "main",
+		"example/fallback": "v2",
+	}
+	for _, dependency := range res.Dependencies {
+		want, ok := wantVersions[dependency.Name]
+		if !ok {
+			t.Errorf("unexpected dependency: %+v", dependency)
+			continue
+		}
+		if dependency.Version != want {
+			t.Errorf("%s version = %q, want %q", dependency.Name, dependency.Version, want)
+		}
+	}
+}
+
 func TestActionsLockIdentify(t *testing.T) {
-	parser, eco, kind := core.IdentifyParser(".github/workflows/actions.lock")
-	if parser == nil {
-		t.Fatal("expected .github/workflows/actions.lock to be identified")
+	tests := []struct {
+		filename string
+		want     bool
+	}{
+		{filename: ".github/workflows/actions.lock", want: true},
+		{filename: "repo/.github/workflows/actions.lock", want: true},
+		{filename: `.github\workflows\actions.lock`, want: true},
+		{filename: `C:\repo\.github\workflows\actions.lock`, want: true},
+		{filename: "actions.lock", want: false},
+		{filename: "config/actions.lock", want: false},
+		{filename: ".github/actions.lock", want: false},
 	}
-	if eco != "github-actions" {
-		t.Errorf("ecosystem = %q, want github-actions", eco)
-	}
-	if kind != core.Lockfile {
-		t.Errorf("kind = %q, want lockfile", kind)
+
+	for _, test := range tests {
+		t.Run(test.filename, func(t *testing.T) {
+			parser, eco, kind := core.IdentifyParser(test.filename)
+			if !test.want {
+				if parser != nil {
+					t.Fatalf("expected %s not to be identified, got %s %s", test.filename, eco, kind)
+				}
+				return
+			}
+			if parser == nil {
+				t.Fatalf("expected %s to be identified", test.filename)
+			}
+			if eco != "github-actions" {
+				t.Errorf("ecosystem = %q, want github-actions", eco)
+			}
+			if kind != core.Lockfile {
+				t.Errorf("kind = %q, want lockfile", kind)
+			}
+		})
 	}
 }

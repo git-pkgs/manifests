@@ -9,13 +9,20 @@ import (
 )
 
 func init() {
-	core.Register("github-actions", core.Lockfile, &actionsLockParser{}, core.ExactMatch("actions.lock"))
+	core.Register("github-actions", core.Lockfile, &actionsLockParser{}, actionsLockMatch)
+}
+
+const actionsLockPath = ".github/workflows/actions.lock"
+
+func actionsLockMatch(filename string) bool {
+	path := strings.ReplaceAll(filename, `\`, "/")
+	return path == actionsLockPath || strings.HasSuffix(path, "/"+actionsLockPath)
 }
 
 // actionsLockParser parses the GitHub Actions dependency lockfile written by
 // gh actions-lock to .github/workflows/actions.lock. The format is pre-1.0;
-// this parser is deliberately lenient (unknown fields ignored, no version
-// gate) so older git-pkgs binaries keep working across schema bumps.
+// this parser ignores unknown fields for forward compatibility while handling
+// known version-specific fields.
 //
 // See https://github.com/github/actions-lockfile for the schema.
 type actionsLockParser struct{}
@@ -28,6 +35,8 @@ type actionsLockFile struct {
 
 type actionsLockAction struct {
 	Ref    string `yaml:"ref"`
+	Tag    string `yaml:"tag"`
+	Branch string `yaml:"branch"`
 	Commit string `yaml:"commit"`
 }
 
@@ -60,12 +69,7 @@ func (p *actionsLockParser) Parse(filename string, content []byte) (*core.Result
 		if name == "" {
 			continue
 		}
-		// Prefer the entry's ref: field (the resolved tag). Fall back to the
-		// ref segment of the pin key when it's absent.
-		version := action.Ref
-		if version == "" {
-			version = keyRef
-		}
+		version := actionsLockVersion(lock.Version, keyRef, action)
 		deps = append(deps, core.Dependency{
 			Name:      name,
 			Version:   version,
@@ -76,6 +80,26 @@ func (p *actionsLockParser) Parse(filename string, content []byte) (*core.Result
 	}
 
 	return &core.Result{Dependencies: deps}, nil
+}
+
+func actionsLockVersion(lockVersion, keyRef string, action actionsLockAction) string {
+	if lockVersion != "v0.0.1" {
+		if action.Ref != "" {
+			return action.Ref
+		}
+		return keyRef
+	}
+
+	if action.Tag != "" {
+		return action.Tag
+	}
+	if action.Branch != "" {
+		return action.Branch
+	}
+	if action.Commit != "" {
+		return strings.TrimSuffix(keyRef, ":"+action.Commit)
+	}
+	return keyRef
 }
 
 // splitPin splits an OWNER/REPO@REF pin key into name and ref.
