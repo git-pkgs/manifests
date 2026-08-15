@@ -149,28 +149,44 @@ func TestPubspecLock(t *testing.T) {
 	}
 }
 
-func TestPubspecLockLegacyDescription(t *testing.T) {
-	content := []byte(`packages:
-  args:
-    description: args
-    source: hosted
-    version: "0.12.2+6"
-`)
+func TestPubspecLockLegacy(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/pub/legacy/pubspec.lock")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
 
 	res, err := (&pubspecLockParser{}).Parse("pubspec.lock", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(res.Dependencies) != 1 {
-		t.Fatalf("expected 1 dependency, got %d", len(res.Dependencies))
+	if len(res.Dependencies) != 4 {
+		t.Fatalf("expected 4 dependencies, got %d", len(res.Dependencies))
 	}
 
-	dep := res.Dependencies[0]
-	if dep.Name != "args" || dep.Version != "0.12.2+6" {
-		t.Errorf("dependency = %q %q, want args 0.12.2+6", dep.Name, dep.Version)
+	depMap := make(map[string]core.Dependency)
+	for _, dep := range res.Dependencies {
+		depMap[dep.Name] = dep
 	}
-	if dep.Integrity != "" || dep.RegistryURL != "" || dep.Direct {
-		t.Errorf("unexpected modern metadata on legacy dependency: %+v", dep)
+
+	expected := map[string]string{
+		"analyzer": "0.24.6",
+		"args":     "0.12.2+6",
+		"barback":  "0.15.2+7",
+		"which":    "0.1.3",
+	}
+
+	for name, version := range expected {
+		dep, ok := depMap[name]
+		if !ok {
+			t.Errorf("expected %s dependency", name)
+			continue
+		}
+		if dep.Version != version {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, version)
+		}
+		if dep.Scope != core.Runtime || dep.Integrity != "" || dep.RegistryURL != "" || dep.Direct {
+			t.Errorf("unexpected metadata on legacy dependency: %+v", dep)
+		}
 	}
 }
