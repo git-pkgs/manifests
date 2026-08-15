@@ -606,7 +606,8 @@
                 "type": "zip",
                 "url": "https://api.github.com/repos/sensiolabs/SensioGeneratorBundle/zipball/0225fcd08e94de2165ffa85de50c3c9d9592e96b",
                 "reference": "0225fcd08e94de2165ffa85de50c3c9d9592e96b",
-                "shasum": ""
+                "shasum": "",
+                "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
             },
             "require": {
                 "symfony/console": "~2.5",

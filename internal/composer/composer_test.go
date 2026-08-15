@@ -75,21 +75,22 @@ func TestComposerLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// All 10 packages with versions and scopes
+	// All 10 packages with versions, scopes, and optional integrity hashes
 	expected := map[string]struct {
-		version string
-		scope   core.Scope
+		version   string
+		scope     core.Scope
+		integrity string
 	}{
-		"doctrine/annotations":       {"v1.2.1", core.Runtime},
-		"doctrine/cache":             {"v1.3.1", core.Runtime},
-		"doctrine/collections":       {"v1.2", core.Runtime},
-		"drupal/address":             {"1.9.0", core.Runtime},
-		"symfony/monolog-bundle":     {"v2.6.1", core.Runtime},
-		"symfony/swiftmailer-bundle": {"v2.3.8", core.Runtime},
-		"symfony/symfony":            {"v2.6.1", core.Runtime},
-		"twig/extensions":            {"v1.2.0", core.Runtime},
-		"twig/twig":                  {"v1.16.2", core.Runtime},
-		"sensio/generator-bundle":    {"v2.5.0", core.Development},
+		"doctrine/annotations":       {"v1.2.1", core.Runtime, ""},
+		"doctrine/cache":             {"v1.3.1", core.Runtime, ""},
+		"doctrine/collections":       {"v1.2", core.Runtime, ""},
+		"drupal/address":             {"1.9.0", core.Runtime, "sha1-c7e6406d88c6d6be9e8fe0091040d67012bdbf05"},
+		"symfony/monolog-bundle":     {"v2.6.1", core.Runtime, ""},
+		"symfony/swiftmailer-bundle": {"v2.3.8", core.Runtime, ""},
+		"symfony/symfony":            {"v2.6.1", core.Runtime, ""},
+		"twig/extensions":            {"v1.2.0", core.Runtime, ""},
+		"twig/twig":                  {"v1.16.2", core.Runtime, ""},
+		"sensio/generator-bundle":    {"v2.5.0", core.Development, "sha256-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
 	}
 
 	for name, exp := range expected {
@@ -103,6 +104,9 @@ func TestComposerLock(t *testing.T) {
 		}
 		if dep.Scope != exp.scope {
 			t.Errorf("%s scope = %v, want %v", name, dep.Scope, exp.scope)
+		}
+		if dep.Integrity != exp.integrity {
+			t.Errorf("%s integrity = %q, want %q", name, dep.Integrity, exp.integrity)
 		}
 	}
 }
