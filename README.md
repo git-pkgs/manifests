@@ -223,6 +223,29 @@ convert the value with knowledge of the source format.
 
 When a dependency comes from a non-default registry, the PURL includes a `repository_url` qualifier (e.g., `pkg:npm/foo@1.0.0?repository_url=https://npm.mycompany.com/`). Default registries like registry.npmjs.org, pypi.org, and rubygems.org are not included in the PURL.
 
+### Declaration
+
+```go
+type Declaration struct {
+    Name     string // Package name
+    Version  string // Version requirement as written in the manifest
+    Scope    Scope  // runtime, development, test, build, optional
+    PURL     string // Versionless Package URL
+    Location string // Opaque parser-defined identity within the manifest
+}
+```
+
+Declarations preserve source-level references without applying inheritance,
+merging, interpolation, or other effective-model resolution. Consumers can use
+`Location` to match the same logical entry across edits, but should not parse
+its ecosystem-specific value. A declaration PURL omits the version because the
+raw requirement may be a range or property expression.
+
+Parsers that do not preserve source locations leave `Declarations` empty.
+The `pom.xml` parser populates parents, dependencies, dependency management,
+plugins, plugin dependencies, plugin management, build extensions, and their
+profile-scoped forms.
+
 ### ParseResult
 
 ```go
@@ -234,6 +257,7 @@ type ParseResult struct {
     Licenses     []string     // raw declared license values
     LicenseFile  string       // manifest-relative path to a declared license file
     Dependencies []Dependency
+    Declarations []Declaration
 }
 ```
 
