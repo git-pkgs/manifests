@@ -202,6 +202,35 @@ func TestPOMDeclarationProfileDefaultsToDefaultID(t *testing.T) {
 	}
 }
 
+func TestPOMDeclarationLocationIncludesTypeAndClassifier(t *testing.T) {
+	content := []byte(`<project><dependencyManagement><dependencies>
+  <dependency><groupId>org.example</groupId><artifactId>lib</artifactId><version>1.0.0</version></dependency>
+  <dependency><groupId>org.example</groupId><artifactId>lib</artifactId><version>1.0.0</version><type>test-jar</type></dependency>
+  <dependency><groupId>org.example</groupId><artifactId>lib</artifactId><version>1.0.0</version><classifier>sources</classifier></dependency>
+</dependencies></dependencyManagement></project>`)
+	project, err := pom.ParsePOM(content)
+	if err != nil {
+		t.Fatalf("ParsePOM: %v", err)
+	}
+	declarations := parsePOMDeclarations(project)
+	want := map[string]bool{
+		"dependencyManagement/dependencies/org.example:lib":          true,
+		"dependencyManagement/dependencies/org.example:lib:test-jar": true,
+		"dependencyManagement/dependencies/org.example:lib:sources":  true,
+	}
+	if len(declarations) != len(want) {
+		t.Fatalf("declarations has %d entries, want %d: %+v", len(declarations), len(want), declarations)
+	}
+	for _, declaration := range declarations {
+		if !want[declaration.Location] {
+			t.Errorf("unexpected declaration location %q", declaration.Location)
+		}
+		if declaration.Name != "org.example:lib" {
+			t.Errorf("Name = %q, want org.example:lib", declaration.Name)
+		}
+	}
+}
+
 func TestAppendMavenDeclarationSkipsIncompleteCoordinates(t *testing.T) {
 	var declarations []core.Declaration
 	appendMavenDeclaration(&declarations, "dependencies", "org.example", "", "1.0.0", core.Runtime, "")

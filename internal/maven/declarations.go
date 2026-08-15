@@ -57,6 +57,8 @@ func collectPOMDependencies(declarations *[]core.Declaration, location string, d
 			dependency.Version,
 			mapScope(dependency.Scope, optional),
 			"",
+			dependency.Type,
+			dependency.Classifier,
 		)
 	}
 }
@@ -112,6 +114,7 @@ func appendMavenDeclaration(
 	version string,
 	scope core.Scope,
 	defaultGroup string,
+	qualifiers ...string,
 ) string {
 	groupID = strings.TrimSpace(groupID)
 	artifactID = strings.TrimSpace(artifactID)
@@ -126,11 +129,17 @@ func appendMavenDeclaration(
 	}
 
 	name := groupID + ":" + artifactID
+	key := name
+	for _, qualifier := range qualifiers {
+		if qualifier = strings.TrimSpace(qualifier); qualifier != "" {
+			key += ":" + qualifier
+		}
+	}
 	*declarations = append(*declarations, core.Declaration{
 		Name:     name,
 		Version:  strings.TrimSpace(version),
 		Scope:    scope,
-		Location: location + "/" + url.PathEscape(name),
+		Location: location + "/" + url.PathEscape(key),
 	})
 	return name
 }
