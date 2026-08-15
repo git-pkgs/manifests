@@ -110,8 +110,13 @@ func TestMavenDeclarationPURLs(t *testing.T) {
 		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
 	}
 	for _, declaration := range result.Declarations {
-		if declaration.PURL != want[declaration.Location] {
-			t.Errorf("declaration at %q has PURL %q, want %q", declaration.Location, declaration.PURL, want[declaration.Location])
+		wantPURL, ok := want[declaration.Location]
+		if !ok {
+			t.Errorf("unexpected declaration at %q: %+v", declaration.Location, declaration)
+			continue
+		}
+		if declaration.PURL != wantPURL {
+			t.Errorf("declaration at %q has PURL %q, want %q", declaration.Location, declaration.PURL, wantPURL)
 		}
 	}
 }

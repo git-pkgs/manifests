@@ -201,3 +201,14 @@ func TestPOMDeclarationProfileDefaultsToDefaultID(t *testing.T) {
 		t.Errorf("Location = %q, want default profile location", declarations[0].Location)
 	}
 }
+
+func TestAppendMavenDeclarationSkipsIncompleteCoordinates(t *testing.T) {
+	var declarations []core.Declaration
+	appendMavenDeclaration(&declarations, "dependencies", "org.example", "", "1.0.0", core.Runtime, "")
+	appendMavenDeclaration(&declarations, "dependencies", "", "dependency", "1.0.0", core.Runtime, "")
+	appendMavenDeclaration(&declarations, "build/plugins", "", "", "1.0.0", core.Build, defaultMavenPluginGroup)
+
+	if len(declarations) != 0 {
+		t.Errorf("declarations = %+v, want no incomplete coordinates", declarations)
+	}
+}

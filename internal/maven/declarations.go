@@ -115,10 +115,13 @@ func appendMavenDeclaration(
 ) string {
 	groupID = strings.TrimSpace(groupID)
 	artifactID = strings.TrimSpace(artifactID)
+	if artifactID == "" {
+		return ""
+	}
 	if groupID == "" {
 		groupID = defaultGroup
 	}
-	if groupID == "" && artifactID == "" {
+	if groupID == "" {
 		return ""
 	}
 
