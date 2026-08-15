@@ -4,8 +4,8 @@ github.com/bazelbuild/buildtools v0.0.0-20260716142318-04cf7de1434f h1:2mT6QcXmM
 github.com/bazelbuild/buildtools v0.0.0-20260716142318-04cf7de1434f/go.mod h1:PLNUetjLa77TCCziPsz0EI8a6CUxgC+1jgmWv0H25tg=
 github.com/bmatcuk/doublestar/v4 v4.10.0 h1:zU9WiOla1YA122oLM6i4EXvGW62DvKZVxIe6TYWexEs=
 github.com/bmatcuk/doublestar/v4 v4.10.0/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
-github.com/git-pkgs/pom v0.1.7-0.20260815105400-55c585d7a059 h1:cRimc/mm57gOrbBGjfBqAuW2/0pV43Mh3TjDYQUaC7M=
-github.com/git-pkgs/pom v0.1.7-0.20260815105400-55c585d7a059/go.mod h1:ufdMBe1lKzqOeP9IUb9NPZ458xKV8E8NvuyBMxOfwIk=
+github.com/git-pkgs/pom v0.1.7 h1:4yKdtw6eyShtjul6bcZdyz7yLQ+jdrYeYkKbskDGi4c=
+github.com/git-pkgs/pom v0.1.7/go.mod h1:ufdMBe1lKzqOeP9IUb9NPZ458xKV8E8NvuyBMxOfwIk=
 github.com/git-pkgs/purl v0.1.16 h1:VAX6tv0hhdTENbkrGMoPZbOAl1Y8U1/ZnzoCsYuNBYM=
 github.com/git-pkgs/purl v0.1.16/go.mod h1:7u7ora8tQdrkS7Auclr5v8dCJdjN4ej6AbrvYZi2b7k=
 github.com/git-pkgs/vers v0.3.1 h1:jy/ht2wIRJI5zQrccm6GTeYr+hGFwe2z8LV1HOr4Wco=
