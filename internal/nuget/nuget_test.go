@@ -47,6 +47,18 @@ func assertParseDeps(t *testing.T, fixturePath string, parser core.Parser, parse
 	return depMap
 }
 
+func assertDependencyIntegrity(t *testing.T, deps map[string]core.Dependency, name, want string) {
+	t.Helper()
+
+	dep, ok := deps[name]
+	if !ok {
+		t.Fatalf("expected %s dependency", name)
+	}
+	if dep.Integrity != want {
+		t.Errorf("%s integrity = %q, want %q", name, dep.Integrity, want)
+	}
+}
+
 func TestCsproj(t *testing.T) {
 	assertParseDeps(t, "../../testdata/nuget/example.csproj", &csprojParser{}, "example.csproj", 8, map[string]string{
 		"Microsoft.AspNetCore":                     "1.1.1",
@@ -278,9 +290,7 @@ func TestPackagesLockJson(t *testing.T) {
 	})
 
 	wantIntegrity := "sha512-L3W3kgOOU5+2Tdtnzywcs4/a3XFbwcM7Ghvr2uWnhLUvBithluWlGI+0/lXFrDysXaRMLSRJdExSLuSJJQYuTg=="
-	if got := deps["Microsoft.AspNetCore.App"].Integrity; got != wantIntegrity {
-		t.Errorf("Microsoft.AspNetCore.App integrity = %q, want %q", got, wantIntegrity)
-	}
+	assertDependencyIntegrity(t, deps, "Microsoft.AspNetCore.App", wantIntegrity)
 }
 
 func TestProjectLockJson(t *testing.T) {
@@ -296,9 +306,7 @@ func TestProjectLockJson(t *testing.T) {
 	})
 
 	wantIntegrity := "sha512-rvlGuIXTu1pF9NfbCaK6ocDrP9iCRJ8UXfUs5IvU/vfjs/SobQEN+b3b/L7SpqLRL5/glsSSvPDX2wUOTNrOfA=="
-	if got := deps["AutoMapper"].Integrity; got != wantIntegrity {
-		t.Errorf("AutoMapper integrity = %q, want %q", got, wantIntegrity)
-	}
+	assertDependencyIntegrity(t, deps, "AutoMapper", wantIntegrity)
 }
 
 func TestProjectJSON(t *testing.T) {
@@ -394,9 +402,7 @@ func TestDepsJSON(t *testing.T) {
 	}
 
 	wantIntegrity := "sha512-ppPFpBcvxdsfUon7g7o+4/7SQXUz0MgZH74+YbS3cJVQ="
-	if got := depMap["Newtonsoft.Json"].Integrity; got != wantIntegrity {
-		t.Errorf("Newtonsoft.Json integrity = %q, want %q", got, wantIntegrity)
-	}
+	assertDependencyIntegrity(t, depMap, "Newtonsoft.Json", wantIntegrity)
 }
 
 func TestCsprojReferences(t *testing.T) {
