@@ -11,7 +11,7 @@ const testVersion100 = "1.0.0"
 
 // assertParseDeps reads a fixture, parses it, checks the dependency count,
 // and verifies each expected name/version pair is present.
-func assertParseDeps(t *testing.T, fixturePath string, parser core.Parser, parseFilename string, wantCount int, expected map[string]string) {
+func assertParseDeps(t *testing.T, fixturePath string, parser core.Parser, parseFilename string, wantCount int, expected map[string]string) map[string]core.Dependency {
 	t.Helper()
 
 	content, err := os.ReadFile(fixturePath)
@@ -43,6 +43,8 @@ func assertParseDeps(t *testing.T, fixturePath string, parser core.Parser, parse
 			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
 		}
 	}
+
+	return depMap
 }
 
 func TestCsproj(t *testing.T) {
@@ -177,8 +179,14 @@ func TestProjectAssets(t *testing.T) {
 	// Check package a
 	if dep, ok := depMap["a"]; !ok {
 		t.Error("expected a dependency")
-	} else if dep.Version != testVersion100 {
-		t.Errorf("a version = %q, want %q", dep.Version, testVersion100)
+	} else {
+		if dep.Version != testVersion100 {
+			t.Errorf("a version = %q, want %q", dep.Version, testVersion100)
+		}
+		wantIntegrity := "sha512-L3W3kgOOU5+2Tdtnzywcs4/a3XFbwcM7Ghvr2uWnhLUvBithluWlGI+0/lXFrDysXaRMLSRJdExSLuSJJQYuTg=="
+		if dep.Integrity != wantIntegrity {
+			t.Errorf("a integrity = %q, want %q", dep.Integrity, wantIntegrity)
+		}
 	}
 
 	// Check package b
@@ -258,7 +266,7 @@ func TestExampleUpdateCsproj(t *testing.T) {
 }
 
 func TestPackagesLockJson(t *testing.T) {
-	assertParseDeps(t, "../../testdata/nuget/packages.lock.json", &packagesLockParser{}, "packages.lock.json", 284, map[string]string{
+	deps := assertParseDeps(t, "../../testdata/nuget/packages.lock.json", &packagesLockParser{}, "packages.lock.json", 284, map[string]string{
 		"System.IO.Pipelines":                    "4.5.2",
 		"System.Reflection.Metadata":             "1.6.0",
 		"Microsoft.AspNetCore.Http.Abstractions": "2.2.0",
@@ -268,10 +276,15 @@ func TestPackagesLockJson(t *testing.T) {
 		"System.IdentityModel.Tokens.Jwt":        "5.3.0",
 		"Microsoft.NETCore.App":                  "2.2.0",
 	})
+
+	wantIntegrity := "sha512-L3W3kgOOU5+2Tdtnzywcs4/a3XFbwcM7Ghvr2uWnhLUvBithluWlGI+0/lXFrDysXaRMLSRJdExSLuSJJQYuTg=="
+	if got := deps["Microsoft.AspNetCore.App"].Integrity; got != wantIntegrity {
+		t.Errorf("Microsoft.AspNetCore.App integrity = %q, want %q", got, wantIntegrity)
+	}
 }
 
 func TestProjectLockJson(t *testing.T) {
-	assertParseDeps(t, "../../testdata/nuget/Project.lock.json", &projectAssetsParser{}, "Project.lock.json", 162, map[string]string{
+	deps := assertParseDeps(t, "../../testdata/nuget/Project.lock.json", &projectLockJSONParser{}, "Project.lock.json", 162, map[string]string{
 		"EntityFramework.InMemory":              "7.0.0-beta7",
 		"System.ComponentModel.Annotations":     "4.0.11-beta-23225",
 		"Microsoft.AspNet.Mvc.Cors":             "6.0.0-beta7",
@@ -281,6 +294,11 @@ func TestProjectLockJson(t *testing.T) {
 		"Microsoft.AspNet.Routing":              "1.0.0-beta7",
 		"Microsoft.AspNet.StaticFiles":          "1.0.0-beta7",
 	})
+
+	wantIntegrity := "sha512-rvlGuIXTu1pF9NfbCaK6ocDrP9iCRJ8UXfUs5IvU/vfjs/SobQEN+b3b/L7SpqLRL5/glsSSvPDX2wUOTNrOfA=="
+	if got := deps["AutoMapper"].Integrity; got != wantIntegrity {
+		t.Errorf("AutoMapper integrity = %q, want %q", got, wantIntegrity)
+	}
 }
 
 func TestProjectJSON(t *testing.T) {
@@ -373,6 +391,11 @@ func TestDepsJSON(t *testing.T) {
 		if dep.Version != wantVer {
 			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
 		}
+	}
+
+	wantIntegrity := "sha512-ppPFpBcvxdsfUon7g7o+4/7SQXUz0MgZH74+YbS3cJVQ="
+	if got := depMap["Newtonsoft.Json"].Integrity; got != wantIntegrity {
+		t.Errorf("Newtonsoft.Json integrity = %q, want %q", got, wantIntegrity)
 	}
 }
 

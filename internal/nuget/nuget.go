@@ -334,10 +334,11 @@ func (p *packagesLockParser) Parse(filename string, content []byte) (*core.Resul
 			direct := pkg.Type == "Direct"
 
 			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: pkg.Resolved,
-				Scope:   core.Runtime,
-				Direct:  direct,
+				Name:      name,
+				Version:   pkg.Resolved,
+				Scope:     core.Runtime,
+				Integrity: nugetSHA512Integrity(pkg.ContentHash),
+				Direct:    direct,
 			})
 		}
 	}
@@ -407,6 +408,7 @@ type projectAssetsJSON struct {
 	Targets map[string]map[string]struct {
 		Type string `json:"type"`
 	} `json:"targets"`
+	Libraries map[string]libraryEntry `json:"libraries"`
 }
 
 func (p *projectAssetsParser) Parse(filename string, content []byte) (*core.Result, error) {
@@ -441,10 +443,11 @@ func (p *projectAssetsParser) Parse(filename string, content []byte) (*core.Resu
 			seen[name] = true
 
 			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: version,
-				Scope:   core.Runtime,
-				Direct:  false,
+				Name:      name,
+				Version:   version,
+				Scope:     core.Runtime,
+				Integrity: nugetSHA512Integrity(assets.Libraries[key].SHA512),
+				Direct:    false,
 			})
 		}
 	}
@@ -495,6 +498,15 @@ type libraryEntry struct {
 	SHA512 string `json:"sha512"`
 }
 
+func nugetSHA512Integrity(hash string) string {
+	hash = strings.TrimSpace(hash)
+	if hash == "" || strings.HasPrefix(hash, "sha512-") {
+		return hash
+	}
+
+	return "sha512-" + hash
+}
+
 // parseLibraries extracts dependencies from a "Name/Version" keyed library map,
 // shared by depsJSONParser and projectLockJSONParser.
 func parseLibraries(filename string, content []byte) ([]core.Dependency, error) {
@@ -518,16 +530,11 @@ func parseLibraries(filename string, content []byte) ([]core.Dependency, error) 
 			continue
 		}
 
-		integrity := ""
-		if lib.SHA512 != "" {
-			integrity = "sha512-" + lib.SHA512
-		}
-
 		deps = append(deps, core.Dependency{
 			Name:      parts[0],
 			Version:   parts[1],
 			Scope:     core.Runtime,
-			Integrity: integrity,
+			Integrity: nugetSHA512Integrity(lib.SHA512),
 			Direct:    false,
 		})
 	}

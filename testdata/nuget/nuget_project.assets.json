@@ -28,5 +28,23 @@
       }
     },
     "z-empty-group-later-alphabetically": {}
+  },
+  "libraries": {
+    "a/1.0.0": {
+      "type": "package",
+      "sha512": "sha512-L3W3kgOOU5+2Tdtnzywcs4/a3XFbwcM7Ghvr2uWnhLUvBithluWlGI+0/lXFrDysXaRMLSRJdExSLuSJJQYuTg=="
+    },
+    "b/1.0.0": {
+      "type": "package",
+      "sha512": "sha512-VLWK+ZtMMNukY6XjxYHc7mz33vkquoEzQJHm/LCF5REVxIaexLr+UTImljRRJBdUDJluDAQwU+59IX0rFDfURA=="
+    },
+    "c/1.0.0": {
+      "type": "package",
+      "sha512": "sha512-7z5l8Jp324S8bU8+yyWeYHXUFYvKyiI5lqS1dXgTzOx1H69Qbf6df12kCKlNX45LpMfCMd4U3M6p7Rl5Zk7SLA=="
+    },
+    "another_project/1.0.0": {
+      "type": "project",
+      "sha512": ""
+    }
   }
 }
