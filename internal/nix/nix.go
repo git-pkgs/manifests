@@ -144,10 +144,11 @@ func (p *flakeLockParser) Parse(filename string, content []byte) (*core.Result, 
 		}
 
 		deps = append(deps, core.Dependency{
-			Name:    depName,
-			Version: version,
-			Scope:   core.Runtime,
-			Direct:  false,
+			Name:      depName,
+			Version:   version,
+			Scope:     core.Runtime,
+			Integrity: node.Locked.NarHash,
+			Direct:    false,
 		})
 	}
 
@@ -162,6 +163,7 @@ type sourcesSource struct {
 	Repo   string `json:"repo"`
 	Rev    string `json:"rev"`
 	Branch string `json:"branch"`
+	SHA256 string `json:"sha256"`
 }
 
 func (p *sourcesJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
@@ -179,11 +181,20 @@ func (p *sourcesJSONParser) Parse(filename string, content []byte) (*core.Result
 			depName = source.Owner + "/" + source.Repo
 		}
 
+		integrity := ""
+		if source.SHA256 != "" {
+			integrity = source.SHA256
+			if !strings.HasPrefix(integrity, "sha256-") {
+				integrity = "sha256-" + integrity
+			}
+		}
+
 		deps = append(deps, core.Dependency{
-			Name:    depName,
-			Version: source.Rev,
-			Scope:   core.Runtime,
-			Direct:  false,
+			Name:      depName,
+			Version:   source.Rev,
+			Scope:     core.Runtime,
+			Integrity: integrity,
+			Direct:    false,
 		})
 	}
 

@@ -22,10 +22,13 @@ import (
 
 // Re-export types from internal/core for public API.
 type (
-	Kind       = core.Kind
-	Scope      = core.Scope
-	Dependency = core.Dependency
+	Kind  = core.Kind
+	Scope = core.Scope
 )
+
+// Dependency represents a parsed dependency. Its Integrity field is an opaque
+// verification value whose digest encoding depends on the source format.
+type Dependency = core.Dependency
 
 // Re-export constants.
 const (

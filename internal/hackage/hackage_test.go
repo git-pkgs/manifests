@@ -74,21 +74,35 @@ func TestStackLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// All 3 packages with versions
-	expected := map[string]string{
-		"aeson":      "2.1.2.1",
-		"text":       "2.0.2",
-		"bytestring": "0.11.5.3",
+	expected := map[string]struct {
+		version   string
+		integrity string
+	}{
+		"aeson": {
+			"2.1.2.1",
+			"sha256-5b8d62a60963a80d6d9d1abc29defbd4f5c57e5c9a4c3a1d4b1234567890abcd",
+		},
+		"text": {
+			"2.0.2",
+			"sha256-6c9d72b70783a80e6d6e2b1def29defbd4f5c57e5c9a4c3a1d4b1234567890ef",
+		},
+		"bytestring": {
+			"0.11.5.3",
+			"sha256-7d8e82c80893b90f7e3c2def29defbd4f5c57e5c9a4c3a1d4b12345678901234",
+		},
 	}
 
-	for name, wantVer := range expected {
+	for name, want := range expected {
 		dep, ok := depMap[name]
 		if !ok {
 			t.Errorf("expected %s dependency", name)
 			continue
 		}
-		if dep.Version != wantVer {
-			t.Errorf("%s version = %q, want %q", name, dep.Version, wantVer)
+		if dep.Version != want.version {
+			t.Errorf("%s version = %q, want %q", name, dep.Version, want.version)
+		}
+		if dep.Integrity != want.integrity {
+			t.Errorf("%s integrity = %q, want %q", name, dep.Integrity, want.integrity)
 		}
 	}
 }

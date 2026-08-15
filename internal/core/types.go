@@ -24,9 +24,11 @@ const (
 
 // Dependency represents a parsed dependency from a manifest or lockfile.
 type Dependency struct {
-	Name        string
-	Version     string
-	Scope       Scope
+	Name    string
+	Version string
+	Scope   Scope
+	// Integrity is an opaque verification value derived from the manifest or
+	// lockfile. Its digest encoding is ecosystem-specific.
 	Integrity   string
 	Direct      bool
 	PURL        string

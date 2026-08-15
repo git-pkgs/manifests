@@ -194,36 +194,47 @@ func (p *stackLockParser) Parse(filename string, content []byte) (*core.Result, 
 		}
 
 		// Format: name-version@sha256:hash,size
-		name, version := parseHackageRef(hackage)
+		name, version, integrity := parseHackageRef(hackage)
 		if name == "" {
 			continue
 		}
 
 		deps = append(deps, core.Dependency{
-			Name:    name,
-			Version: version,
-			Scope:   core.Runtime,
-			Direct:  false,
+			Name:      name,
+			Version:   version,
+			Scope:     core.Runtime,
+			Integrity: integrity,
+			Direct:    false,
 		})
 	}
 
 	return &core.Result{Dependencies: deps}, nil
 }
 
-// parseHackageRef parses a hackage reference like "name-1.2.3@sha256:..."
-func parseHackageRef(ref string) (name, version string) {
-	// Remove @sha256:... suffix
+// parseHackageRef parses a hackage reference like "name-1.2.3@sha256:...,size".
+func parseHackageRef(ref string) (name, version, integrity string) {
 	if idx := strings.Index(ref, "@"); idx > 0 {
+		checksum := ref[idx+1:]
 		ref = ref[:idx]
+
+		if strings.HasPrefix(checksum, "sha256:") {
+			checksum = strings.TrimPrefix(checksum, "sha256:")
+			if idx := strings.IndexByte(checksum, ','); idx >= 0 {
+				checksum = checksum[:idx]
+			}
+			if checksum != "" {
+				integrity = "sha256-" + checksum
+			}
+		}
 	}
 
 	// Split name and version (version starts at last hyphen followed by digit)
 	for i := len(ref) - 1; i >= 0; i-- {
 		if ref[i] == '-' && i < len(ref)-1 && ref[i+1] >= '0' && ref[i+1] <= '9' {
-			return ref[:i], ref[i+1:]
+			return ref[:i], ref[i+1:], integrity
 		}
 	}
-	return ref, ""
+	return ref, "", integrity
 }
 
 // cabalConfigParser parses cabal.config files (freeze files).

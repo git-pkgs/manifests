@@ -106,7 +106,7 @@ func main() {
 | composer.lock | ✓ | ✓ | ✓ | |
 | Podfile.lock | | ✓ | | ✓ |
 | mix.lock | | ✓ | | |
-| rebar.lock | | | | |
+| rebar.lock | | ✓ | | |
 | pubspec.lock | | | | |
 | conan.lock | | | ✓ | |
 | packages.lock.json | | | | ✓ |
@@ -114,12 +114,13 @@ func main() {
 | project.assets.json | | | | |
 | *.deps.json | | ✓ | | |
 | Project.lock.json | | ✓ | | |
-| stack.yaml.lock | | | | |
+| stack.yaml.lock | | ✓ | | |
 | cabal.config | | | | |
 | cabal.project.freeze | | | | |
 | renv.lock | | ✓ | | |
 | shard.lock | | | | |
-| flake.lock | | | | |
+| flake.lock | | ✓ | | |
+| sources.json | | ✓ | | |
 | Brewfile.lock.json | | ✓ | | ✓ |
 | lake-manifest.json | ✓ | | | ✓ |
 
@@ -206,12 +207,19 @@ type Dependency struct {
     Name        string // Package name
     Version     string // Version constraint or resolved version
     Scope       Scope  // runtime, development, test, build, optional
-    Integrity   string // SRI hash (sha256-..., sha512-...)
+    Integrity   string // Opaque verification value, when available
     Direct      bool   // True if declared directly, false if transitive
     PURL        string // Package URL (pkg:ecosystem/name@version)
     RegistryURL string // Source registry URL (if non-default)
 }
 ```
+
+`Integrity` is an opaque verification value derived from the source file. The
+digest encoding remains ecosystem-specific, and parsers may add an algorithm
+prefix such as `sha256-` when the source stores it separately. That prefix does
+not imply Subresource Integrity: the digest may use hexadecimal, base64, Nix
+base32, or another ecosystem-specific form. Consumers should only decode or
+convert the value with knowledge of the source format.
 
 When a dependency comes from a non-default registry, the PURL includes a `repository_url` qualifier (e.g., `pkg:npm/foo@1.0.0?repository_url=https://npm.mycompany.com/`). Default registries like registry.npmjs.org, pypi.org, and rubygems.org are not included in the PURL.
 
