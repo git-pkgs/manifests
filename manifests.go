@@ -30,6 +30,10 @@ type (
 // verification value whose digest encoding depends on the source format.
 type Dependency = core.Dependency
 
+// Declaration represents a dependency-like reference at a stable logical
+// location in a manifest. Location is ecosystem-specific and opaque.
+type Declaration = core.Declaration
+
 // Re-export constants.
 const (
 	Manifest   Kind = core.Manifest
@@ -63,6 +67,10 @@ type ParseResult struct {
 	// format declares one instead of, or as well as, an expression.
 	LicenseFile  string
 	Dependencies []Dependency
+	// Declarations holds source-level references when the parser preserves
+	// their logical locations. Unlike Dependencies, these entries are not
+	// merged, inherited, or otherwise resolved into an effective model.
+	Declarations []Declaration
 }
 
 // Options configures Parse.
@@ -110,6 +118,9 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		}
 		res.Dependencies[i].PURL = makePURL(eco, res.Dependencies[i].Name, version, res.Dependencies[i].RegistryURL)
 	}
+	for i := range res.Declarations {
+		res.Declarations[i].PURL = makePURL(eco, res.Declarations[i].Name, "", "")
+	}
 
 	return &ParseResult{
 		Ecosystem:    eco,
@@ -119,6 +130,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Licenses:     res.Licenses,
 		LicenseFile:  res.LicenseFile,
 		Dependencies: res.Dependencies,
+		Declarations: res.Declarations,
 	}, nil
 }
 

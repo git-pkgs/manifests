@@ -44,6 +44,7 @@ func (p *pomXMLParser) ParseInRoot(filename string, content []byte, fsRoot strin
 	if err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
+	declarations := parsePOMDeclarations(root)
 
 	fetcher := pom.NewLocalFetcherFrom(root, filepath.Dir(filename), fsRoot)
 	ep, err := pom.NewResolver(fetcher).ResolvePOM(context.Background(), root, pom.Options{})
@@ -84,6 +85,7 @@ func (p *pomXMLParser) ParseInRoot(filename string, content []byte, fsRoot strin
 		Licenses:     licenses,
 		LicenseFile:  licenseFile,
 		Dependencies: deps,
+		Declarations: declarations,
 	}, nil
 }
 

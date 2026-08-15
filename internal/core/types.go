@@ -35,6 +35,18 @@ type Dependency struct {
 	RegistryURL string
 }
 
+// Declaration is a dependency-like reference at a stable logical location
+// in a manifest. Version is the requirement as written in that location,
+// before effective-model resolution or inheritance. Location is
+// ecosystem-specific and should be treated as an opaque identity.
+type Declaration struct {
+	Name     string
+	Version  string
+	Scope    Scope
+	PURL     string
+	Location string
+}
+
 // Result is the output of a single parser.
 type Result struct {
 	// Name is the package's own name as declared in the manifest, when
@@ -49,6 +61,7 @@ type Result struct {
 	// LicenseFile is a manifest-relative path to a declared license file.
 	LicenseFile  string
 	Dependencies []Dependency
+	Declarations []Declaration
 }
 
 // Parser is the interface implemented by all manifest parsers.
