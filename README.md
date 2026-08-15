@@ -107,11 +107,11 @@ func main() {
 | Podfile.lock | | ✓ | | ✓ |
 | mix.lock | | ✓ | | |
 | rebar.lock | | ✓ | | |
-| pubspec.lock | | | | |
+| pubspec.lock | ✓ | ✓ | | ✓ |
 | conan.lock | | | ✓ | |
-| packages.lock.json | | | | ✓ |
+| packages.lock.json | | ✓ | | ✓ |
 | paket.lock | | | | |
-| project.assets.json | | | | |
+| project.assets.json | | ✓ | | |
 | *.deps.json | | ✓ | | |
 | Project.lock.json | | ✓ | | |
 | stack.yaml.lock | | ✓ | | |
