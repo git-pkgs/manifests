@@ -1,0 +1,27 @@
+apiVersion: v2
+name: example-chart
+version: 1.2.3
+dependencies:
+  - name: postgresql
+    alias: database
+    version: ~12.1.9
+    repository: https://charts.bitnami.com/bitnami
+    condition: database.enabled
+    tags:
+      - database
+      - production
+  - name: redis
+    version: ^17.3.0
+    repository: oci://registry-1.docker.io/bitnamicharts
+  - name: metrics-server
+    version: ">=3.8.0 <4.0.0"
+    repository: "@internal"
+  - name: common
+    version: 1.x.x
+    repository: alias:partner
+  - name: local-chart
+    version: 0.1.0
+    repository: file://../local-chart
+  - name: plugin-chart
+    version: 2.0.0
+    repository: s3://company-charts

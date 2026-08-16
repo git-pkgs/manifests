@@ -67,6 +67,7 @@ func main() {
 | guix | manifest.scm, *-manifest.scm | |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
 | haxelib | haxelib.json | |
+| helm | Chart.yaml | Chart.lock |
 | hex | mix.exs, gleam.toml | mix.lock, rebar.lock |
 | ips | *.p5m | |
 | julia | Project.toml, REQUIRE | Manifest.toml |
@@ -101,6 +102,7 @@ func main() {
 | gems.locked | ✓ | ✓ | | ✓ |
 | Cargo.lock | ✓ | ✓ | | |
 | Cartfile.resolved | | | | |
+| Chart.lock | ✓ | | | ✓ |
 | poetry.lock | ✓ | ✓ | ✓ | |
 | Pipfile.lock | ✓ | ✓ | ✓ | |
 | pdm.lock | | ✓ | ✓ | |
@@ -319,6 +321,7 @@ type ParseResult struct {
     Version      string       // the package's own version, when declared
     Licenses     []string     // raw declared license values
     LicenseFile  string       // manifest-relative path to a declared license file
+    Digest       string       // file-level verification value, when present
     Dependencies []Dependency
     Declarations []Declaration
     Sources      []Source      // Ordered manifest-level source declarations
@@ -328,6 +331,8 @@ type ParseResult struct {
 `Name` and `Version` are populated for manifest formats that declare their own package identity (Cargo.toml `[package]`, package.json `"name"`, go.mod `module`, `.gemspec`, and so on). They are empty for lockfiles and for dependency-only files like Gemfile or requirements.txt.
 
 `Licenses` contains decoded values as declared by the manifest; it does not normalize them into SPDX expressions. `LicenseFile` is populated when a format explicitly identifies a license file. Both are empty for formats without license metadata.
+
+`Digest` contains a file-level verification value when the format defines one. For `Chart.lock`, it covers the dependency declarations from `Chart.yaml` and is separate from each dependency's `Integrity` value.
 
 Chef cookbook PURLs remain empty while `chef` is only a candidate Package URL
 type without accepted name and namespace rules.

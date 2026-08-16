@@ -29,6 +29,7 @@ import (
 	_ "github.com/git-pkgs/manifests/internal/guix"
 	_ "github.com/git-pkgs/manifests/internal/hackage"
 	_ "github.com/git-pkgs/manifests/internal/haxelib"
+	_ "github.com/git-pkgs/manifests/internal/helm"
 	_ "github.com/git-pkgs/manifests/internal/hex"
 	_ "github.com/git-pkgs/manifests/internal/ips"
 	_ "github.com/git-pkgs/manifests/internal/julia"

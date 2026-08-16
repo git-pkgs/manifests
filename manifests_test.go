@@ -34,6 +34,8 @@ func TestParseAllEcosystems(t *testing.T) {
 		{"chef Berksfile", "testdata/chef/Berksfile", "chef", Manifest},
 		{"composer composer.json", "testdata/composer/composer.json", "composer", Manifest},
 		{"composer composer.lock", "testdata/composer/composer.lock", "composer", Lockfile},
+		{"helm Chart.yaml", "testdata/helm/Chart.yaml", "helm", Manifest},
+		{"helm Chart.lock", "testdata/helm/Chart.lock", "helm", Lockfile},
 	}
 
 	for _, tc := range testCases {
@@ -77,7 +79,7 @@ func TestEcosystems(t *testing.T) {
 		seen[e] = true
 	}
 
-	for _, want := range []string{"npm", "gem", "cargo", "golang", "pypi", "maven", "chef"} {
+	for _, want := range []string{"npm", "gem", "cargo", "golang", "pypi", "maven", "chef", "helm"} {
 		if !slices.Contains(got, want) {
 			t.Errorf("Ecosystems() missing %q", want)
 		}
@@ -669,6 +671,10 @@ func TestIdentifyFiles(t *testing.T) {
 		{".github/workflows/ci.yml", "github-actions", Manifest, true},
 		{".github/workflows/actions.lock", "github-actions", Lockfile, true},
 
+		// helm
+		{"Chart.yaml", "helm", Manifest, true},
+		{"Chart.lock", "helm", Lockfile, true},
+
 		// unknown
 		{"unknown.txt", "", "", false},
 		{"random.file", "", "", false},
@@ -796,6 +802,86 @@ func TestSwiftSourcePURLs(t *testing.T) {
 		if dependency.PURL != wantPURL {
 			t.Errorf("%s PURL = %q, want %q", dependency.Name, dependency.PURL, wantPURL)
 		}
+	}
+}
+
+func TestHelmPURLsAndDigest(t *testing.T) {
+	chartContent, err := os.ReadFile("testdata/helm/Chart.yaml")
+	if err != nil {
+		t.Fatalf("read chart fixture: %v", err)
+	}
+	chart, err := Parse("Chart.yaml", chartContent)
+	if err != nil {
+		t.Fatalf("parse Chart.yaml: %v", err)
+	}
+	if chart.Name != "example-chart" || chart.Version != "1.2.3" {
+		t.Errorf("chart identity = %q %q, want example-chart 1.2.3", chart.Name, chart.Version)
+	}
+
+	chartDependencies := make(map[string]Dependency, len(chart.Dependencies))
+	for _, dependency := range chart.Dependencies {
+		chartDependencies[dependency.Name] = dependency
+	}
+	wantChartPURLs := map[string]string{
+		"postgresql":     "pkg:helm/postgresql",
+		"redis":          "pkg:helm/redis",
+		"metrics-server": "pkg:helm/metrics-server",
+		"common":         "pkg:helm/common",
+		"local-chart":    "pkg:helm/local-chart",
+		"plugin-chart":   "pkg:helm/plugin-chart",
+	}
+	for name, want := range wantChartPURLs {
+		dependency, ok := chartDependencies[name]
+		if !ok {
+			t.Errorf("Chart.yaml missing dependency %q", name)
+			continue
+		}
+		if dependency.PURL != want {
+			t.Errorf("Chart.yaml %s PURL = %q, want %q", name, dependency.PURL, want)
+		}
+	}
+	postgresql := chartDependencies["postgresql"]
+	if postgresql.RegistryURL != "https://charts.bitnami.com/bitnami" {
+		t.Errorf("Chart.yaml postgresql RegistryURL = %q", postgresql.RegistryURL)
+	}
+
+	lockContent, err := os.ReadFile("testdata/helm/Chart.lock")
+	if err != nil {
+		t.Fatalf("read lock fixture: %v", err)
+	}
+	lock, err := Parse("Chart.lock", lockContent)
+	if err != nil {
+		t.Fatalf("parse Chart.lock: %v", err)
+	}
+	if lock.Digest != "sha256:8ca45f73ae3f6170a09b64a967006e98e13cd91eb51e5ab0599bb87296c7df0a" {
+		t.Errorf("Chart.lock Digest = %q", lock.Digest)
+	}
+
+	lockDependencies := make(map[string]Dependency, len(lock.Dependencies))
+	for _, dependency := range lock.Dependencies {
+		lockDependencies[dependency.Name] = dependency
+	}
+	wantLockPURLs := map[string]string{
+		"postgresql":     "pkg:helm/postgresql@12.1.15",
+		"redis":          "pkg:helm/redis@17.3.7",
+		"metrics-server": "pkg:helm/metrics-server@3.12.2",
+		"common":         "pkg:helm/common@1.17.1",
+		"local-chart":    "pkg:helm/local-chart@0.1.0",
+		"plugin-chart":   "pkg:helm/plugin-chart@2.0.0",
+	}
+	for name, want := range wantLockPURLs {
+		dependency, ok := lockDependencies[name]
+		if !ok {
+			t.Errorf("Chart.lock missing dependency %q", name)
+			continue
+		}
+		if dependency.PURL != want {
+			t.Errorf("Chart.lock %s PURL = %q, want %q", name, dependency.PURL, want)
+		}
+	}
+	postgresql = lockDependencies["postgresql"]
+	if postgresql.Integrity != "" {
+		t.Errorf("Chart.lock postgresql Integrity = %q, want empty", postgresql.Integrity)
 	}
 }
 

@@ -81,7 +81,10 @@ type ParseResult struct {
 	Licenses []string
 	// LicenseFile is a manifest-relative path to a license file when the
 	// format declares one instead of, or as well as, an expression.
-	LicenseFile  string
+	LicenseFile string
+	// Digest is a file-level verification value whose meaning is defined by
+	// the manifest format. It does not apply to individual dependencies.
+	Digest       string
 	Dependencies []Dependency
 	// Declarations holds source-level references when the parser preserves
 	// their logical locations. Unlike Dependencies, these entries are not
@@ -135,7 +138,13 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		if kind == Lockfile || kind == Supplement {
 			version = res.Dependencies[i].Version
 		}
-		res.Dependencies[i].PURL = makePURL(eco, res.Dependencies[i].Name, version, res.Dependencies[i].RegistryURL)
+		registryURL := res.Dependencies[i].RegistryURL
+		if eco == "helm" {
+			// Helm repositories stay in RegistryURL. The pkg:helm mapping does
+			// not define repository_url as a qualifier.
+			registryURL = ""
+		}
+		res.Dependencies[i].PURL = makePURL(eco, res.Dependencies[i].Name, version, registryURL)
 	}
 	for i := range res.Declarations {
 		res.Declarations[i].PURL = declarationPURL(eco, res.Declarations[i])
@@ -148,6 +157,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Version:      res.Version,
 		Licenses:     res.Licenses,
 		LicenseFile:  res.LicenseFile,
+		Digest:       res.Digest,
 		Dependencies: res.Dependencies,
 		Declarations: res.Declarations,
 		Sources:      res.Sources,

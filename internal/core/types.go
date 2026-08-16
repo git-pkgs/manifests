@@ -92,7 +92,10 @@ type Result struct {
 	// normalization.
 	Licenses []string
 	// LicenseFile is a manifest-relative path to a declared license file.
-	LicenseFile  string
+	LicenseFile string
+	// Digest is a file-level verification value whose meaning is defined by
+	// the manifest format. It does not apply to individual dependencies.
+	Digest       string
 	Dependencies []Dependency
 	Declarations []Declaration
 	// Sources preserves manifest-level source declarations in source order.
