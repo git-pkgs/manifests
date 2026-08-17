@@ -1,9 +1,12 @@
 package github_actions
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
+	"net/url"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 
 	"gopkg.in/yaml.v3"
 )
@@ -59,19 +62,29 @@ func (p *githubWorkflowParser) Parse(filename string, content []byte) (*core.Res
 	}
 
 	var deps []core.Dependency
+	var declarations []core.Declaration
 	seen := make(map[string]bool)
+	locations := make(map[string]int)
 
-	for _, job := range workflow.Jobs {
-		deps = collectStepActions(job.Steps, deps, seen)
+	for jobName, job := range workflow.Jobs {
+		deps = collectStepActions(jobName, job.Steps, deps, &declarations, seen, locations)
 		deps = collectContainerImage(job.Container, deps, seen)
 		deps = collectServiceImages(job.Services, deps, seen)
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Dependencies: deps, Declarations: declarations}, nil
 }
 
-// collectStepActions extracts action dependencies from job steps.
-func collectStepActions(steps []githubStep, deps []core.Dependency, seen map[string]bool) []core.Dependency {
+// collectStepActions extracts action dependencies and source declarations
+// from job steps.
+func collectStepActions(
+	jobName string,
+	steps []githubStep,
+	deps []core.Dependency,
+	declarations *[]core.Declaration,
+	seen map[string]bool,
+	locations map[string]int,
+) []core.Dependency {
 	for _, step := range steps {
 		if step.Uses == "" {
 			continue
@@ -80,6 +93,20 @@ func collectStepActions(steps []githubStep, deps []core.Dependency, seen map[str
 		name, version := parseGitHubAction(step.Uses)
 		if name == "" {
 			continue
+		}
+		if !strings.HasPrefix(name, "docker://") {
+			base := "jobs/" + url.PathEscape(jobName) + "/steps/" + url.PathEscape(name)
+			locations[base]++
+			location := base
+			if locations[base] > 1 {
+				location += "/" + strconv.Itoa(locations[base])
+			}
+			*declarations = append(*declarations, core.Declaration{
+				Name:     name,
+				Version:  version,
+				Scope:    core.Runtime,
+				Location: location,
+			})
 		}
 
 		key := name + "@" + version

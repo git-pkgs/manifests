@@ -56,3 +56,47 @@ func TestGitHubWorkflow(t *testing.T) {
 		t.Error("expected docker://node to have version")
 	}
 }
+
+func TestGitHubWorkflowDeclarations(t *testing.T) {
+	content := []byte(`jobs:
+  build:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v3
+      - uses: actions/checkout@v3
+      - uses: docker://alpine:3.20
+      - uses: ./local-action
+  test:
+    steps:
+      - uses: actions/checkout@main
+`)
+
+	result, err := (&githubWorkflowParser{}).Parse("workflow.yml", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	want := map[string]struct {
+		name    string
+		version string
+	}{
+		"jobs/build/steps/actions%2Fcheckout":        {"actions/checkout", "v4"},
+		"jobs/build/steps/actions%2Fcache%2Frestore": {"actions/cache/restore", "v3"},
+		"jobs/build/steps/actions%2Fcheckout/2":      {"actions/checkout", "v3"},
+		"jobs/test/steps/actions%2Fcheckout":         {"actions/checkout", "main"},
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		expected, ok := want[declaration.Location]
+		if !ok {
+			t.Errorf("unexpected declaration at %q: %+v", declaration.Location, declaration)
+			continue
+		}
+		if declaration.Name != expected.name || declaration.Version != expected.version || declaration.Scope != core.Runtime {
+			t.Errorf("declaration at %q = %+v, want name %q and version %q",
+				declaration.Location, declaration, expected.name, expected.version)
+		}
+	}
+}

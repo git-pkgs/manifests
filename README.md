@@ -242,9 +242,11 @@ its ecosystem-specific value. A declaration PURL omits the version because the
 raw requirement may be a range or property expression.
 
 Parsers that do not preserve source locations leave `Declarations` empty.
-The `pom.xml` parser populates parents, dependencies, dependency management,
-plugins, plugin dependencies, plugin management, build extensions, and their
-profile-scoped forms.
+Declarations are available for `package.json`, Python requirements files,
+`pyproject.toml`, GitHub Actions workflows, and `pom.xml`. The Maven parser
+includes parents, dependencies, dependency management, plugins, plugin
+dependencies, plugin management, build extensions, and their profile-scoped
+forms.
 
 ### ParseResult
 

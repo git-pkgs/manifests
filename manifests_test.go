@@ -121,6 +121,64 @@ func TestMavenDeclarationPURLs(t *testing.T) {
 	}
 }
 
+func TestDeclarationPURLs(t *testing.T) {
+	tests := []struct {
+		name        string
+		filename    string
+		content     string
+		location    string
+		wantName    string
+		wantVersion string
+		wantPURL    string
+	}{
+		{
+			name:        "npm alias",
+			filename:    "package.json",
+			content:     `{"dependencies":{"alias":"npm:@scope/actual-package@1.2.3"}}`,
+			location:    "dependencies/alias",
+			wantName:    "@scope/actual-package",
+			wantVersion: "1.2.3",
+			wantPURL:    "pkg:npm/%40scope/actual-package",
+		},
+		{
+			name:        "canonical pypi name",
+			filename:    "requirements.txt",
+			content:     "Django_Rest.Framework==1.0\n",
+			location:    "requirements/django-rest-framework",
+			wantName:    "Django_Rest.Framework",
+			wantVersion: "==1.0",
+			wantPURL:    "pkg:pypi/django-rest.framework",
+		},
+		{
+			name:        "github action subpath",
+			filename:    ".github/workflows/ci.yml",
+			content:     "jobs:\n  build:\n    steps:\n      - uses: actions/cache/restore@v4\n",
+			location:    "jobs/build/steps/actions%2Fcache%2Frestore",
+			wantName:    "actions/cache/restore",
+			wantVersion: "v4",
+			wantPURL:    "pkg:githubactions/actions/cache",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Parse(test.filename, []byte(test.content))
+			if err != nil {
+				t.Fatalf("Parse: %v", err)
+			}
+			if len(result.Declarations) != 1 {
+				t.Fatalf("Declarations has %d entries, want 1: %+v", len(result.Declarations), result.Declarations)
+			}
+			declaration := result.Declarations[0]
+			if declaration.Location != test.location || declaration.Name != test.wantName ||
+				declaration.Version != test.wantVersion || declaration.PURL != test.wantPURL {
+				t.Errorf("Declaration = %+v, want location %q, name %q, version %q, PURL %q",
+					declaration, test.location, test.wantName, test.wantVersion, test.wantPURL)
+			}
+		})
+	}
+}
+
 func TestParseDeclaredLicenses(t *testing.T) {
 	testCases := []struct {
 		name        string

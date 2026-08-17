@@ -2,11 +2,14 @@ package pypi
 
 import (
 	"encoding/json"
-	"github.com/git-pkgs/manifests/internal/core"
+	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 const (
@@ -67,6 +70,8 @@ var (
 
 func (p *requirementsTxtParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
+	var declarations []core.Declaration
+	locations := make(map[string]int)
 	lines := strings.Split(string(content), "\n")
 
 	for _, line := range lines {
@@ -99,10 +104,11 @@ func (p *requirementsTxtParser) Parse(filename string, content []byte) (*core.Re
 				Scope:   core.Runtime,
 				Direct:  true,
 			})
+			appendPyPIDeclaration(&declarations, locations, "requirements", name, pep508Version(version), core.Runtime)
 		}
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Dependencies: deps, Declarations: declarations}, nil
 }
 
 // pipfileParser parses Pipfile (TOML format).
@@ -288,6 +294,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 	}
 
 	var deps []core.Dependency
+	var declarations []core.Declaration
+	locations := make(map[string]int)
 
 	// Poetry format
 	for name, value := range pyproject.Tool.Poetry.Dependencies {
@@ -301,6 +309,7 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 			Scope:   core.Runtime,
 			Direct:  true,
 		})
+		appendPyPIDeclaration(&declarations, locations, "tool/poetry/dependencies", name, version, core.Runtime)
 	}
 
 	for name, value := range pyproject.Tool.Poetry.DevDependencies {
@@ -311,6 +320,7 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 			Scope:   core.Development,
 			Direct:  true,
 		})
+		appendPyPIDeclaration(&declarations, locations, "tool/poetry/dev-dependencies", name, version, core.Development)
 	}
 
 	// Poetry group dependencies
@@ -333,6 +343,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 				Scope:   scope,
 				Direct:  true,
 			})
+			location := "tool/poetry/group/" + url.PathEscape(groupName) + "/dependencies"
+			appendPyPIDeclaration(&declarations, locations, location, name, version, scope)
 		}
 	}
 
@@ -345,6 +357,7 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 			Scope:   core.Runtime,
 			Direct:  true,
 		})
+		appendPyPIDeclaration(&declarations, locations, "project/dependencies", name, version, core.Runtime)
 	}
 
 	// PEP 621 optional dependencies
@@ -358,6 +371,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 				Scope:   scope,
 				Direct:  true,
 			})
+			location := "project/optional-dependencies/" + url.PathEscape(groupName)
+			appendPyPIDeclaration(&declarations, locations, location, name, version, scope)
 		}
 	}
 
@@ -384,7 +399,45 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 		Licenses:     licenses,
 		LicenseFile:  licenseFile,
 		Dependencies: deps,
+		Declarations: declarations,
 	}, nil
+}
+
+var pypiNameSeparator = regexp.MustCompile(`[-_.]+`)
+
+// appendPyPIDeclaration records a declaration at a PEP 503-normalized logical
+// location and adds a numeric suffix when that location repeats.
+func appendPyPIDeclaration(
+	declarations *[]core.Declaration,
+	locations map[string]int,
+	prefix string,
+	name string,
+	version string,
+	scope core.Scope,
+) {
+	if name == "" {
+		return
+	}
+	identity := pypiNameSeparator.ReplaceAllString(strings.ToLower(name), "-")
+	base := prefix + "/" + url.PathEscape(identity)
+	locations[base]++
+	location := base
+	if locations[base] > 1 {
+		location += fmt.Sprintf("/%d", locations[base])
+	}
+	*declarations = append(*declarations, core.Declaration{
+		Name:     name,
+		Version:  strings.TrimSpace(version),
+		Scope:    scope,
+		Location: location,
+	})
+}
+
+// pep508Version removes the environment marker from a PEP 508 version
+// requirement.
+func pep508Version(version string) string {
+	version, _, _ = strings.Cut(version, ";")
+	return strings.TrimSpace(version)
 }
 
 func pyprojectLicenses(license any, licenseFiles, classifiers []string) ([]string, string) {

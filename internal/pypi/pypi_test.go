@@ -66,6 +66,38 @@ func TestRequirementsTxt(t *testing.T) {
 	}
 }
 
+func TestRequirementsDeclarations(t *testing.T) {
+	content := []byte("Django_Rest.Framework[api]==1.0 ; python_version >= \"3.10\"\n" +
+		"django-rest-framework>=2.0\n")
+
+	result, err := (&requirementsTxtParser{}).Parse("requirements.txt", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	want := map[string]struct {
+		name    string
+		version string
+	}{
+		"requirements/django-rest-framework":   {"Django_Rest.Framework", "==1.0"},
+		"requirements/django-rest-framework/2": {"django-rest-framework", ">=2.0"},
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		expected, ok := want[declaration.Location]
+		if !ok {
+			t.Errorf("unexpected declaration at %q: %+v", declaration.Location, declaration)
+			continue
+		}
+		if declaration.Name != expected.name || declaration.Version != expected.version || declaration.Scope != core.Runtime {
+			t.Errorf("declaration at %q = %+v, want name %q and version %q",
+				declaration.Location, declaration, expected.name, expected.version)
+		}
+	}
+}
+
 func TestPipfile(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/pypi/Pipfile")
 	if err != nil {
@@ -220,6 +252,62 @@ func TestPyprojectToml(t *testing.T) {
 		}
 		if dep.Scope != exp.scope {
 			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
+		}
+	}
+}
+
+func TestPyprojectDeclarations(t *testing.T) {
+	content := []byte(`[tool.poetry.dependencies]
+python = "^3.12"
+Django = "5.0"
+requests = {version = "^2.32"}
+
+[tool.poetry.dev-dependencies]
+pytest = "8.0"
+
+[tool.poetry.group.qa.dependencies]
+Ruff = "0.12"
+
+[project]
+dependencies = [
+  "Flask==3.0 ; python_version >= '3.10'",
+  "flask==3.1",
+]
+
+[project.optional-dependencies]
+docs = ["Sphinx>=8"]
+`)
+
+	result, err := (&pyprojectParser{}).Parse("pyproject.toml", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	want := map[string]struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		"tool/poetry/dependencies/django":           {"Django", "5.0", core.Runtime},
+		"tool/poetry/dependencies/requests":         {"requests", "^2.32", core.Runtime},
+		"tool/poetry/dev-dependencies/pytest":       {"pytest", "8.0", core.Development},
+		"tool/poetry/group/qa/dependencies/ruff":    {"Ruff", "0.12", core.Runtime},
+		"project/dependencies/flask":                {"Flask", "==3.0", core.Runtime},
+		"project/dependencies/flask/2":              {"flask", "==3.1", core.Runtime},
+		"project/optional-dependencies/docs/sphinx": {"Sphinx", ">=8", core.Optional},
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		expected, ok := want[declaration.Location]
+		if !ok {
+			t.Errorf("unexpected declaration at %q: %+v", declaration.Location, declaration)
+			continue
+		}
+		if declaration.Name != expected.name || declaration.Version != expected.version || declaration.Scope != expected.scope {
+			t.Errorf("declaration at %q = %+v, want name %q, version %q, scope %q",
+				declaration.Location, declaration, expected.name, expected.version, expected.scope)
 		}
 	}
 }

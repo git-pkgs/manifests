@@ -3,6 +3,7 @@ package npm
 import (
 	"bytes"
 	"encoding/json"
+	"net/url"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -44,81 +45,52 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Res
 	}
 
 	var deps []core.Dependency
-
-	for name, value := range pkg.Dependencies {
-		if isNpmComment(name) {
-			continue
-		}
-		version, ok := value.(string)
-		if !ok {
-			continue
-		}
-		realName, realVersion := parseNpmAlias(name, version)
-		deps = append(deps, core.Dependency{
-			Name:    realName,
-			Version: realVersion,
-			Scope:   core.Runtime,
-			Direct:  true,
-		})
-	}
-
-	for name, value := range pkg.DevDependencies {
-		if isNpmComment(name) {
-			continue
-		}
-		version, ok := value.(string)
-		if !ok {
-			continue
-		}
-		realName, realVersion := parseNpmAlias(name, version)
-		deps = append(deps, core.Dependency{
-			Name:    realName,
-			Version: realVersion,
-			Scope:   core.Development,
-			Direct:  true,
-		})
-	}
-
-	for name, value := range pkg.OptionalDependencies {
-		if isNpmComment(name) {
-			continue
-		}
-		version, ok := value.(string)
-		if !ok {
-			continue
-		}
-		realName, realVersion := parseNpmAlias(name, version)
-		deps = append(deps, core.Dependency{
-			Name:    realName,
-			Version: realVersion,
-			Scope:   core.Optional,
-			Direct:  true,
-		})
-	}
-
-	for name, value := range pkg.PeerDependencies {
-		if isNpmComment(name) {
-			continue
-		}
-		version, ok := value.(string)
-		if !ok {
-			continue
-		}
-		realName, realVersion := parseNpmAlias(name, version)
-		deps = append(deps, core.Dependency{
-			Name:    realName,
-			Version: realVersion,
-			Scope:   core.Runtime, // peer dependencies are runtime requirements
-			Direct:  true,
-		})
-	}
+	var declarations []core.Declaration
+	collectNpmDeclarations(&deps, &declarations, "dependencies", pkg.Dependencies, core.Runtime)
+	collectNpmDeclarations(&deps, &declarations, "devDependencies", pkg.DevDependencies, core.Development)
+	collectNpmDeclarations(&deps, &declarations, "optionalDependencies", pkg.OptionalDependencies, core.Optional)
+	collectNpmDeclarations(&deps, &declarations, "peerDependencies", pkg.PeerDependencies, core.Runtime)
 
 	return &core.Result{
 		Name:         pkg.Name,
 		Version:      pkg.Version,
 		Licenses:     npmLicenses(pkg.License, pkg.Licenses),
 		Dependencies: deps,
+		Declarations: declarations,
 	}, nil
+}
+
+// collectNpmDeclarations appends dependencies and source declarations from
+// one package.json dependency block.
+func collectNpmDeclarations(
+	dependencies *[]core.Dependency,
+	declarations *[]core.Declaration,
+	location string,
+	values map[string]any,
+	scope core.Scope,
+) {
+	for name, value := range values {
+		if isNpmComment(name) {
+			continue
+		}
+		version, ok := value.(string)
+		if !ok {
+			continue
+		}
+		realName, realVersion := parseNpmAlias(name, version)
+		*dependencies = append(*dependencies, core.Dependency{
+			Name:    realName,
+			Version: realVersion,
+			Scope:   scope,
+			Direct:  true,
+		})
+		*declarations = append(*declarations, core.Declaration{
+			Name:     realName,
+			Version:  realVersion,
+			Scope:    scope,
+			Location: location + "/" + url.PathEscape(name),
+		})
+	}
 }
 
 func npmLicenses(license any, legacy []npmLicense) []string {

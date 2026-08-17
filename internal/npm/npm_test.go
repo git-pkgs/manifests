@@ -63,6 +63,52 @@ func TestNpmPackageJSON(t *testing.T) {
 	}
 }
 
+func TestNpmPackageJSONDeclarations(t *testing.T) {
+	content := []byte(`{
+  "dependencies": {
+    "plain": "1.2.3",
+    "alias": "npm:@scope/actual-package@^2.0.0",
+    "@scope/package": "~3.0.0",
+    "// note": "ignored"
+  },
+  "devDependencies": {"plain": "2.0.0"},
+  "optionalDependencies": {"optional": "4.0.0"},
+  "peerDependencies": {"peer": ">=5.0.0"}
+}`)
+
+	result, err := (&npmPackageJSONParser{}).Parse("package.json", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	want := map[string]struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		"dependencies/plain":            {"plain", "1.2.3", core.Runtime},
+		"dependencies/alias":            {"@scope/actual-package", "^2.0.0", core.Runtime},
+		"dependencies/@scope%2Fpackage": {"@scope/package", "~3.0.0", core.Runtime},
+		"devDependencies/plain":         {"plain", "2.0.0", core.Development},
+		"optionalDependencies/optional": {"optional", "4.0.0", core.Optional},
+		"peerDependencies/peer":         {"peer", ">=5.0.0", core.Runtime},
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		expected, ok := want[declaration.Location]
+		if !ok {
+			t.Errorf("unexpected declaration at %q: %+v", declaration.Location, declaration)
+			continue
+		}
+		if declaration.Name != expected.name || declaration.Version != expected.version || declaration.Scope != expected.scope {
+			t.Errorf("declaration at %q = %+v, want name %q, version %q, scope %q",
+				declaration.Location, declaration, expected.name, expected.version, expected.scope)
+		}
+	}
+}
+
 func TestNpmPackageLock(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/npm/package-lock.json")
 	if err != nil {
