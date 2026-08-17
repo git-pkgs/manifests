@@ -96,6 +96,9 @@ func TestRequirementsDeclarations(t *testing.T) {
 				declaration.Location, declaration, expected.name, expected.version)
 		}
 	}
+	if got := result.Dependencies[0].Version; got != "==1.0" {
+		t.Errorf("dependency version = %q, want marker-free version", got)
+	}
 }
 
 func TestPipfile(t *testing.T) {
@@ -308,6 +311,47 @@ docs = ["Sphinx>=8"]
 		if declaration.Name != expected.name || declaration.Version != expected.version || declaration.Scope != expected.scope {
 			t.Errorf("declaration at %q = %+v, want name %q, version %q, scope %q",
 				declaration.Location, declaration, expected.name, expected.version, expected.scope)
+		}
+	}
+}
+
+func TestPyprojectDeclarationLocationsAreDeterministic(t *testing.T) {
+	content := []byte(`[tool.poetry.dependencies]
+"Example_Pkg" = "1.0"
+example-pkg = "2.0"
+
+[tool.poetry.dev-dependencies]
+"Dev_Pkg" = "1.0"
+dev-pkg = "2.0"
+
+[tool.poetry.group.qa.dependencies]
+"QA_Pkg" = "1.0"
+qa-pkg = "2.0"
+`)
+
+	result, err := (&pyprojectParser{}).Parse("pyproject.toml", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+
+	want := []struct {
+		location string
+		name     string
+	}{
+		{"tool/poetry/dependencies/example-pkg", "Example_Pkg"},
+		{"tool/poetry/dependencies/example-pkg/2", "example-pkg"},
+		{"tool/poetry/dev-dependencies/dev-pkg", "Dev_Pkg"},
+		{"tool/poetry/dev-dependencies/dev-pkg/2", "dev-pkg"},
+		{"tool/poetry/group/qa/dependencies/qa-pkg", "QA_Pkg"},
+		{"tool/poetry/group/qa/dependencies/qa-pkg/2", "qa-pkg"},
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for i, expected := range want {
+		declaration := result.Declarations[i]
+		if declaration.Location != expected.location || declaration.Name != expected.name {
+			t.Errorf("Declaration[%d] = %+v, want location %q and name %q", i, declaration, expected.location, expected.name)
 		}
 	}
 }

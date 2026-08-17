@@ -3,8 +3,10 @@ package pypi
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -97,6 +99,7 @@ func (p *requirementsTxtParser) Parse(filename string, content []byte) (*core.Re
 			if match[2] != "" && match[3] != "" {
 				version = match[2] + match[3]
 			}
+			version = pep508Version(version)
 
 			deps = append(deps, core.Dependency{
 				Name:    name,
@@ -104,7 +107,7 @@ func (p *requirementsTxtParser) Parse(filename string, content []byte) (*core.Re
 				Scope:   core.Runtime,
 				Direct:  true,
 			})
-			appendPyPIDeclaration(&declarations, locations, "requirements", name, pep508Version(version), core.Runtime)
+			appendPyPIDeclaration(&declarations, locations, "requirements", name, version, core.Runtime)
 		}
 	}
 
@@ -298,7 +301,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 	locations := make(map[string]int)
 
 	// Poetry format
-	for name, value := range pyproject.Tool.Poetry.Dependencies {
+	for _, name := range sortedStringKeys(pyproject.Tool.Poetry.Dependencies) {
+		value := pyproject.Tool.Poetry.Dependencies[name]
 		if name == "python" {
 			continue
 		}
@@ -312,7 +316,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 		appendPyPIDeclaration(&declarations, locations, "tool/poetry/dependencies", name, version, core.Runtime)
 	}
 
-	for name, value := range pyproject.Tool.Poetry.DevDependencies {
+	for _, name := range sortedStringKeys(pyproject.Tool.Poetry.DevDependencies) {
+		value := pyproject.Tool.Poetry.DevDependencies[name]
 		version := extractPoetryVersion(value)
 		deps = append(deps, core.Dependency{
 			Name:    name,
@@ -324,7 +329,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 	}
 
 	// Poetry group dependencies
-	for groupName, group := range pyproject.Tool.Poetry.Group {
+	for _, groupName := range sortedStringKeys(pyproject.Tool.Poetry.Group) {
+		group := pyproject.Tool.Poetry.Group[groupName]
 		var scope core.Scope
 		switch groupName {
 		case groupDev, groupDevelopment:
@@ -335,7 +341,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 			scope = core.Runtime
 		}
 
-		for name, value := range group.Dependencies {
+		for _, name := range sortedStringKeys(group.Dependencies) {
+			value := group.Dependencies[name]
 			version := extractPoetryVersion(value)
 			deps = append(deps, core.Dependency{
 				Name:    name,
@@ -361,7 +368,8 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 	}
 
 	// PEP 621 optional dependencies
-	for groupName, groupDeps := range pyproject.Project.OptionalDependencies {
+	for _, groupName := range sortedStringKeys(pyproject.Project.OptionalDependencies) {
+		groupDeps := pyproject.Project.OptionalDependencies[groupName]
 		scope := optionalGroupScope(groupName)
 		for _, dep := range groupDeps {
 			name, version := parsePEP508(dep)
@@ -404,6 +412,11 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 }
 
 var pypiNameSeparator = regexp.MustCompile(`[-_.]+`)
+
+// sortedStringKeys returns the keys of values in lexical order.
+func sortedStringKeys[V any](values map[string]V) []string {
+	return slices.Sorted(maps.Keys(values))
+}
 
 // appendPyPIDeclaration records a declaration at a PEP 503-normalized logical
 // location and adds a numeric suffix when that location repeats.
