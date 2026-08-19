@@ -42,7 +42,7 @@ func main() {
 | alpine | APKBUILD | |
 | arch | PKGBUILD | |
 | asdf | .tool-versions | |
-| bazel | MODULE.json | |
+| bazel | MODULE.bazel | |
 | bower | bower.json | |
 | brew | Brewfile | Brewfile.lock.json |
 | cargo | Cargo.toml | Cargo.lock |
@@ -51,30 +51,31 @@ func main() {
 | cocoapods | Podfile, *.podspec | Podfile.lock |
 | composer | composer.json | composer.lock |
 | conan | conanfile.txt, conanfile.py | conan.lock |
-| conda | environment.yml, environment.yaml | |
+| conda | environment.yml, environment.yaml | conda-lock.yml |
 | cpan | cpanfile, Makefile.PL, Build.PL, dist.ini, META.json, META.yml | cpanfile.snapshot |
 | cran | DESCRIPTION | renv.lock |
 | crystal | shard.yml | shard.lock |
 | deno | deno.json, deno.jsonc | deno.lock |
-| docker | Dockerfile, docker-compose.yml | |
+| docker | Dockerfile, Dockerfile.*, docker-compose.yml, docker-compose.yaml, compose.yml, compose.yaml | |
 | dub | dub.json, dub.sdl | |
 | elm | elm.json, elm-package.json | |
 | gem | Gemfile, gems.rb, *.gemspec | Gemfile.lock, gems.locked |
 | git | .gitmodules | |
-| github-actions | .github/workflows/*.yml | .github/workflows/actions.lock |
-| golang | go.mod, Godeps, glide.yaml, Gopkg.toml | Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest |
-| guix | manifest.scm | |
+| github-actions | .github/workflows/*.yml, .github/workflows/*.yaml | .github/workflows/actions.lock |
+| golang | go.mod, Godeps, glide.yaml, Gopkg.toml | Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest, go.graph |
+| guix | manifest.scm, *-manifest.scm | |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
 | haxelib | haxelib.json | |
 | hex | mix.exs, gleam.toml | mix.lock, rebar.lock |
+| ips | *.p5m | |
 | julia | Project.toml, REQUIRE | Manifest.toml |
 | lean | lakefile.toml, lakefile.lean | lake-manifest.json |
 | luarocks | *.rockspec | |
-| maven | pom.xml, ivy.xml, build.gradle, build.gradle.kts, build.sbt | gradle.lockfile, gradle-dependencies-q.txt, maven-resolved-dependencies.txt, verification-metadata.xml |
+| maven | pom.xml, ivy.xml, build.gradle, build.gradle.kts, build.sbt | gradle.lockfile, gradle-dependencies-q.txt, maven-resolved-dependencies.txt, maven.graph.json, verification-metadata.xml, dependencies.lock, gradle-html-dependency-report.js, dependencies-*.dot, *-compile.xml, *-test.xml, *-runtime.xml, *-provided.xml |
 | nimble | *.nimble | |
 | nix | flake.nix | flake.lock, sources.json |
 | pre-commit | .pre-commit-config.yaml, prek.toml | |
-| npm | package.json, bower.json | package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock, npm-ls.json |
+| npm | package.json | package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock, npm-ls.json |
 | nuget | *.csproj, *.vbproj, *.fsproj, *.nuspec, packages.config, Project.json | packages.lock.json, paket.lock, project.assets.json, *.deps.json, Project.lock.json |
 | opam | opam, *.opam | |
 | pub | pubspec.yaml | pubspec.lock |
@@ -94,8 +95,11 @@ func main() {
 | bun.lock | ✓ | ✓ | | |
 | npm-ls.json | ✓ | ✓ | ✓ | |
 | deno.lock | | ✓ | | |
+| .github/workflows/actions.lock | | ✓ | | ✓ |
 | Gemfile.lock | ✓ | ✓ | | ✓ |
+| gems.locked | ✓ | ✓ | | ✓ |
 | Cargo.lock | ✓ | ✓ | | |
+| Cartfile.resolved | | | | |
 | poetry.lock | ✓ | ✓ | ✓ | |
 | Pipfile.lock | ✓ | ✓ | ✓ | |
 | pdm.lock | | ✓ | ✓ | |
@@ -109,6 +113,8 @@ func main() {
 | rebar.lock | | ✓ | | |
 | pubspec.lock | ✓ | ✓ | | ✓ |
 | conan.lock | | | ✓ | |
+| conda-lock.yml | ✓ | ✓ | ✓ | |
+| cpanfile.snapshot | | | | |
 | packages.lock.json | | ✓ | | ✓ |
 | paket.lock | | | | |
 | project.assets.json | | ✓ | | |
@@ -117,12 +123,30 @@ func main() {
 | stack.yaml.lock | | ✓ | | |
 | cabal.config | | | | |
 | cabal.project.freeze | | | | |
+| Godeps.json | | | | |
+| glide.lock | | | | |
+| Gopkg.lock | | | | |
+| vendor.json | | | | |
+| go-resolved-dependencies.json | | | ✓ | ✓ |
+| vendor/manifest | | | | |
+| go.graph | | | | ✓ |
+| Manifest.toml | | | | |
+| gradle.lockfile | | | ✓ | |
+| gradle-dependencies-q.txt | | | ✓ | |
+| maven-resolved-dependencies.txt | | | ✓ | |
+| maven.graph.json | | | ✓ | |
+| verification-metadata.xml | | | | |
+| dependencies.lock | | | ✓ | ✓ |
+| gradle-html-dependency-report.js | | | ✓ | |
+| dependencies-*.dot | | | ✓ | |
+| *-compile.xml, *-test.xml, *-runtime.xml, *-provided.xml | | | ✓ | |
 | renv.lock | | ✓ | | |
 | shard.lock | | | | |
 | flake.lock | | ✓ | | |
 | sources.json | | ✓ | | |
 | Brewfile.lock.json | | ✓ | | ✓ |
 | lake-manifest.json | ✓ | | | ✓ |
+| Package.resolved | | | | |
 
 **Supplement files:** go.sum is parsed as a supplement rather than a lockfile. It provides integrity hashes that can be matched against go.mod dependencies by name and version, but it doesn't represent a standalone dependency tree.
 
