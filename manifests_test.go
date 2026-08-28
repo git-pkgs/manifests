@@ -605,6 +605,35 @@ func TestPURL(t *testing.T) {
 	t.Error("express dependency not found")
 }
 
+func TestSwiftSourcePURLs(t *testing.T) {
+	content, err := os.ReadFile("testdata/swift/Package.resolved.2")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	result, err := Parse("Package.resolved", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	want := map[string]string{
+		"github.com/krzyzanowskim/CryptoSwift": "pkg:swift/github.com/krzyzanowskim/CryptoSwift@1.6.0",
+		"github.com/apple/swift-docc-plugin":   "pkg:swift/github.com/apple/swift-docc-plugin@1.0.0",
+		"apple.swift-argument-parser":          "",
+	}
+	if len(result.Dependencies) != len(want) {
+		t.Fatalf("Dependencies has %d entries, want %d: %+v", len(result.Dependencies), len(want), result.Dependencies)
+	}
+	for _, dependency := range result.Dependencies {
+		wantPURL, ok := want[dependency.Name]
+		if !ok {
+			t.Errorf("unexpected dependency: %+v", dependency)
+			continue
+		}
+		if dependency.PURL != wantPURL {
+			t.Errorf("%s PURL = %q, want %q", dependency.Name, dependency.PURL, wantPURL)
+		}
+	}
+}
+
 func TestParsePEP508ParenthesizedRequirements(t *testing.T) {
 	content, err := os.ReadFile("testdata/pypi/pep508-parenthesized/pyproject.toml")
 	if err != nil {

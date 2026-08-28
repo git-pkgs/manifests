@@ -2,9 +2,11 @@ package swift
 
 import (
 	"encoding/json"
-	"github.com/git-pkgs/manifests/internal/core"
+	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -56,7 +58,7 @@ func (p *packageSwiftParser) Parse(filename string, content []byte) (*core.Resul
 				version = match[versionGroup]
 			}
 
-			name := extractSwiftPackageName(url)
+			name := swiftSourceCoordinate(url)
 			if name == "" || seen[name] {
 				continue
 			}
@@ -74,16 +76,38 @@ func (p *packageSwiftParser) Parse(filename string, content []byte) (*core.Resul
 	return &core.Result{Name: selfName, Dependencies: deps}, nil
 }
 
-// extractSwiftPackageName extracts the package name from a git URL.
-func extractSwiftPackageName(url string) string {
-	// Remove .git suffix
-	url = strings.TrimSuffix(url, ".git")
+func swiftSourceCoordinate(rawURL string) string {
+	if strings.Contains(rawURL, "://") {
+		parsed, err := url.Parse(rawURL)
+		if err != nil || parsed.Hostname() == "" {
+			return ""
+		}
 
-	// Get last path component
-	if idx := strings.LastIndex(url, "/"); idx >= 0 {
-		return url[idx+1:]
+		host := strings.ToLower(parsed.Hostname())
+		if parsed.Port() != "" {
+			host += ":" + parsed.Port()
+		}
+		return joinSwiftSourceCoordinate(host, parsed.Path)
 	}
-	return url
+
+	separator := strings.IndexByte(rawURL, ':')
+	if separator <= 0 {
+		return ""
+	}
+	host := rawURL[:separator]
+	if at := strings.LastIndexByte(host, '@'); at >= 0 {
+		host = host[at+1:]
+	}
+	return joinSwiftSourceCoordinate(strings.ToLower(host), rawURL[separator+1:])
+}
+
+func joinSwiftSourceCoordinate(host, path string) string {
+	path = strings.Trim(strings.TrimSpace(path), "/")
+	path = strings.TrimSuffix(path, ".git")
+	if host == "" || path == "" {
+		return ""
+	}
+	return host + "/" + path
 }
 
 // packageResolvedParser parses Package.resolved files.
@@ -112,6 +136,7 @@ type packageResolvedV2 struct {
 
 type packageResolvedPinV2 struct {
 	Identity string `json:"identity"`
+	Kind     string `json:"kind"`
 	Location string `json:"location"`
 	State    struct {
 		Version  string `json:"version"`
@@ -147,9 +172,9 @@ func parsePackageResolvedV1(filename string, content []byte) ([]core.Dependency,
 
 	var deps []core.Dependency
 	for _, pin := range resolved.Object.Pins {
-		name := pin.Package
+		name := swiftSourceCoordinate(pin.RepositoryURL)
 		if name == "" {
-			name = extractSwiftPackageName(pin.RepositoryURL)
+			name = pin.Package
 		}
 
 		deps = append(deps, core.Dependency{
@@ -172,8 +197,10 @@ func parsePackageResolvedV2(filename string, content []byte) ([]core.Dependency,
 	var deps []core.Dependency
 	for _, pin := range resolved.Pins {
 		name := pin.Identity
-		if name == "" {
-			name = extractSwiftPackageName(pin.Location)
+		if pin.Kind == "remoteSourceControl" {
+			if coordinate := swiftSourceCoordinate(pin.Location); coordinate != "" {
+				name = coordinate
+			}
 		}
 
 		deps = append(deps, core.Dependency{
