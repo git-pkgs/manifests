@@ -88,6 +88,7 @@ func collectNpmDeclarations(
 			Name:     realName,
 			Version:  realVersion,
 			Scope:    scope,
+			Direct:   true,
 			Location: location + "/" + url.PathEscape(name),
 		})
 	}

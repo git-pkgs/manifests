@@ -119,7 +119,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		res.Dependencies[i].PURL = makePURL(eco, res.Dependencies[i].Name, version, res.Dependencies[i].RegistryURL)
 	}
 	for i := range res.Declarations {
-		res.Declarations[i].PURL = makePURL(eco, res.Declarations[i].Name, "", "")
+		res.Declarations[i].PURL = declarationPURL(eco, res.Declarations[i])
 	}
 
 	return &ParseResult{
@@ -132,6 +132,15 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Dependencies: res.Dependencies,
 		Declarations: res.Declarations,
 	}, nil
+}
+
+// declarationPURL preserves a parser-supplied package identity or builds one
+// from the parser's ecosystem.
+func declarationPURL(ecosystem string, declaration core.Declaration) string {
+	if declaration.PURL != "" {
+		return declaration.PURL
+	}
+	return makePURL(ecosystem, declaration.Name, "", "")
 }
 
 // makePURL creates a Package URL for a dependency.

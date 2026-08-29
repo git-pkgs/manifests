@@ -76,7 +76,7 @@ func main() {
 | nix | flake.nix | flake.lock, sources.json |
 | pre-commit | .pre-commit-config.yaml, prek.toml | |
 | npm | package.json | package-lock.json, npm-shrinkwrap.json, yarn.lock, pnpm-lock.yaml, bun.lock, npm-ls.json |
-| nuget | *.csproj, *.vbproj, *.fsproj, *.nuspec, packages.config, Project.json | packages.lock.json, paket.lock, project.assets.json, *.deps.json, Project.lock.json |
+| nuget | *.csproj, *.vbproj, *.fsproj, *.nuspec, packages.config, Directory.Packages.props, Project.json | packages.lock.json, paket.lock, project.assets.json, *.deps.json, Project.lock.json |
 | opam | opam, *.opam | |
 | pub | pubspec.yaml | pubspec.lock |
 | pypi | requirements.txt, Pipfile, pyproject.toml, setup.py, setup.cfg | Pipfile.lock, poetry.lock, pdm.lock, uv.lock, pip-dependency-graph.json, pip-resolved-dependencies.txt, pylock.toml |
@@ -254,6 +254,7 @@ type Declaration struct {
     Name     string // Package name
     Version  string // Version requirement as written in the manifest
     Scope    Scope  // runtime, development, test, build, optional
+    Direct   bool   // Direct rather than generated or transitive
     PURL     string // Versionless Package URL
     Location string // Opaque parser-defined identity within the manifest
 }
@@ -263,14 +264,21 @@ Declarations preserve source-level references without applying inheritance,
 merging, interpolation, or other effective-model resolution. Consumers can use
 `Location` to match the same logical entry across edits, but should not parse
 its ecosystem-specific value. A declaration PURL omits the version because the
-raw requirement may be a range or property expression.
+raw requirement may be a range or property expression. When a parser supplies
+its own PURL, `Parse` preserves it so one manifest can refer to packages from
+different ecosystems. Otherwise `Parse` builds the PURL from the parser's
+ecosystem.
+
+`Direct` distinguishes explicit requirements from generated or transitive
+entries when the source format records that distinction, such as `go.mod`.
 
 Parsers that do not preserve source locations leave `Declarations` empty.
-Declarations are available for `package.json`, Python requirements files,
-`pyproject.toml`, GitHub Actions workflows, and `pom.xml`. The Maven parser
-includes parents, dependencies, dependency management, plugins, plugin
-dependencies, plugin management, build extensions, and their profile-scoped
-forms.
+Declarations are available for `package.json`, Cargo manifests, `go.mod`, Python
+requirements files, `pyproject.toml`, GitHub Actions workflows, `gleam.toml`,
+`pom.xml`, NuGet project and package files, and
+`Directory.Packages.props`. The Maven parser includes parents,
+dependencies, dependency management, plugins, plugin dependencies, plugin
+management, build extensions, and their profile-scoped forms.
 
 ### ParseResult
 

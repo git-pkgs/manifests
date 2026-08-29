@@ -1,6 +1,19 @@
 package core
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
+
+// NextLocation returns base with a numeric suffix when seen already contains
+// it, so repeated declarations at the same logical position stay addressable.
+func NextLocation(seen map[string]int, base string) string {
+	seen[base]++
+	if seen[base] > 1 {
+		return base + "/" + strconv.Itoa(seen[base])
+	}
+	return base
+}
 
 // ForEachLine iterates over lines in content without allocating a slice.
 func ForEachLine(content string, fn func(line string) bool) {

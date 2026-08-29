@@ -28,6 +28,7 @@ func TestParseAllEcosystems(t *testing.T) {
 		{"golang go.sum", "testdata/golang/go.sum", "golang", Supplement},
 		{"pypi requirements.txt", "testdata/pypi/requirements.txt", "pypi", Manifest},
 		{"maven pom.xml", "testdata/maven/pom.xml", "maven", Manifest},
+		{"nuget central packages", "testdata/nuget/Directory.Packages.props", "nuget", Manifest},
 		{"composer composer.json", "testdata/composer/composer.json", "composer", Manifest},
 		{"composer composer.lock", "testdata/composer/composer.lock", "composer", Lockfile},
 	}
@@ -158,6 +159,42 @@ func TestDeclarationPURLs(t *testing.T) {
 			wantVersion: "v4",
 			wantPURL:    "pkg:githubactions/actions/cache",
 		},
+		{
+			name:        "cargo alias",
+			filename:    "Cargo.toml",
+			content:     "[dependencies]\nalias = { package = \"actual\", version = \"=1.0.0\" }\n",
+			location:    "dependencies/alias",
+			wantName:    "actual",
+			wantVersion: "=1.0.0",
+			wantPURL:    "pkg:cargo/actual",
+		},
+		{
+			name:        "go requirement",
+			filename:    "go.mod",
+			content:     "module example.com/app\nrequire example.com/library v1.0.0\n",
+			location:    "require/example.com%2Flibrary",
+			wantName:    "example.com/library",
+			wantVersion: "v1.0.0",
+			wantPURL:    "pkg:golang/example.com/library",
+		},
+		{
+			name:        "gleam dependency",
+			filename:    "gleam.toml",
+			content:     "[dependencies]\ngleam_stdlib = \"== 1.0.0\"\n",
+			location:    "dependencies/gleam_stdlib",
+			wantName:    "gleam_stdlib",
+			wantVersion: "== 1.0.0",
+			wantPURL:    "pkg:hex/gleam_stdlib",
+		},
+		{
+			name:        "nuget central package",
+			filename:    "Directory.Packages.props",
+			content:     `<Project><ItemGroup><PackageVersion Include="example" Version="1.0.0" /></ItemGroup></Project>`,
+			location:    "package-versions/example",
+			wantName:    "example",
+			wantVersion: "1.0.0",
+			wantPURL:    "pkg:nuget/example",
+		},
 	}
 
 	for _, test := range tests {
@@ -171,11 +208,19 @@ func TestDeclarationPURLs(t *testing.T) {
 			}
 			declaration := result.Declarations[0]
 			if declaration.Location != test.location || declaration.Name != test.wantName ||
-				declaration.Version != test.wantVersion || declaration.PURL != test.wantPURL {
+				declaration.Version != test.wantVersion || declaration.PURL != test.wantPURL || !declaration.Direct {
 				t.Errorf("Declaration = %+v, want location %q, name %q, version %q, PURL %q",
 					declaration, test.location, test.wantName, test.wantVersion, test.wantPURL)
 			}
 		})
+	}
+}
+
+func TestDeclarationParserPURLIsPreserved(t *testing.T) {
+	declaration := Declaration{Name: "example", PURL: "pkg:npm/example"}
+
+	if got, want := declarationPURL("deno", declaration), declaration.PURL; got != want {
+		t.Fatalf("declarationPURL() = %q, want %q", got, want)
 	}
 }
 

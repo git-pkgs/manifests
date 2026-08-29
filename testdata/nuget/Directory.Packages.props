@@ -1,0 +1,6 @@
+<Project>
+  <ItemGroup>
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+    <GlobalPackageReference Include="Nerdbank.GitVersioning" Version="3.5.119" />
+  </ItemGroup>
+</Project>

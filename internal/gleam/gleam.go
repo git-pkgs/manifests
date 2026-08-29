@@ -1,6 +1,8 @@
 package gleam
 
 import (
+	"net/url"
+
 	"github.com/BurntSushi/toml"
 	"github.com/git-pkgs/manifests/internal/core"
 )
@@ -13,10 +15,10 @@ func init() {
 type gleamTomlParser struct{}
 
 type gleamToml struct {
-	Name            string            `toml:"name"`
-	Version         string            `toml:"version"`
-	Dependencies    map[string]string `toml:"dependencies"`
-	DevDependencies map[string]string `toml:"dev-dependencies"`
+	Name            string         `toml:"name"`
+	Version         string         `toml:"version"`
+	Dependencies    map[string]any `toml:"dependencies"`
+	DevDependencies map[string]any `toml:"dev-dependencies"`
 }
 
 func (p *gleamTomlParser) Parse(filename string, content []byte) (*core.Result, error) {
@@ -26,24 +28,52 @@ func (p *gleamTomlParser) Parse(filename string, content []byte) (*core.Result, 
 	}
 
 	var deps []core.Dependency
+	var declarations []core.Declaration
 
-	for name, version := range gleam.Dependencies {
+	for name, value := range gleam.Dependencies {
+		version, ok := value.(string)
+		if !ok {
+			continue
+		}
 		deps = append(deps, core.Dependency{
 			Name:    name,
 			Version: version,
 			Scope:   core.Runtime,
 			Direct:  true,
 		})
+		declarations = append(declarations, core.Declaration{
+			Name:     name,
+			Version:  version,
+			Scope:    core.Runtime,
+			Direct:   true,
+			Location: "dependencies/" + url.PathEscape(name),
+		})
 	}
 
-	for name, version := range gleam.DevDependencies {
+	for name, value := range gleam.DevDependencies {
+		version, ok := value.(string)
+		if !ok {
+			continue
+		}
 		deps = append(deps, core.Dependency{
 			Name:    name,
 			Version: version,
 			Scope:   core.Development,
 			Direct:  true,
 		})
+		declarations = append(declarations, core.Declaration{
+			Name:     name,
+			Version:  version,
+			Scope:    core.Development,
+			Direct:   true,
+			Location: "dev-dependencies/" + url.PathEscape(name),
+		})
 	}
 
-	return &core.Result{Name: gleam.Name, Version: gleam.Version, Dependencies: deps}, nil
+	return &core.Result{
+		Name:         gleam.Name,
+		Version:      gleam.Version,
+		Dependencies: deps,
+		Declarations: declarations,
+	}, nil
 }

@@ -52,4 +52,53 @@ func TestGleamToml(t *testing.T) {
 			t.Errorf("%s scope = %v, want %v", exp.name, dep.Scope, exp.scope)
 		}
 	}
+
+	wantDeclarations := map[string]core.Scope{
+		"dependencies/gleam_stdlib": core.Runtime,
+		"dependencies/gleam_http":   core.Runtime,
+		"dev-dependencies/gleeunit": core.Development,
+	}
+	if len(res.Declarations) != len(wantDeclarations) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(res.Declarations), len(wantDeclarations), res.Declarations)
+	}
+	for _, declaration := range res.Declarations {
+		if scope, ok := wantDeclarations[declaration.Location]; !ok || declaration.Scope != scope || !declaration.Direct {
+			t.Errorf("unexpected declaration: %+v", declaration)
+		}
+	}
+}
+
+func TestGleamTomlDeclarationsIgnoreNonHexSources(t *testing.T) {
+	content := []byte(`name = "example"
+version = "1.0.0"
+
+[dependencies]
+gleam_stdlib = ">= 1.0.0 and < 2.0.0"
+local_package = { path = "../local_package" }
+git_package = { git = "https://example.com/git_package.git", ref = "main" }
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
+`)
+
+	result, err := (&gleamTomlParser{}).Parse("gleam.toml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	want := map[string]core.Scope{
+		"dependencies/gleam_stdlib": core.Runtime,
+		"dev-dependencies/gleeunit": core.Development,
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		if scope, ok := want[declaration.Location]; !ok || declaration.Scope != scope || !declaration.Direct {
+			t.Errorf("unexpected declaration: %+v", declaration)
+		}
+	}
+	if len(result.Dependencies) != len(want) {
+		t.Fatalf("Dependencies has %d entries, want %d: %+v", len(result.Dependencies), len(want), result.Dependencies)
+	}
 }

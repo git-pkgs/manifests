@@ -40,9 +40,14 @@ type Dependency struct {
 // before effective-model resolution or inheritance. Location is
 // ecosystem-specific and should be treated as an opaque identity.
 type Declaration struct {
-	Name     string
-	Version  string
-	Scope    Scope
+	Name    string
+	Version string
+	Scope   Scope
+	// Direct reports whether the manifest declares the package as a direct
+	// dependency rather than a generated or transitive requirement.
+	Direct bool
+	// PURL identifies the declared package without a version. Parsers may set
+	// it when a file can contain references from more than one ecosystem.
 	PURL     string
 	Location string
 }

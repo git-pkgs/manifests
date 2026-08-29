@@ -3,10 +3,12 @@ package nuget
 import (
 	"encoding/json"
 	"encoding/xml"
-	"github.com/git-pkgs/manifests/internal/core"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -15,6 +17,7 @@ func init() {
 	core.Register("nuget", core.Manifest, &csprojParser{}, core.SuffixMatch(".fsproj"))
 	core.Register("nuget", core.Manifest, &nuspecParser{}, core.SuffixMatch(".nuspec"))
 	core.Register("nuget", core.Manifest, &packagesConfigParser{}, core.ExactMatch("packages.config"))
+	core.Register("nuget", core.Manifest, &centralPackagesParser{}, core.ExactMatch("Directory.Packages.props"))
 	core.Register("nuget", core.Lockfile, &packagesLockParser{}, core.ExactMatch("packages.lock.json"))
 	core.Register("nuget", core.Lockfile, &paketLockParser{}, core.ExactMatch("paket.lock"))
 	core.Register("nuget", core.Lockfile, &projectAssetsParser{}, core.ExactMatch("project.assets.json"))
@@ -44,19 +47,148 @@ type csprojPropertyGroup struct {
 }
 
 type csprojItemGroup struct {
-	PackageRefs []csprojPackageRef `xml:"PackageReference"`
-	References  []csprojReference  `xml:"Reference"`
+	Condition         string                  `xml:"Condition,attr"`
+	PackageRefs       []csprojPackageRef      `xml:"PackageReference"`
+	PackageVersions   []centralPackageVersion `xml:"PackageVersion"`
+	GlobalPackageRefs []centralPackageVersion `xml:"GlobalPackageReference"`
+	References        []csprojReference       `xml:"Reference"`
 }
 
 type csprojPackageRef struct {
-	Include string `xml:"Include,attr"`
-	Version string `xml:"Version,attr"`
-	VerElem string `xml:"Version"`
+	Include             string `xml:"Include,attr"`
+	Update              string `xml:"Update,attr"`
+	Condition           string `xml:"Condition,attr"`
+	Version             string `xml:"Version,attr"`
+	VerElem             string `xml:"Version"`
+	VersionOverride     string `xml:"VersionOverride,attr"`
+	VersionOverrideElem string `xml:"VersionOverride"`
+}
+
+type centralPackageVersion struct {
+	Include   string `xml:"Include,attr"`
+	Update    string `xml:"Update,attr"`
+	Condition string `xml:"Condition,attr"`
+	Version   string `xml:"Version,attr"`
+	VerElem   string `xml:"Version"`
 }
 
 type csprojReference struct {
 	Include  string `xml:"Include,attr"`
 	HintPath string `xml:"HintPath"`
+}
+
+// appendNuGetDeclaration records a NuGet package reference at a
+// case-insensitive logical location.
+func appendNuGetDeclaration(
+	declarations *[]core.Declaration,
+	locations map[string]int,
+	prefix, name, version string,
+	scope core.Scope,
+) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return
+	}
+	location := core.NextLocation(locations, prefix+"/"+url.PathEscape(strings.ToLower(name)))
+	*declarations = append(*declarations, core.Declaration{
+		Name:     name,
+		Version:  strings.TrimSpace(version),
+		Scope:    scope,
+		Direct:   true,
+		Location: location,
+	})
+}
+
+// packageReferenceName returns the Include or Update identity of a project
+// package reference.
+func packageReferenceName(ref csprojPackageRef) string {
+	if ref.Include != "" {
+		return ref.Include
+	}
+	return ref.Update
+}
+
+// packageReferenceVersion returns the effective inline version declaration,
+// preferring VersionOverride over Version.
+func packageReferenceVersion(ref csprojPackageRef) string {
+	for _, version := range []string{ref.VersionOverride, ref.VersionOverrideElem, ref.Version, ref.VerElem} {
+		if version = strings.TrimSpace(version); version != "" {
+			return version
+		}
+	}
+	return ""
+}
+
+// packageReferenceDependencyVersion returns the version syntax historically
+// exposed through Dependencies for a project package reference.
+func packageReferenceDependencyVersion(ref csprojPackageRef) string {
+	if ref.Version != "" {
+		return ref.Version
+	}
+	return strings.TrimSpace(ref.VerElem)
+}
+
+// collectPackageReferences adds project PackageReference dependencies and
+// declarations from one item group.
+func collectPackageReferences(
+	group csprojItemGroup,
+	deps *[]core.Dependency,
+	declarations *[]core.Declaration,
+	seen map[string]bool,
+	locations map[string]int,
+) {
+	prefix := "package-references"
+	if condition := strings.TrimSpace(group.Condition); condition != "" {
+		prefix += "/" + url.PathEscape(condition)
+	}
+	for _, ref := range group.PackageRefs {
+		name := packageReferenceName(ref)
+		if name == "" {
+			continue
+		}
+		version := packageReferenceVersion(ref)
+		refPrefix := prefix
+		if condition := strings.TrimSpace(ref.Condition); condition != "" {
+			refPrefix += "/" + url.PathEscape(condition)
+		}
+		appendNuGetDeclaration(declarations, locations, refPrefix, name, version, core.Runtime)
+		if ref.Include == "" {
+			continue
+		}
+		if seen[name] {
+			continue
+		}
+		seen[name] = true
+		*deps = append(*deps, core.Dependency{
+			Name:    name,
+			Version: packageReferenceDependencyVersion(ref),
+			Scope:   core.Runtime,
+			Direct:  true,
+		})
+	}
+}
+
+// collectAssemblyReferences adds legacy project Reference dependencies from
+// one item group.
+func collectAssemblyReferences(group csprojItemGroup, deps *[]core.Dependency, seen map[string]bool) {
+	for _, ref := range group.References {
+		if ref.Include == "" {
+			continue
+		}
+
+		// Parse Include attribute: "Name, Version=x.x.x.x, Culture=neutral, ..."
+		name, version := parseReferenceInclude(ref.Include)
+		if name == "" || seen[name] || isSystemAssembly(name) {
+			continue
+		}
+		seen[name] = true
+		*deps = append(*deps, core.Dependency{
+			Name:    name,
+			Version: version,
+			Scope:   core.Runtime,
+			Direct:  true,
+		})
+	}
 }
 
 func (p *csprojParser) Parse(filename string, content []byte) (*core.Result, error) {
@@ -66,54 +198,13 @@ func (p *csprojParser) Parse(filename string, content []byte) (*core.Result, err
 	}
 
 	var deps []core.Dependency
+	var declarations []core.Declaration
 	seen := make(map[string]bool)
+	locations := make(map[string]int)
 
 	for _, group := range project.ItemGroups {
-		// Parse PackageReference elements
-		for _, ref := range group.PackageRefs {
-			name := ref.Include
-			if name == "" || seen[name] {
-				continue
-			}
-			seen[name] = true
-
-			version := ref.Version
-			if version == "" {
-				version = strings.TrimSpace(ref.VerElem)
-			}
-
-			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: version,
-				Scope:   core.Runtime,
-				Direct:  true,
-			})
-		}
-
-		// Parse Reference elements (legacy format)
-		for _, ref := range group.References {
-			if ref.Include == "" {
-				continue
-			}
-
-			// Parse Include attribute: "Name, Version=x.x.x.x, Culture=neutral, ..."
-			name, version := parseReferenceInclude(ref.Include)
-			if name == "" || seen[name] {
-				continue
-			}
-			// Skip system assemblies
-			if isSystemAssembly(name) {
-				continue
-			}
-			seen[name] = true
-
-			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: version,
-				Scope:   core.Runtime,
-				Direct:  true,
-			})
-		}
+		collectPackageReferences(group, &deps, &declarations, seen, locations)
+		collectAssemblyReferences(group, &deps, seen)
 	}
 
 	// Default project name is the filename stem; PackageId or AssemblyName
@@ -132,7 +223,75 @@ func (p *csprojParser) Parse(filename string, content []byte) (*core.Result, err
 		}
 	}
 
-	return &core.Result{Name: selfName, Version: selfVersion, Dependencies: deps}, nil
+	return &core.Result{
+		Name:         selfName,
+		Version:      selfVersion,
+		Dependencies: deps,
+		Declarations: declarations,
+	}, nil
+}
+
+// centralPackagesParser parses Directory.Packages.props files used by NuGet
+// central package management.
+type centralPackagesParser struct{}
+
+// collectCentralPackageItems records package versions or global package
+// references from one central package item group.
+func collectCentralPackageItems(
+	items []centralPackageVersion,
+	groupCondition, prefix string,
+	scope core.Scope,
+	deps *[]core.Dependency,
+	declarations *[]core.Declaration,
+	locations map[string]int,
+) {
+	if condition := strings.TrimSpace(groupCondition); condition != "" {
+		prefix += "/" + url.PathEscape(condition)
+	}
+	for _, pkg := range items {
+		name := pkg.Include
+		if name == "" {
+			name = pkg.Update
+		}
+		version := pkg.Version
+		if version == "" {
+			version = strings.TrimSpace(pkg.VerElem)
+		}
+		if name == "" {
+			continue
+		}
+		if deps != nil {
+			*deps = append(*deps, core.Dependency{
+				Name:    name,
+				Version: version,
+				Scope:   scope,
+				Direct:  true,
+			})
+		}
+		pkgPrefix := prefix
+		if condition := strings.TrimSpace(pkg.Condition); condition != "" {
+			pkgPrefix += "/" + url.PathEscape(condition)
+		}
+		appendNuGetDeclaration(declarations, locations, pkgPrefix, name, version, scope)
+	}
+}
+
+func (p *centralPackagesParser) Parse(filename string, content []byte) (*core.Result, error) {
+	var project csprojProject
+	if err := xml.Unmarshal(content, &project); err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	var deps []core.Dependency
+	var declarations []core.Declaration
+	locations := make(map[string]int)
+	for _, group := range project.ItemGroups {
+		collectCentralPackageItems(group.PackageVersions, group.Condition, "package-versions", core.Runtime,
+			nil, &declarations, locations)
+		collectCentralPackageItems(group.GlobalPackageRefs, group.Condition, "global-package-references", core.Development,
+			&deps, &declarations, locations)
+	}
+	return &core.Result{Dependencies: deps, Declarations: declarations}, nil
 }
 
 // parseReferenceInclude parses a Reference Include attribute.
@@ -208,11 +367,17 @@ func (p *nuspecParser) Parse(filename string, content []byte) (*core.Result, err
 	}
 
 	var deps []core.Dependency
+	var declarations []core.Declaration
 	seen := make(map[string]bool)
+	locations := make(map[string]int)
 
 	// Parse ungrouped dependencies
 	for _, dep := range pkg.Metadata.Dependencies.Deps {
-		if dep.ID == "" || seen[dep.ID] {
+		if dep.ID == "" {
+			continue
+		}
+		appendNuGetDeclaration(&declarations, locations, "dependencies", dep.ID, dep.Version, core.Runtime)
+		if seen[dep.ID] {
 			continue
 		}
 		seen[dep.ID] = true
@@ -227,8 +392,16 @@ func (p *nuspecParser) Parse(filename string, content []byte) (*core.Result, err
 
 	// Parse grouped dependencies
 	for _, group := range pkg.Metadata.Dependencies.Groups {
+		prefix := "dependency-groups"
+		if framework := strings.TrimSpace(group.TargetFramework); framework != "" {
+			prefix += "/" + url.PathEscape(framework)
+		}
 		for _, dep := range group.Deps {
-			if dep.ID == "" || seen[dep.ID] {
+			if dep.ID == "" {
+				continue
+			}
+			appendNuGetDeclaration(&declarations, locations, prefix, dep.ID, dep.Version, core.Runtime)
+			if seen[dep.ID] {
 				continue
 			}
 			seen[dep.ID] = true
@@ -246,6 +419,7 @@ func (p *nuspecParser) Parse(filename string, content []byte) (*core.Result, err
 		Name:         pkg.Metadata.ID,
 		Version:      pkg.Metadata.Version,
 		Dependencies: deps,
+		Declarations: declarations,
 	}
 	licenseValue := strings.TrimSpace(pkg.Metadata.License.Value)
 	switch strings.ToLower(strings.TrimSpace(pkg.Metadata.License.Type)) {
@@ -279,6 +453,8 @@ func (p *packagesConfigParser) Parse(filename string, content []byte) (*core.Res
 	}
 
 	var deps []core.Dependency
+	var declarations []core.Declaration
+	locations := make(map[string]int)
 
 	for _, pkg := range config.Packages {
 		if pkg.ID == "" {
@@ -296,9 +472,10 @@ func (p *packagesConfigParser) Parse(filename string, content []byte) (*core.Res
 			Scope:   scope,
 			Direct:  true,
 		})
+		appendNuGetDeclaration(&declarations, locations, "packages", pkg.ID, pkg.Version, scope)
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Dependencies: deps, Declarations: declarations}, nil
 }
 
 // packagesLockParser parses packages.lock.json files.
@@ -469,6 +646,8 @@ func (p *projectJSONParser) Parse(filename string, content []byte) (*core.Result
 	}
 
 	var deps []core.Dependency
+	var declarations []core.Declaration
+	locations := make(map[string]int)
 
 	for name, value := range proj.Dependencies {
 		version := ""
@@ -487,9 +666,10 @@ func (p *projectJSONParser) Parse(filename string, content []byte) (*core.Result
 			Scope:   core.Runtime,
 			Direct:  true,
 		})
+		appendNuGetDeclaration(&declarations, locations, "dependencies", name, version, core.Runtime)
 	}
 
-	return &core.Result{Dependencies: deps}, nil
+	return &core.Result{Dependencies: deps, Declarations: declarations}, nil
 }
 
 // libraryEntry holds the fields shared by deps.json and project.lock.json libraries.

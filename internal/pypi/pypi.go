@@ -2,7 +2,6 @@ package pypi
 
 import (
 	"encoding/json"
-	"fmt"
 	"maps"
 	"net/url"
 	"regexp"
@@ -432,16 +431,12 @@ func appendPyPIDeclaration(
 		return
 	}
 	identity := pypiNameSeparator.ReplaceAllString(strings.ToLower(name), "-")
-	base := prefix + "/" + url.PathEscape(identity)
-	locations[base]++
-	location := base
-	if locations[base] > 1 {
-		location += fmt.Sprintf("/%d", locations[base])
-	}
+	location := core.NextLocation(locations, prefix+"/"+url.PathEscape(identity))
 	*declarations = append(*declarations, core.Declaration{
 		Name:     name,
 		Version:  strings.TrimSpace(version),
 		Scope:    scope,
+		Direct:   true,
 		Location: location,
 	})
 }

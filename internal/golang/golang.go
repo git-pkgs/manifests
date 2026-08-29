@@ -1,9 +1,11 @@
 package golang
 
 import (
-	"github.com/git-pkgs/manifests/internal/core"
+	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func init() {
@@ -19,6 +21,11 @@ func init() {
 
 // goModParser parses go.mod files.
 type goModParser struct{}
+
+type moduleVersion struct {
+	path    string
+	version string
+}
 
 var (
 	// Single-line require: require example.com/pkg v1.2.3
@@ -37,7 +44,8 @@ var (
 func (p *goModParser) Parse(filename string, content []byte) (*core.Result, error) {
 	lines := strings.Split(string(content), "\n")
 	tools := collectToolPaths(lines)
-	deps := collectRequireDeps(lines, tools)
+	replaced := collectReplacedModules(lines)
+	deps, declarations := collectRequireDeps(lines, tools, replaced)
 
 	var modulePath string
 	for _, line := range lines {
@@ -48,7 +56,7 @@ func (p *goModParser) Parse(filename string, content []byte) (*core.Result, erro
 		}
 	}
 
-	return &core.Result{Name: modulePath, Dependencies: deps}, nil
+	return &core.Result{Name: modulePath, Dependencies: deps, Declarations: declarations}, nil
 }
 
 // collectToolPaths scans go.mod lines for tool directives (both single-line and block form)
@@ -93,9 +101,11 @@ func collectToolPaths(lines []string) map[string]bool {
 
 // collectRequireDeps scans go.mod lines for require directives (both single-line and block form)
 // and returns dependencies, marking tool-related modules as development scope.
-func collectRequireDeps(lines []string, tools map[string]bool) []core.Dependency {
+func collectRequireDeps(lines []string, tools map[string]bool, replaced map[moduleVersion]bool) ([]core.Dependency, []core.Declaration) {
 	var deps []core.Dependency
+	var declarations []core.Declaration
 	inRequireBlock := false
+	locations := make(map[string]int)
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -116,19 +126,86 @@ func collectRequireDeps(lines []string, tools map[string]bool) []core.Dependency
 
 		if strings.HasPrefix(trimmed, "require ") && !strings.Contains(trimmed, "(") {
 			if match := singleRequireRegex.FindStringSubmatch(trimmed); match != nil {
-				deps = append(deps, newRequireDep(match[1], match[2], line, tools))
+				dep := newRequireDep(match[1], match[2], line, tools)
+				deps = append(deps, dep)
+				appendGoDeclaration(&declarations, locations, dep, replaced)
 			}
 			continue
 		}
 
 		if inRequireBlock {
 			if match := requireEntryRegex.FindStringSubmatch(trimmed); match != nil {
-				deps = append(deps, newRequireDep(match[1], match[2], line, tools))
+				dep := newRequireDep(match[1], match[2], line, tools)
+				deps = append(deps, dep)
+				appendGoDeclaration(&declarations, locations, dep, replaced)
 			}
 		}
 	}
 
-	return deps
+	return deps, declarations
+}
+
+// appendGoDeclaration records a require directive unless a replace directive
+// changes that module's source.
+func appendGoDeclaration(
+	declarations *[]core.Declaration,
+	locations map[string]int,
+	dependency core.Dependency,
+	replaced map[moduleVersion]bool,
+) {
+	if replaced[moduleVersion{path: dependency.Name}] ||
+		replaced[moduleVersion{path: dependency.Name, version: dependency.Version}] {
+		return
+	}
+	location := core.NextLocation(locations, "require/"+url.PathEscape(dependency.Name))
+	*declarations = append(*declarations, core.Declaration{
+		Name:     dependency.Name,
+		Version:  dependency.Version,
+		Scope:    dependency.Scope,
+		Direct:   dependency.Direct,
+		Location: location,
+	})
+}
+
+// collectReplacedModules returns module paths named on the left side of a
+// replace directive, in either single-line or block form.
+func collectReplacedModules(lines []string) map[moduleVersion]bool {
+	replaced := make(map[moduleVersion]bool)
+	inReplaceBlock := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "replace (") {
+			inReplaceBlock = true
+			continue
+		}
+		if inReplaceBlock && trimmed == ")" {
+			inReplaceBlock = false
+			continue
+		}
+
+		spec := ""
+		if strings.HasPrefix(trimmed, "replace ") && !strings.Contains(trimmed, "(") {
+			spec = strings.TrimSpace(strings.TrimPrefix(trimmed, "replace "))
+		} else if inReplaceBlock {
+			spec = trimmed
+		}
+		left, _, ok := strings.Cut(spec, "=>")
+		if !ok {
+			continue
+		}
+		fields := strings.Fields(left)
+		if len(fields) > 0 {
+			module := moduleVersion{path: fields[0]}
+			if len(fields) > 1 {
+				module.version = fields[1]
+			}
+			replaced[module] = true
+		}
+	}
+	return replaced
 }
 
 // newRequireDep builds a Dependency from a parsed require entry, determining

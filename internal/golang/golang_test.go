@@ -78,6 +78,64 @@ func TestGoMod(t *testing.T) {
 	}
 }
 
+func TestGoModDeclarations(t *testing.T) {
+	content := []byte(`module example.com/application
+
+go 1.26
+
+require example.com/single v1.0.0
+
+require (
+	example.com/direct v2.0.0
+	example.com/indirect v3.0.0 // indirect
+	example.com/replaced v4.0.0
+	example.com/version-replaced v5.0.0
+	example.com/other-version v5.0.0
+	example.com/tool v6.0.0
+)
+
+tool example.com/tool/cmd/tool
+
+replace example.com/replaced => ../replaced
+
+replace (
+	example.com/version-replaced v5.0.0 => example.com/fork v5.0.1
+	example.com/other-version v4.0.0 => example.com/fork v4.0.1
+)
+`)
+
+	parser := &goModParser{}
+	result, err := parser.Parse("go.mod", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	want := map[string]struct {
+		name   string
+		scope  core.Scope
+		direct bool
+	}{
+		"require/example.com%2Fsingle":        {"example.com/single", core.Runtime, true},
+		"require/example.com%2Fdirect":        {"example.com/direct", core.Runtime, true},
+		"require/example.com%2Findirect":      {"example.com/indirect", core.Runtime, false},
+		"require/example.com%2Fother-version": {"example.com/other-version", core.Runtime, true},
+		"require/example.com%2Ftool":          {"example.com/tool", core.Development, true},
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		expected, ok := want[declaration.Location]
+		if !ok {
+			t.Errorf("unexpected declaration: %+v", declaration)
+			continue
+		}
+		if declaration.Name != expected.name || declaration.Scope != expected.scope || declaration.Direct != expected.direct {
+			t.Errorf("declaration at %q = %+v, want %+v", declaration.Location, declaration, expected)
+		}
+	}
+}
+
 func TestGoSum(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/golang/go.sum")
 	if err != nil {

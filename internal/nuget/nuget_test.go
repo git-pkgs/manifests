@@ -1,6 +1,7 @@
 package nuget
 
 import (
+	"net/url"
 	"os"
 	"testing"
 
@@ -72,6 +73,114 @@ func TestCsproj(t *testing.T) {
 	})
 }
 
+func TestCsprojDeclarations(t *testing.T) {
+	content := []byte(`<Project>
+  <ItemGroup>
+    <PackageReference Include="Example" Version="1.0.0" />
+    <PackageReference Include="example"><VersionOverride>2.0.0</VersionOverride></PackageReference>
+    <PackageReference Update="Central" VersionOverride="3.0.0" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="Conditional" Version="4.0.0" Condition="'$(Configuration)' == 'Debug'" />
+  </ItemGroup>
+</Project>`)
+
+	result, err := (&csprojParser{}).Parse("example.csproj", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	condition := url.PathEscape("'$(TargetFramework)' == 'net8.0'")
+	itemCondition := url.PathEscape("'$(Configuration)' == 'Debug'")
+	want := map[string]string{
+		"package-references/example":   "1.0.0",
+		"package-references/example/2": "2.0.0",
+		"package-references/central":   "3.0.0",
+		"package-references/" + condition + "/" + itemCondition + "/conditional": "4.0.0",
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		if version, ok := want[declaration.Location]; !ok || declaration.Version != version || !declaration.Direct {
+			t.Errorf("unexpected declaration: %+v", declaration)
+		}
+	}
+	if len(result.Dependencies) != 3 {
+		t.Fatalf("Dependencies has %d entries, want 3: %+v", len(result.Dependencies), result.Dependencies)
+	}
+	dependencyVersions := make(map[string]string)
+	for _, dependency := range result.Dependencies {
+		dependencyVersions[dependency.Name] = dependency.Version
+	}
+	if dependencyVersions["Example"] != "1.0.0" ||
+		dependencyVersions["example"] != "" ||
+		dependencyVersions["Conditional"] != "4.0.0" {
+		t.Errorf("Dependencies changed existing PackageReference versions: %+v", result.Dependencies)
+	}
+}
+
+func TestCentralPackagesDeclarations(t *testing.T) {
+	content := []byte(`<Project>
+  <ItemGroup>
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageVersion Update="Serilog"><Version>4.0.0</Version></PackageVersion>
+    <PackageVersion Include="Conditional" Version="5.0.0" Condition="'$(TargetFramework)' == 'net8.0'" />
+  </ItemGroup>
+</Project>`)
+
+	result, err := (&centralPackagesParser{}).Parse("Directory.Packages.props", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := map[string]string{
+		"package-versions/newtonsoft.json": "13.0.3",
+		"package-versions/serilog":         "4.0.0",
+		"package-versions/" + url.PathEscape("'$(TargetFramework)' == 'net8.0'") + "/conditional": "5.0.0",
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		if version, ok := want[declaration.Location]; !ok || declaration.Version != version || !declaration.Direct {
+			t.Errorf("unexpected declaration: %+v", declaration)
+		}
+	}
+	if len(result.Dependencies) != 0 {
+		t.Fatalf("PackageVersion catalog entries should not widen Dependencies: %+v", result.Dependencies)
+	}
+}
+
+func TestCentralPackagesGlobalReferences(t *testing.T) {
+	content := []byte(`<Project>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <GlobalPackageReference Include="Nerdbank.GitVersioning" Version="3.5.119" />
+  </ItemGroup>
+</Project>`)
+
+	result, err := (&centralPackagesParser{}).Parse("Directory.Packages.props", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if len(result.Declarations) != 1 {
+		t.Fatalf("Declarations has %d entries, want 1: %+v", len(result.Declarations), result.Declarations)
+	}
+	condition := url.PathEscape("'$(Configuration)' == 'Debug'")
+	declaration := result.Declarations[0]
+	if declaration.Location != "global-package-references/"+condition+"/nerdbank.gitversioning" ||
+		declaration.Name != "Nerdbank.GitVersioning" || declaration.Version != "3.5.119" ||
+		declaration.Scope != core.Development || !declaration.Direct {
+		t.Errorf("unexpected declaration: %+v", declaration)
+	}
+	if len(result.Dependencies) != 1 {
+		t.Fatalf("Dependencies has %d entries, want 1: %+v", len(result.Dependencies), result.Dependencies)
+	}
+	dependency := result.Dependencies[0]
+	if dependency.Name != "Nerdbank.GitVersioning" || dependency.Version != "3.5.119" ||
+		dependency.Scope != core.Development || !dependency.Direct {
+		t.Errorf("unexpected dependency: %+v", dependency)
+	}
+}
+
 func TestNuspec(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/nuget/example.nuspec")
 	if err != nil {
@@ -116,6 +225,35 @@ func TestNuspec(t *testing.T) {
 	// All dependencies are marked as Runtime
 }
 
+func TestNuspecDeclarationsPreserveGroups(t *testing.T) {
+	content := []byte(`<package><metadata><dependencies>
+  <dependency id="Example" version="[1.0.0]" />
+  <group targetFramework="net8.0"><dependency id="example" version="[2.0.0]" /></group>
+  <group><dependency id="Any" version="[3.0.0]" /></group>
+</dependencies></metadata></package>`)
+
+	result, err := (&nuspecParser{}).Parse("example.nuspec", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := map[string]string{
+		"dependencies/example":             "[1.0.0]",
+		"dependency-groups/net8.0/example": "[2.0.0]",
+		"dependency-groups/any":            "[3.0.0]",
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		if version, ok := want[declaration.Location]; !ok || declaration.Version != version {
+			t.Errorf("unexpected declaration: %+v", declaration)
+		}
+	}
+	if len(result.Dependencies) != 3 {
+		t.Fatalf("Dependencies has %d entries, want 3: %+v", len(result.Dependencies), result.Dependencies)
+	}
+}
+
 func TestPackagesConfig(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/nuget/packages.config")
 	if err != nil {
@@ -130,6 +268,9 @@ func TestPackagesConfig(t *testing.T) {
 
 	if len(res.Dependencies) != 7 {
 		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
+	}
+	if len(res.Declarations) != 7 {
+		t.Fatalf("expected 7 declarations, got %d: %+v", len(res.Declarations), res.Declarations)
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -323,6 +464,9 @@ func TestProjectJSON(t *testing.T) {
 
 	if len(res.Dependencies) != 13 {
 		t.Fatalf("expected 13 dependencies, got %d", len(res.Dependencies))
+	}
+	if len(res.Declarations) != 13 {
+		t.Fatalf("expected 13 declarations, got %d: %+v", len(res.Declarations), res.Declarations)
 	}
 
 	depMap := make(map[string]core.Dependency)

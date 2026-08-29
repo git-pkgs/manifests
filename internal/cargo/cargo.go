@@ -1,6 +1,7 @@
 package cargo
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -29,6 +30,14 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 		Dependencies      map[string]any `toml:"dependencies"`
 		DevDependencies   map[string]any `toml:"dev-dependencies"`
 		BuildDependencies map[string]any `toml:"build-dependencies"`
+		Target            map[string]struct {
+			Dependencies      map[string]any `toml:"dependencies"`
+			DevDependencies   map[string]any `toml:"dev-dependencies"`
+			BuildDependencies map[string]any `toml:"build-dependencies"`
+		} `toml:"target"`
+		Workspace struct {
+			Dependencies map[string]any `toml:"dependencies"`
+		} `toml:"workspace"`
 	}
 
 	if _, err := toml.Decode(string(content), &cargo); err != nil {
@@ -36,47 +45,22 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 	}
 
 	var deps []core.Dependency
+	var declarations []core.Declaration
 	pkgName := cargo.Package.Name
 
-	for name, value := range cargo.Dependencies {
-		version := extractCargoVersion(value)
-		// Skip local path dependencies
-		if isLocalCargoDep(value) {
-			continue
-		}
-		deps = append(deps, core.Dependency{
-			Name:    name,
-			Version: version,
-			Scope:   core.Runtime,
-			Direct:  true,
-		})
+	collectCargoDependencies(&deps, cargo.Dependencies, core.Runtime)
+	collectCargoDependencies(&deps, cargo.DevDependencies, core.Development)
+	collectCargoDependencies(&deps, cargo.BuildDependencies, core.Build)
+	collectCargoDeclarations(&declarations, "dependencies", cargo.Dependencies, core.Runtime, pkgName)
+	collectCargoDeclarations(&declarations, "dev-dependencies", cargo.DevDependencies, core.Development, pkgName)
+	collectCargoDeclarations(&declarations, "build-dependencies", cargo.BuildDependencies, core.Build, pkgName)
+	for target, groups := range cargo.Target {
+		prefix := "target/" + url.PathEscape(target) + "/"
+		collectCargoDeclarations(&declarations, prefix+"dependencies", groups.Dependencies, core.Runtime, pkgName)
+		collectCargoDeclarations(&declarations, prefix+"dev-dependencies", groups.DevDependencies, core.Development, pkgName)
+		collectCargoDeclarations(&declarations, prefix+"build-dependencies", groups.BuildDependencies, core.Build, pkgName)
 	}
-
-	for name, value := range cargo.DevDependencies {
-		version := extractCargoVersion(value)
-		if isLocalCargoDep(value) {
-			continue
-		}
-		deps = append(deps, core.Dependency{
-			Name:    name,
-			Version: version,
-			Scope:   core.Development,
-			Direct:  true,
-		})
-	}
-
-	for name, value := range cargo.BuildDependencies {
-		version := extractCargoVersion(value)
-		if isLocalCargoDep(value) {
-			continue
-		}
-		deps = append(deps, core.Dependency{
-			Name:    name,
-			Version: version,
-			Scope:   core.Build,
-			Direct:  true,
-		})
-	}
+	collectCargoDeclarations(&declarations, "workspace/dependencies", cargo.Workspace.Dependencies, core.Runtime, pkgName)
 
 	// Filter out self-reference
 	filtered := deps[:0]
@@ -96,7 +80,67 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 		Licenses:     licenses,
 		LicenseFile:  cargo.Package.LicenseFile,
 		Dependencies: filtered,
+		Declarations: declarations,
 	}, nil
+}
+
+// collectCargoDependencies appends the dependency inventory from one Cargo
+// dependency table.
+func collectCargoDependencies(dependencies *[]core.Dependency, values map[string]any, scope core.Scope) {
+	for name, value := range values {
+		if isLocalCargoDep(value) {
+			continue
+		}
+		*dependencies = append(*dependencies, core.Dependency{
+			Name:    name,
+			Version: extractCargoVersion(value),
+			Scope:   scope,
+			Direct:  true,
+		})
+	}
+}
+
+// collectCargoDeclarations appends source declarations from one Cargo
+// dependency table.
+func collectCargoDeclarations(
+	declarations *[]core.Declaration,
+	prefix string,
+	values map[string]any,
+	scope core.Scope,
+	selfName string,
+) {
+	for name, value := range values {
+		version := extractCargoVersion(value)
+		declaredName, ok := cargoRegistryDeclaration(name, value)
+		if !ok || declaredName == selfName {
+			continue
+		}
+		*declarations = append(*declarations, core.Declaration{
+			Name:     declaredName,
+			Version:  version,
+			Scope:    scope,
+			Direct:   true,
+			Location: prefix + "/" + url.PathEscape(name),
+		})
+	}
+}
+
+// cargoRegistryDeclaration returns the registry package name for a dependency.
+// Local, git, workspace and named-registry sources are not registry-checkable.
+func cargoRegistryDeclaration(name string, value any) (string, bool) {
+	properties, ok := value.(map[string]any)
+	if !ok {
+		return name, true
+	}
+	for _, source := range []string{"git", "path", "registry", "workspace"} {
+		if _, found := properties[source]; found {
+			return "", false
+		}
+	}
+	if packageName, ok := properties["package"].(string); ok && packageName != "" {
+		return packageName, true
+	}
+	return name, true
 }
 
 func extractCargoVersion(value any) string {

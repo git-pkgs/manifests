@@ -58,6 +58,71 @@ func TestCargoToml(t *testing.T) {
 	}
 }
 
+func TestCargoTomlDeclarations(t *testing.T) {
+	content := []byte(`[package]
+name = "application"
+
+[dependencies]
+serde = "=1.0.0"
+alias = { package = "actual", version = "=2.0.0" }
+local = { path = "../local", version = "=3.0.0" }
+git-dep = { git = "https://example.com/repo.git", version = "=4.0.0" }
+private = { registry = "private", version = "=5.0.0" }
+
+[dev-dependencies]
+serde = "=1.1.0"
+
+[build-dependencies]
+cc = "=1.2.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.0"
+
+[workspace.dependencies]
+anyhow = "=1.0.0"
+`)
+
+	parser := &cargoTomlParser{}
+	result, err := parser.Parse("Cargo.toml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	want := map[string]struct {
+		name    string
+		version string
+		scope   core.Scope
+	}{
+		"dependencies/serde":                     {"serde", "=1.0.0", core.Runtime},
+		"dependencies/alias":                     {"actual", "=2.0.0", core.Runtime},
+		"dev-dependencies/serde":                 {"serde", "=1.1.0", core.Development},
+		"build-dependencies/cc":                  {"cc", "=1.2.0", core.Build},
+		"target/cfg%28unix%29/dependencies/libc": {"libc", "=0.2.0", core.Runtime},
+		"workspace/dependencies/anyhow":          {"anyhow", "=1.0.0", core.Runtime},
+	}
+	if len(result.Declarations) != len(want) {
+		t.Fatalf("Declarations has %d entries, want %d: %+v", len(result.Declarations), len(want), result.Declarations)
+	}
+	for _, declaration := range result.Declarations {
+		expected, ok := want[declaration.Location]
+		if !ok {
+			t.Errorf("unexpected declaration: %+v", declaration)
+			continue
+		}
+		if declaration.Name != expected.name || declaration.Version != expected.version || declaration.Scope != expected.scope {
+			t.Errorf("declaration at %q = %+v, want %+v", declaration.Location, declaration, expected)
+		}
+	}
+	if len(result.Dependencies) != 6 {
+		t.Fatalf("Dependencies has %d entries, want 6: %+v", len(result.Dependencies), result.Dependencies)
+	}
+	for _, dependency := range result.Dependencies {
+		if dependency.Name == "libc" || dependency.Name == "anyhow" {
+			t.Errorf("target and workspace declarations should not widen Dependencies: %+v", dependency)
+		}
+	}
+}
+
 func TestCargoLock(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/cargo/Cargo.lock")
 	if err != nil {

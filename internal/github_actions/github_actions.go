@@ -3,7 +3,6 @@ package github_actions
 import (
 	"net/url"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -95,16 +94,12 @@ func collectStepActions(
 			continue
 		}
 		if !strings.HasPrefix(name, "docker://") {
-			base := "jobs/" + url.PathEscape(jobName) + "/steps/" + url.PathEscape(name)
-			locations[base]++
-			location := base
-			if locations[base] > 1 {
-				location += "/" + strconv.Itoa(locations[base])
-			}
+			location := core.NextLocation(locations, "jobs/"+url.PathEscape(jobName)+"/steps/"+url.PathEscape(name))
 			*declarations = append(*declarations, core.Declaration{
 				Name:     name,
 				Version:  version,
 				Scope:    core.Runtime,
+				Direct:   true,
 				Location: location,
 			})
 		}

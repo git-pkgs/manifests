@@ -139,6 +139,7 @@ func appendMavenDeclaration(
 		Name:     name,
 		Version:  strings.TrimSpace(version),
 		Scope:    scope,
+		Direct:   true,
 		Location: location + "/" + url.PathEscape(key),
 	})
 	return name
