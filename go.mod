@@ -2,6 +2,8 @@ module github.com/git-pkgs/manifests
 
 go 1.26.0
 
+toolchain go1.26.7
+
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bazelbuild/buildtools v0.0.0-20260716142318-04cf7de1434f
