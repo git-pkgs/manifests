@@ -59,6 +59,9 @@ func (p *chartLockParser) Parse(filename string, content []byte) (*core.Result, 
 func helmDependencies(entries []chartDependency) []core.Dependency {
 	dependencies := make([]core.Dependency, 0, len(entries))
 	for _, entry := range entries {
+		if entry.Name == "" {
+			continue
+		}
 		dependencies = append(dependencies, core.Dependency{
 			Name:        entry.Name,
 			Version:     entry.Version,

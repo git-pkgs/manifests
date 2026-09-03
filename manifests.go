@@ -138,13 +138,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		if kind == Lockfile || kind == Supplement {
 			version = res.Dependencies[i].Version
 		}
-		registryURL := res.Dependencies[i].RegistryURL
-		if eco == "helm" {
-			// Helm repositories stay in RegistryURL. The pkg:helm mapping does
-			// not define repository_url as a qualifier.
-			registryURL = ""
-		}
-		res.Dependencies[i].PURL = makePURL(eco, res.Dependencies[i].Name, version, registryURL)
+		res.Dependencies[i].PURL = makePURL(eco, res.Dependencies[i].Name, version, res.Dependencies[i].RegistryURL)
 	}
 	for i := range res.Declarations {
 		res.Declarations[i].PURL = declarationPURL(eco, res.Declarations[i])
