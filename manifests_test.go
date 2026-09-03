@@ -844,6 +844,12 @@ func TestHelmPURLsAndDigest(t *testing.T) {
 	if postgresql.RegistryURL != "https://charts.bitnami.com/bitnami" {
 		t.Errorf("Chart.yaml postgresql RegistryURL = %q", postgresql.RegistryURL)
 	}
+	localChart := chartDependencies["local-chart"]
+	wantSource := Source{Kind: SourcePath, Value: "../local-chart"}
+	if localChart.RegistryURL != "" || localChart.Source != wantSource {
+		t.Errorf("Chart.yaml local-chart RegistryURL/Source = %q %+v, want empty %+v",
+			localChart.RegistryURL, localChart.Source, wantSource)
+	}
 
 	lockContent, err := os.ReadFile("testdata/helm/Chart.lock")
 	if err != nil {

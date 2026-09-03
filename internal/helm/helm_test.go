@@ -27,43 +27,14 @@ func TestChart(t *testing.T) {
 		t.Errorf("Version = %q, want %q", result.Version, "1.2.3")
 	}
 
-	want := map[string]struct {
-		version    string
-		repository string
-	}{
-		"postgresql":     {"~12.1.9", "https://charts.bitnami.com/bitnami"},
-		"redis":          {"^17.3.0", "oci://registry-1.docker.io/bitnamicharts"},
-		"metrics-server": {">=3.8.0 <4.0.0", "@internal"},
-		"common":         {"1.x.x", "alias:partner"},
-		"local-chart":    {"0.1.0", "file://../local-chart"},
-		"plugin-chart":   {"2.0.0", "s3://company-charts"},
-	}
-	if len(result.Dependencies) != len(want) {
-		t.Fatalf("Dependencies has %d entries, want %d", len(result.Dependencies), len(want))
-	}
-	seen := make(map[string]bool, len(result.Dependencies))
-	for _, dependency := range result.Dependencies {
-		expected, ok := want[dependency.Name]
-		if !ok {
-			t.Errorf("unexpected dependency: %+v", dependency)
-			continue
-		}
-		seen[dependency.Name] = true
-		if dependency.Version != expected.version {
-			t.Errorf("%s Version = %q, want %q", dependency.Name, dependency.Version, expected.version)
-		}
-		if dependency.RegistryURL != expected.repository {
-			t.Errorf("%s RegistryURL = %q, want %q", dependency.Name, dependency.RegistryURL, expected.repository)
-		}
-		if dependency.Scope != core.Runtime || !dependency.Direct {
-			t.Errorf("unexpected dependency metadata: %+v", dependency)
-		}
-	}
-	for name := range want {
-		if !seen[name] {
-			t.Errorf("missing dependency %q", name)
-		}
-	}
+	assertHelmDependencies(t, result.Dependencies, map[string]helmDependencyExpectation{
+		"postgresql":     {"~12.1.9", "https://charts.bitnami.com/bitnami", core.Source{}},
+		"redis":          {"^17.3.0", "oci://registry-1.docker.io/bitnamicharts", core.Source{}},
+		"metrics-server": {">=3.8.0 <4.0.0", "", core.Source{}},
+		"common":         {"1.x.x", "", core.Source{}},
+		"local-chart":    {"0.1.0", "", core.Source{Kind: core.SourcePath, Value: "../local-chart"}},
+		"plugin-chart":   {"2.0.0", "s3://company-charts", core.Source{}},
+	})
 }
 
 func TestChartWithoutDependencies(t *testing.T) {
@@ -98,38 +69,17 @@ func TestChartLock(t *testing.T) {
 		t.Errorf("Digest = %q", result.Digest)
 	}
 
-	want := map[string]struct {
-		version    string
-		repository string
-	}{
-		"postgresql":     {"12.1.15", "https://charts.bitnami.com/bitnami"},
-		"redis":          {"17.3.7", "oci://registry-1.docker.io/bitnamicharts"},
-		"metrics-server": {"3.12.2", "@internal"},
-		"common":         {"1.17.1", "alias:partner"},
-		"local-chart":    {"0.1.0", "file://../local-chart"},
-		"plugin-chart":   {"2.0.0", "s3://company-charts"},
-	}
-	if len(result.Dependencies) != len(want) {
-		t.Fatalf("Dependencies has %d entries, want %d", len(result.Dependencies), len(want))
-	}
-	seen := make(map[string]bool, len(result.Dependencies))
+	assertHelmDependencies(t, result.Dependencies, map[string]helmDependencyExpectation{
+		"postgresql":     {"12.1.15", "https://charts.bitnami.com/bitnami", core.Source{}},
+		"redis":          {"17.3.7", "oci://registry-1.docker.io/bitnamicharts", core.Source{}},
+		"metrics-server": {"3.12.2", "", core.Source{}},
+		"common":         {"1.17.1", "", core.Source{}},
+		"local-chart":    {"0.1.0", "", core.Source{Kind: core.SourcePath, Value: "../local-chart"}},
+		"plugin-chart":   {"2.0.0", "s3://company-charts", core.Source{}},
+	})
 	for _, dependency := range result.Dependencies {
-		expected, ok := want[dependency.Name]
-		if !ok {
-			t.Errorf("unexpected dependency: %+v", dependency)
-			continue
-		}
-		seen[dependency.Name] = true
-		if dependency.Version != expected.version || dependency.RegistryURL != expected.repository {
-			t.Errorf("unexpected dependency: %+v", dependency)
-		}
-		if dependency.Scope != core.Runtime || !dependency.Direct || dependency.Integrity != "" {
-			t.Errorf("unexpected dependency metadata: %+v", dependency)
-		}
-	}
-	for name := range want {
-		if !seen[name] {
-			t.Errorf("missing dependency %q", name)
+		if dependency.Integrity != "" {
+			t.Errorf("%s Integrity = %q, want empty", dependency.Name, dependency.Integrity)
 		}
 	}
 
@@ -166,6 +116,45 @@ func TestChartLockMissingOptionalFields(t *testing.T) {
 	dependency := result.Dependencies[0]
 	if dependency.Name != "bundled" || dependency.Version != "1.2.3" || dependency.RegistryURL != "" {
 		t.Errorf("unexpected dependency: %+v", dependency)
+	}
+}
+
+type helmDependencyExpectation struct {
+	version     string
+	registryURL string
+	source      core.Source
+}
+
+func assertHelmDependencies(t *testing.T, got []core.Dependency, want map[string]helmDependencyExpectation) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("Dependencies has %d entries, want %d", len(got), len(want))
+	}
+	seen := make(map[string]bool, len(got))
+	for _, dependency := range got {
+		expected, ok := want[dependency.Name]
+		if !ok {
+			t.Errorf("unexpected dependency: %+v", dependency)
+			continue
+		}
+		seen[dependency.Name] = true
+		if dependency.Version != expected.version {
+			t.Errorf("%s Version = %q, want %q", dependency.Name, dependency.Version, expected.version)
+		}
+		if dependency.RegistryURL != expected.registryURL {
+			t.Errorf("%s RegistryURL = %q, want %q", dependency.Name, dependency.RegistryURL, expected.registryURL)
+		}
+		if dependency.Source != expected.source {
+			t.Errorf("%s Source = %+v, want %+v", dependency.Name, dependency.Source, expected.source)
+		}
+		if dependency.Scope != core.Runtime || !dependency.Direct {
+			t.Errorf("unexpected dependency metadata: %+v", dependency)
+		}
+	}
+	for name := range want {
+		if !seen[name] {
+			t.Errorf("missing dependency %q", name)
+		}
 	}
 }
 

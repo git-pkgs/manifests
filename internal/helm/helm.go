@@ -1,6 +1,8 @@
 package helm
 
 import (
+	"strings"
+
 	"github.com/git-pkgs/manifests/internal/core"
 	"gopkg.in/yaml.v3"
 )
@@ -62,13 +64,32 @@ func helmDependencies(entries []chartDependency) []core.Dependency {
 		if entry.Name == "" {
 			continue
 		}
+		registryURL, source := helmRepository(entry.Repository)
 		dependencies = append(dependencies, core.Dependency{
 			Name:        entry.Name,
 			Version:     entry.Version,
 			Scope:       core.Runtime,
 			Direct:      true,
-			RegistryURL: entry.Repository,
+			RegistryURL: registryURL,
+			Source:      source,
 		})
 	}
 	return dependencies
+}
+
+// helmRepository classifies a Chart.yaml repository value. file:// paths are
+// preserved as Source declarations rather than registry URLs, and @alias /
+// alias: references are dropped because they resolve only against the
+// author's local helm repo list. Everything else is a network location.
+func helmRepository(repo string) (string, core.Source) {
+	switch {
+	case repo == "":
+		return "", core.Source{}
+	case strings.HasPrefix(repo, "file://"):
+		return "", core.Source{Kind: core.SourcePath, Value: strings.TrimPrefix(repo, "file://")}
+	case strings.HasPrefix(repo, "@"), strings.HasPrefix(repo, "alias:"):
+		return "", core.Source{}
+	default:
+		return repo, core.Source{}
+	}
 }
