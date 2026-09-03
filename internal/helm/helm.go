@@ -78,18 +78,12 @@ func helmDependencies(entries []chartDependency) []core.Dependency {
 }
 
 // helmRepository classifies a Chart.yaml repository value. file:// paths are
-// preserved as Source declarations rather than registry URLs, and @alias /
-// alias: references are dropped because they resolve only against the
-// author's local helm repo list. Everything else is a network location.
+// preserved as Source declarations rather than registry URLs. Everything
+// else, including unresolved @name and alias:name references, is kept in
+// RegistryURL as declared.
 func helmRepository(repo string) (string, core.Source) {
-	switch {
-	case repo == "":
-		return "", core.Source{}
-	case strings.HasPrefix(repo, "file://"):
+	if strings.HasPrefix(repo, "file://") {
 		return "", core.Source{Kind: core.SourcePath, Value: strings.TrimPrefix(repo, "file://")}
-	case strings.HasPrefix(repo, "@"), strings.HasPrefix(repo, "alias:"):
-		return "", core.Source{}
-	default:
-		return repo, core.Source{}
 	}
+	return repo, core.Source{}
 }

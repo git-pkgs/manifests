@@ -30,8 +30,8 @@ func TestChart(t *testing.T) {
 	assertHelmDependencies(t, result.Dependencies, map[string]helmDependencyExpectation{
 		"postgresql":     {"~12.1.9", "https://charts.bitnami.com/bitnami", core.Source{}},
 		"redis":          {"^17.3.0", "oci://registry-1.docker.io/bitnamicharts", core.Source{}},
-		"metrics-server": {">=3.8.0 <4.0.0", "", core.Source{}},
-		"common":         {"1.x.x", "", core.Source{}},
+		"metrics-server": {">=3.8.0 <4.0.0", "@internal", core.Source{}},
+		"common":         {"1.x.x", "alias:partner", core.Source{}},
 		"local-chart":    {"0.1.0", "", core.Source{Kind: core.SourcePath, Value: "../local-chart"}},
 		"plugin-chart":   {"2.0.0", "s3://company-charts", core.Source{}},
 	})
@@ -72,8 +72,8 @@ func TestChartLock(t *testing.T) {
 	assertHelmDependencies(t, result.Dependencies, map[string]helmDependencyExpectation{
 		"postgresql":     {"12.1.15", "https://charts.bitnami.com/bitnami", core.Source{}},
 		"redis":          {"17.3.7", "oci://registry-1.docker.io/bitnamicharts", core.Source{}},
-		"metrics-server": {"3.12.2", "", core.Source{}},
-		"common":         {"1.17.1", "", core.Source{}},
+		"metrics-server": {"3.12.2", "@internal", core.Source{}},
+		"common":         {"1.17.1", "alias:partner", core.Source{}},
 		"local-chart":    {"0.1.0", "", core.Source{Kind: core.SourcePath, Value: "../local-chart"}},
 		"plugin-chart":   {"2.0.0", "s3://company-charts", core.Source{}},
 	})
