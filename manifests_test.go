@@ -854,6 +854,14 @@ func TestHelmPURLsAndDigest(t *testing.T) {
 		t.Errorf("Chart.yaml local-chart RegistryURL/Source = %q %+v, want empty %+v",
 			localChart.RegistryURL, localChart.Source, wantSource)
 	}
+	metricsServer := chartDependencies["metrics-server"]
+	if metricsServer.RegistryURL != "@internal" {
+		t.Errorf("Chart.yaml metrics-server RegistryURL = %q, want @internal", metricsServer.RegistryURL)
+	}
+	common := chartDependencies["common"]
+	if common.RegistryURL != "alias:partner" {
+		t.Errorf("Chart.yaml common RegistryURL = %q, want alias:partner", common.RegistryURL)
+	}
 
 	lockContent, err := os.ReadFile("testdata/helm/Chart.lock")
 	if err != nil {
