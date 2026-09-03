@@ -10,6 +10,8 @@ import (
 func init() {
 	core.Register("helm", core.Manifest, &chartParser{}, core.ExactMatch("Chart.yaml"))
 	core.Register("helm", core.Lockfile, &chartLockParser{}, core.ExactMatch("Chart.lock"))
+	core.Register("helm", core.Manifest, &requirementsParser{}, core.ExactMatch("requirements.yaml"))
+	core.Register("helm", core.Lockfile, &chartLockParser{}, core.ExactMatch("requirements.lock"))
 }
 
 type chartParser struct{}
@@ -36,6 +38,25 @@ func (p *chartParser) Parse(filename string, content []byte) (*core.Result, erro
 		Name:         chart.Name,
 		Version:      chart.Version,
 		Dependencies: helmDependencies(chart.Dependencies),
+	}, nil
+}
+
+// requirementsParser handles Helm v2 requirements.yaml, which holds only the
+// dependencies list that later moved into Chart.yaml.
+type requirementsParser struct{}
+
+type requirementsFile struct {
+	Dependencies []chartDependency `yaml:"dependencies"`
+}
+
+func (p *requirementsParser) Parse(filename string, content []byte) (*core.Result, error) {
+	var requirements requirementsFile
+	if err := yaml.Unmarshal(content, &requirements); err != nil {
+		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	return &core.Result{
+		Dependencies: helmDependencies(requirements.Dependencies),
 	}, nil
 }
 

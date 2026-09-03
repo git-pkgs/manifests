@@ -119,6 +119,44 @@ func TestChartLockMissingOptionalFields(t *testing.T) {
 	}
 }
 
+func TestLegacyRequirements(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/helm/legacy/requirements.yaml")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	result, err := (&requirementsParser{}).Parse("requirements.yaml", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if result.Name != "" || result.Version != "" || result.Digest != "" {
+		t.Errorf("identity/digest = %q %q %q, want empty", result.Name, result.Version, result.Digest)
+	}
+	assertHelmDependencies(t, result.Dependencies, map[string]helmDependencyExpectation{
+		"postgresql":  {"~12.1.9", "https://charts.bitnami.com/bitnami", core.Source{}},
+		"local-chart": {"0.1.0", "", core.Source{Kind: core.SourcePath, Value: "../local-chart"}},
+	})
+}
+
+func TestLegacyRequirementsLock(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/helm/legacy/requirements.lock")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	result, err := (&chartLockParser{}).Parse("requirements.lock", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if result.Digest != "sha256:c0791884c74a54ad3fee9805d70df2f80f38dd1d1f4e0af48d95fcee8b4b3ce6" {
+		t.Errorf("Digest = %q", result.Digest)
+	}
+	assertHelmDependencies(t, result.Dependencies, map[string]helmDependencyExpectation{
+		"postgresql":  {"12.1.15", "https://charts.bitnami.com/bitnami", core.Source{}},
+		"local-chart": {"0.1.0", "", core.Source{Kind: core.SourcePath, Value: "../local-chart"}},
+	})
+}
+
 type helmDependencyExpectation struct {
 	version     string
 	registryURL string
@@ -166,6 +204,7 @@ func TestMalformedYAML(t *testing.T) {
 	}{
 		{name: "chart", filename: "Chart.yaml", parser: &chartParser{}},
 		{name: "lock", filename: "Chart.lock", parser: &chartLockParser{}},
+		{name: "requirements", filename: "requirements.yaml", parser: &requirementsParser{}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

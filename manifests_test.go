@@ -36,6 +36,8 @@ func TestParseAllEcosystems(t *testing.T) {
 		{"composer composer.lock", "testdata/composer/composer.lock", "composer", Lockfile},
 		{"helm Chart.yaml", "testdata/helm/Chart.yaml", "helm", Manifest},
 		{"helm Chart.lock", "testdata/helm/Chart.lock", "helm", Lockfile},
+		{"helm requirements.yaml", "testdata/helm/legacy/requirements.yaml", "helm", Manifest},
+		{"helm requirements.lock", "testdata/helm/legacy/requirements.lock", "helm", Lockfile},
 	}
 
 	for _, tc := range testCases {
@@ -674,6 +676,8 @@ func TestIdentifyFiles(t *testing.T) {
 		// helm
 		{"Chart.yaml", "helm", Manifest, true},
 		{"Chart.lock", "helm", Lockfile, true},
+		{"requirements.yaml", "helm", Manifest, true},
+		{"requirements.lock", "helm", Lockfile, true},
 
 		// unknown
 		{"unknown.txt", "", "", false},

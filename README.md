@@ -67,7 +67,7 @@ func main() {
 | guix | manifest.scm, *-manifest.scm | |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
 | haxelib | haxelib.json | |
-| helm | Chart.yaml | Chart.lock |
+| helm | Chart.yaml, requirements.yaml | Chart.lock, requirements.lock |
 | hex | mix.exs, gleam.toml | mix.lock, rebar.lock |
 | ips | *.p5m | |
 | julia | Project.toml, REQUIRE | Manifest.toml |
@@ -103,6 +103,7 @@ func main() {
 | Cargo.lock | ✓ | ✓ | | |
 | Cartfile.resolved | | | | |
 | Chart.lock | ✓ | | | ✓ |
+| requirements.lock | ✓ | | | ✓ |
 | poetry.lock | ✓ | ✓ | ✓ | |
 | Pipfile.lock | ✓ | ✓ | ✓ | |
 | pdm.lock | | ✓ | ✓ | |

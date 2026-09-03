@@ -1,0 +1,9 @@
+dependencies:
+  - name: postgresql
+    repository: https://charts.bitnami.com/bitnami
+    version: 12.1.15
+  - name: local-chart
+    repository: file://../local-chart
+    version: 0.1.0
+digest: sha256:c0791884c74a54ad3fee9805d70df2f80f38dd1d1f4e0af48d95fcee8b4b3ce6
+generated: "2020-01-15T10:00:00Z"
