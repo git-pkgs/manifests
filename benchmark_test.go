@@ -63,6 +63,7 @@ var benchmarkFixtures = map[string][]string{
 		"testdata/cpan/cpanfile",
 		"testdata/chef/metadata.rb",
 		"testdata/chef/Berksfile",
+		"testdata/vagrant/Vagrantfile",
 	},
 }
 

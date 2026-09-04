@@ -60,6 +60,7 @@ const (
 	SourceGit      SourceKind = core.SourceGit
 	SourcePath     SourceKind = core.SourcePath
 	SourceGitHub   SourceKind = core.SourceGitHub
+	SourceURL      SourceKind = core.SourceURL
 )
 
 // ParseResult contains the parsed dependencies from a manifest or lockfile.
@@ -169,10 +170,10 @@ func declarationPURL(ecosystem string, declaration core.Declaration) string {
 
 // makePURL creates a Package URL for a dependency.
 func makePURL(ecosystem, name, version, registryURL string) string {
-	// Chef is still a candidate PURL type without accepted name or namespace
-	// rules. Keep identities empty instead of inventing a mapping that callers
-	// could mistake for a standardized PURL.
-	if ecosystem == "chef" {
+	// Chef and Vagrant are still candidate PURL types without accepted name or
+	// namespace rules. Keep identities empty instead of inventing mappings that
+	// callers could mistake for standardized PURLs.
+	if ecosystem == "chef" || ecosystem == "vagrant" {
 		return ""
 	}
 	return purl.BuildPURLString(ecosystem, name, version, registryURL)

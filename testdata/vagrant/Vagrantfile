@@ -1,0 +1,10 @@
+# -*- mode: ruby -*-
+Vagrant.configure("2") do |config|
+  config.vm.box = "hashicorp/bionic64"
+  config.vm.box_version = ">= 1.0, < 2.0"
+  config.vm.box_url = "https://boxes.example.test/bionic64.json#catalog" # custom catalog
+  config.vm.box_download_checksum = "7c222fb2927d828af22f592134e8932480637c0d1a013007ed9b92a65e53724e"
+  config.vm.box_download_checksum_type = "sha256"
+
+  config.vm.network "forwarded_port", guest: 80, host: 8080
+end

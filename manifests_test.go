@@ -38,6 +38,7 @@ func TestParseAllEcosystems(t *testing.T) {
 		{"helm Chart.lock", "testdata/helm/Chart.lock", "helm", Lockfile},
 		{"helm requirements.yaml", "testdata/helm/legacy/requirements.yaml", "helm", Manifest},
 		{"helm requirements.lock", "testdata/helm/legacy/requirements.lock", "helm", Lockfile},
+		{"vagrant Vagrantfile", "testdata/vagrant/Vagrantfile", "vagrant", Manifest},
 	}
 
 	for _, tc := range testCases {
@@ -81,10 +82,40 @@ func TestEcosystems(t *testing.T) {
 		seen[e] = true
 	}
 
-	for _, want := range []string{"npm", "gem", "cargo", "golang", "pypi", "maven", "chef", "helm"} {
+	for _, want := range []string{"npm", "gem", "cargo", "golang", "pypi", "maven", "chef", "helm", "vagrant"} {
 		if !slices.Contains(got, want) {
 			t.Errorf("Ecosystems() missing %q", want)
 		}
+	}
+}
+
+func TestVagrantManifestRegistrationAndCandidatePURLs(t *testing.T) {
+	t.Parallel()
+
+	ecosystem, kind, ok := Identify("environments/example/Vagrantfile")
+	if !ok || ecosystem != "vagrant" || kind != Manifest {
+		t.Fatalf("Identify(Vagrantfile) = %q, %q, %v; want vagrant manifest", ecosystem, kind, ok)
+	}
+	content, err := os.ReadFile("testdata/vagrant/Vagrantfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := Parse("Vagrantfile", content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Dependencies) != 1 || len(result.Declarations) != 1 {
+		t.Fatalf("result = %+v, want one dependency and declaration", result)
+	}
+	dependency := result.Dependencies[0]
+	if dependency.Name != "hashicorp/bionic64" || dependency.PURL != "" ||
+		dependency.Source != (Source{Kind: SourceURL, Value: "https://boxes.example.test/bionic64.json#catalog"}) {
+		t.Errorf("dependency = %+v, want namespaced candidate box with URL source", dependency)
+	}
+	declaration := result.Declarations[0]
+	if declaration.PURL != "" || declaration.Location != "config.vm.box" ||
+		declaration.Source != dependency.Source {
+		t.Errorf("declaration = %+v, want candidate box declaration with matching source", declaration)
 	}
 }
 

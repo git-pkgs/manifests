@@ -31,6 +31,7 @@ const (
 	SourceGit      SourceKind = "git"
 	SourcePath     SourceKind = "path"
 	SourceGitHub   SourceKind = "github"
+	SourceURL      SourceKind = "url"
 )
 
 // Source preserves an explicit source declaration without claiming that a

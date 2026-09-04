@@ -84,6 +84,7 @@ func main() {
 | pypi | requirements.txt, Pipfile, pyproject.toml, setup.py, setup.cfg | Pipfile.lock, poetry.lock, pdm.lock, uv.lock, pip-dependency-graph.json, pip-resolved-dependencies.txt, pylock.toml |
 | rpm | *.spec | |
 | swift | Package.swift | Package.resolved |
+| vagrant | Vagrantfile | |
 | vcpkg | vcpkg.json | |
 
 ## Lockfile Feature Support
@@ -286,7 +287,7 @@ entries when the source format records that distinction, such as `go.mod`.
 
 ```go
 type Source struct {
-    Kind   SourceKind // registry, git, path, or github
+    Kind   SourceKind // registry, git, path, github, or url
     Value  string     // Literal URL, path, or ecosystem coordinate
     Branch string     // Literal branch selector
     Tag    string     // Literal tag selector
@@ -304,13 +305,16 @@ otherwise attributable package registries and is not used for Git repositories
 or local paths. Chef Git and GitHub sources also retain literal `branch`, `tag`,
 `ref`, and `rel` options without resolving them.
 
+Direct artifact or catalog URLs, such as Vagrant `box_url` values, use the
+`url` source kind and retain the complete literal URL.
+
 Parsers that do not preserve source locations leave `Declarations` empty.
 Declarations are available for `package.json`, Cargo manifests, `go.mod`, Python
 requirements files, `pyproject.toml`, GitHub Actions workflows, `gleam.toml`,
-`pom.xml`, NuGet project and package files, and
-`Directory.Packages.props`. The Maven parser includes parents,
-dependencies, dependency management, plugins, plugin dependencies, plugin
-management, build extensions, and their profile-scoped forms.
+`pom.xml`, NuGet project and package files, `Directory.Packages.props`, Chef
+manifests, and `Vagrantfile`. The Maven parser includes parents, dependencies,
+dependency management, plugins, plugin dependencies, plugin management, build
+extensions, and their profile-scoped forms.
 
 ### ParseResult
 
@@ -335,8 +339,8 @@ type ParseResult struct {
 
 `Digest` contains a file-level verification value when the format defines one. For `Chart.lock`, it covers the dependency declarations from `Chart.yaml` and is separate from each dependency's `Integrity` value.
 
-Chef cookbook PURLs remain empty while `chef` is only a candidate Package URL
-type without accepted name and namespace rules.
+Chef cookbook and Vagrant box PURLs remain empty while `chef` and `vagrant`
+are only candidate Package URL types without accepted name and namespace rules.
 
 ### Vendor Discovery
 

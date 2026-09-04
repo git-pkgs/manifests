@@ -47,5 +47,6 @@ import (
 	_ "github.com/git-pkgs/manifests/internal/rebar"
 	_ "github.com/git-pkgs/manifests/internal/rpm"
 	_ "github.com/git-pkgs/manifests/internal/swift"
+	_ "github.com/git-pkgs/manifests/internal/vagrant"
 	_ "github.com/git-pkgs/manifests/internal/vcpkg"
 )
