@@ -14,6 +14,6 @@ require (
 )
 
 require (
-	github.com/git-pkgs/vers v0.6.0 // indirect
+	github.com/git-pkgs/vers v0.7.0 // indirect
 	github.com/package-url/packageurl-go v0.1.7 // indirect
 )
