@@ -7,7 +7,7 @@ import (
 
 	"github.com/git-pkgs/manifests/internal/core"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 func init() {

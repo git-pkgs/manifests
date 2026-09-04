@@ -6,7 +6,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/git-pkgs/manifests/internal/core"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 const basePackageSegments = 3 // e.g. github.com/owner/repo
