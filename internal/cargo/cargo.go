@@ -19,13 +19,26 @@ func init() {
 // cargoTomlParser parses Cargo.toml files.
 type cargoTomlParser struct{}
 
+// inheritableString decodes a Cargo [package] field that may be a literal
+// string or the workspace-inheritance table form {workspace = true}. The
+// inherited value is not resolvable from a single file, so the table form
+// yields the zero value instead of failing the whole decode.
+type inheritableString string
+
+func (s *inheritableString) UnmarshalTOML(v any) error {
+	if str, ok := v.(string); ok {
+		*s = inheritableString(str)
+	}
+	return nil
+}
+
 func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var cargo struct {
 		Package struct {
-			Name        string `toml:"name"`
-			Version     string `toml:"version"`
-			License     string `toml:"license"`
-			LicenseFile string `toml:"license-file"`
+			Name        string            `toml:"name"`
+			Version     inheritableString `toml:"version"`
+			License     inheritableString `toml:"license"`
+			LicenseFile inheritableString `toml:"license-file"`
 		} `toml:"package"`
 		Dependencies      map[string]any `toml:"dependencies"`
 		DevDependencies   map[string]any `toml:"dev-dependencies"`
@@ -72,13 +85,13 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 
 	var licenses []string
 	if cargo.Package.License != "" {
-		licenses = []string{cargo.Package.License}
+		licenses = []string{string(cargo.Package.License)}
 	}
 	return &core.Result{
 		Name:         pkgName,
-		Version:      cargo.Package.Version,
+		Version:      string(cargo.Package.Version),
 		Licenses:     licenses,
-		LicenseFile:  cargo.Package.LicenseFile,
+		LicenseFile:  string(cargo.Package.LicenseFile),
 		Dependencies: filtered,
 		Declarations: declarations,
 	}, nil

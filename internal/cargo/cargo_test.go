@@ -123,6 +123,60 @@ anyhow = "=1.0.0"
 	}
 }
 
+func TestCargoTomlWorkspaceInheritedPackageFields(t *testing.T) {
+	content := []byte(`[package]
+name = "member"
+version.workspace = true
+license.workspace = true
+license-file = { workspace = true }
+edition.workspace = true
+
+[dependencies]
+serde = "1.0"
+`)
+
+	parser := &cargoTomlParser{}
+	result, err := parser.Parse("Cargo.toml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if result.Name != "member" {
+		t.Errorf("Name = %q, want %q", result.Name, "member")
+	}
+	if result.Version != "" {
+		t.Errorf("Version = %q, want empty for workspace-inherited", result.Version)
+	}
+	if result.Licenses != nil {
+		t.Errorf("Licenses = %v, want nil for workspace-inherited", result.Licenses)
+	}
+	if result.LicenseFile != "" {
+		t.Errorf("LicenseFile = %q, want empty for workspace-inherited", result.LicenseFile)
+	}
+	if len(result.Dependencies) != 1 || result.Dependencies[0].Name != "serde" {
+		t.Fatalf("Dependencies = %+v, want [serde]", result.Dependencies)
+	}
+
+	literal := []byte(`[package]
+name = "root"
+version = "1.2.3"
+license = "MIT OR Apache-2.0"
+license-file = "COPYING"
+`)
+	result, err = parser.Parse("Cargo.toml", literal)
+	if err != nil {
+		t.Fatalf("Parse literal failed: %v", err)
+	}
+	if result.Version != "1.2.3" {
+		t.Errorf("literal Version = %q, want %q", result.Version, "1.2.3")
+	}
+	if len(result.Licenses) != 1 || result.Licenses[0] != "MIT OR Apache-2.0" {
+		t.Errorf("literal Licenses = %v, want [MIT OR Apache-2.0]", result.Licenses)
+	}
+	if result.LicenseFile != "COPYING" {
+		t.Errorf("literal LicenseFile = %q, want %q", result.LicenseFile, "COPYING")
+	}
+}
+
 func TestCargoLock(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/cargo/Cargo.lock")
 	if err != nil {
