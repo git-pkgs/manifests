@@ -177,6 +177,57 @@ license-file = "COPYING"
 	}
 }
 
+func TestCargoTomlDependencySource(t *testing.T) {
+	content := []byte(`[package]
+name = "app"
+
+[dependencies]
+plain = "1.0"
+table = { version = "2.0" }
+git-default = { git = "https://example.com/a.git" }
+git-branch = { git = "https://example.com/b.git", branch = "next" }
+git-tag = { git = "https://example.com/c.git", tag = "v1.0.0" }
+git-rev = { git = "https://example.com/d.git", rev = "abc123" }
+private = { registry = "internal", version = "3.0" }
+inherited = { workspace = true }
+local = { path = "../local" }
+`)
+
+	parser := &cargoTomlParser{}
+	result, err := parser.Parse("Cargo.toml", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	got := make(map[string]core.Source)
+	for _, d := range result.Dependencies {
+		got[d.Name] = d.Source
+	}
+
+	if _, ok := got["local"]; ok {
+		t.Error("path dependency should be filtered")
+	}
+
+	want := map[string]core.Source{
+		"plain":       {},
+		"table":       {},
+		"inherited":   {},
+		"git-default": {Kind: core.SourceGit, Value: "https://example.com/a.git"},
+		"git-branch":  {Kind: core.SourceGit, Value: "https://example.com/b.git", Branch: "next"},
+		"git-tag":     {Kind: core.SourceGit, Value: "https://example.com/c.git", Tag: "v1.0.0"},
+		"git-rev":     {Kind: core.SourceGit, Value: "https://example.com/d.git", Ref: "abc123"},
+		"private":     {Kind: core.SourceRegistry, Value: "internal"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d dependencies, want %d: %+v", len(got), len(want), got)
+	}
+	for name, source := range want {
+		if got[name] != source {
+			t.Errorf("%s Source = %+v, want %+v", name, got[name], source)
+		}
+	}
+}
+
 func TestCargoLock(t *testing.T) {
 	content, err := os.ReadFile("../../testdata/cargo/Cargo.lock")
 	if err != nil {
