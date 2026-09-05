@@ -109,6 +109,7 @@ func collectCargoDependencies(dependencies *[]core.Dependency, values map[string
 			Version: extractCargoVersion(value),
 			Scope:   scope,
 			Direct:  true,
+			Source:  extractCargoSource(value),
 		})
 	}
 }
@@ -154,6 +155,32 @@ func cargoRegistryDeclaration(name string, value any) (string, bool) {
 		return packageName, true
 	}
 	return name, true
+}
+
+// extractCargoSource returns the explicit source override for a dependency
+// table value, or the zero Source for plain and workspace-inherited entries.
+func extractCargoSource(value any) core.Source {
+	properties, ok := value.(map[string]any)
+	if !ok {
+		return core.Source{}
+	}
+	if repo, ok := properties["git"].(string); ok {
+		source := core.Source{Kind: core.SourceGit, Value: repo}
+		if branch, ok := properties["branch"].(string); ok {
+			source.Branch = branch
+		}
+		if tag, ok := properties["tag"].(string); ok {
+			source.Tag = tag
+		}
+		if rev, ok := properties["rev"].(string); ok {
+			source.Ref = rev
+		}
+		return source
+	}
+	if registry, ok := properties["registry"].(string); ok {
+		return core.Source{Kind: core.SourceRegistry, Value: registry}
+	}
+	return core.Source{}
 }
 
 func extractCargoVersion(value any) string {
