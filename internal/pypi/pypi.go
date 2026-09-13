@@ -73,9 +73,9 @@ func (p *requirementsTxtParser) Parse(filename string, content []byte) (*core.Re
 	var deps []core.Dependency
 	var declarations []core.Declaration
 	locations := make(map[string]int)
-	lines := strings.Split(string(content), "\n")
+	lines := strings.SplitSeq(string(content), "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		// Remove comments
 		if idx := strings.Index(line, "#"); idx >= 0 {
 			line = line[:idx]
@@ -771,9 +771,9 @@ type pipResolvedDepsParser struct{}
 
 func (p *pipResolvedDepsParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
-	lines := strings.Split(string(content), "\n")
+	lines := strings.SplitSeq(string(content), "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") || strings.HasPrefix(line, "-") {
 			continue

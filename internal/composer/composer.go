@@ -111,6 +111,9 @@ func (p *composerLockParser) Parse(filename string, content []byte) (*core.Resul
 	}
 
 	var deps []core.Dependency
+	if count := len(lock.Packages) + len(lock.PackagesDev); count > 0 {
+		deps = make([]core.Dependency, 0, count)
+	}
 
 	for _, pkg := range lock.Packages {
 		integrity := ""
