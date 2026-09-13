@@ -406,6 +406,7 @@ func isPackagePathLine(trimmed string) bool {
 
 // isPackagesSectionEnd detects the closing brace of the "packages" object.
 func isPackagesSectionEnd(line, trimmed string) bool {
+	line = strings.TrimSuffix(line, "\r")
 	return (line == "  }," || line == "  }") && strings.HasPrefix(trimmed, "}")
 }
 
