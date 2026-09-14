@@ -545,6 +545,7 @@ func (p *paketLockParser) Parse(filename string, content []byte) (*core.Result, 
 	inNuget := false
 
 	for line := range lines {
+		line = strings.TrimSuffix(line, "\r")
 		// Check for NUGET section
 		if line == "NUGET" {
 			inNuget = true

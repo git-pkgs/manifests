@@ -25,10 +25,7 @@ func TestLineParserEndings(t *testing.T) {
 			if len(want.Dependencies) == 0 {
 				t.Fatal("fixture has no dependencies")
 			}
-			variants := [][]byte{append(bytes.Clone(lf), '\n'), append(bytes.Clone(lf), '\n', '\n')}
-			if name != "paket.lock" {
-				variants = append(variants, bytes.ReplaceAll(lf, []byte("\n"), []byte("\r\n")))
-			}
+			variants := [][]byte{append(bytes.Clone(lf), '\n'), append(bytes.Clone(lf), '\n', '\n'), bytes.ReplaceAll(lf, []byte("\n"), []byte("\r\n"))}
 			for _, data := range variants {
 				got, err := Parse(name, data)
 				if err != nil {
