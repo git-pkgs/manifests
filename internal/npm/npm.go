@@ -3,6 +3,7 @@ package npm
 import (
 	"bytes"
 	"encoding/json"
+	"iter"
 	"net/url"
 	"strings"
 
@@ -182,7 +183,22 @@ func (p *npmPackageLockParser) Parse(filename string, content []byte) (*core.Res
 }
 
 func parsePackageLockV1(deps map[string]packageLockDep) []core.Dependency {
-	var result []core.Dependency
+	count := countPackageLockV1(deps)
+	if count == 0 {
+		return nil
+	}
+	return appendPackageLockV1(make([]core.Dependency, 0, count), deps)
+}
+
+func countPackageLockV1(deps map[string]packageLockDep) int {
+	count := len(deps)
+	for _, dep := range deps {
+		count += countPackageLockV1(dep.Dependencies)
+	}
+	return count
+}
+
+func appendPackageLockV1(result []core.Dependency, deps map[string]packageLockDep) []core.Dependency {
 	for name, dep := range deps {
 		scope := core.Runtime
 		if dep.Dev {
@@ -200,10 +216,8 @@ func parsePackageLockV1(deps map[string]packageLockDep) []core.Dependency {
 			RegistryURL: dep.Resolved,
 		})
 
-		// Recursively add nested dependencies
 		if len(dep.Dependencies) > 0 {
-			nested := parsePackageLockV1(dep.Dependencies)
-			result = append(result, nested...)
+			result = appendPackageLockV1(result, dep.Dependencies)
 		}
 	}
 	return result
@@ -392,54 +406,68 @@ func isPackagePathLine(trimmed string) bool {
 
 // isPackagesSectionEnd detects the closing brace of the "packages" object.
 func isPackagesSectionEnd(line, trimmed string) bool {
+	line = strings.TrimSuffix(line, "\r")
 	return (line == "  }," || line == "  }") && strings.HasPrefix(trimmed, "}")
 }
 
 // parsePackageLockV3Lines parses v3 format using line-based parsing.
 // Format: "packages": { "node_modules/name": { "version": "x", ... } }
 func parsePackageLockV3Lines(content []byte) []core.Dependency {
-	var deps []core.Dependency
-	lines := strings.Split(string(content), "\n")
-	directDependencies := parsePackageLockDirectDependencies(content)
-
-	inPackages := false
-	var entry v3PackageEntry
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if !inPackages {
-			if strings.HasPrefix(trimmed, `"packages"`) {
-				inPackages = true
-			}
-			continue
-		}
-
-		if isPackagesSectionEnd(line, trimmed) {
-			break
-		}
-
-		if isPackagePathLine(trimmed) {
-			if entry.hasContent() {
-				if dep, ok := entry.toDependency(directDependencies); ok {
-					deps = append(deps, dep)
-				}
-			}
-			entry.reset(extractQuotedPath(trimmed))
-			continue
-		}
-
-		entry.updateFromLine(trimmed)
+	text := string(content)
+	count := 0
+	for range packageLockV3Entries(text) {
+		count++
 	}
-
-	// Don't forget the last package
-	if entry.hasContent() {
+	var deps []core.Dependency
+	if count > 0 {
+		deps = make([]core.Dependency, 0, count)
+	}
+	directDependencies := parsePackageLockDirectDependencies(content)
+	for entry := range packageLockV3Entries(text) {
 		if dep, ok := entry.toDependency(directDependencies); ok {
 			deps = append(deps, dep)
 		}
 	}
-
+	if len(deps) == 0 {
+		return nil
+	}
 	return deps
+}
+
+func packageLockV3Entries(content string) iter.Seq[v3PackageEntry] {
+	return func(yield func(v3PackageEntry) bool) {
+		inPackages := false
+		var entry v3PackageEntry
+
+		for line := range strings.SplitSeq(content, "\n") {
+			trimmed := strings.TrimSpace(line)
+
+			if !inPackages {
+				if strings.HasPrefix(trimmed, `"packages"`) {
+					inPackages = true
+				}
+				continue
+			}
+
+			if isPackagesSectionEnd(line, trimmed) {
+				break
+			}
+
+			if isPackagePathLine(trimmed) {
+				if entry.hasContent() && !yield(entry) {
+					return
+				}
+				entry.reset(extractQuotedPath(trimmed))
+				continue
+			}
+
+			entry.updateFromLine(trimmed)
+		}
+
+		if entry.hasContent() {
+			yield(entry)
+		}
+	}
 }
 
 // extractJSONStringValue extracts the string value from a JSON line like: "key": "value"
