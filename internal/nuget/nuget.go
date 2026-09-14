@@ -498,7 +498,14 @@ func (p *packagesLockParser) Parse(filename string, content []byte) (*core.Resul
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
+	capacity := 0
+	for _, framework := range lock.Dependencies {
+		capacity = max(capacity, len(framework))
+	}
 	var deps []core.Dependency
+	if capacity > 0 {
+		deps = make([]core.Dependency, 0, capacity)
+	}
 	seen := make(map[string]bool)
 
 	for _, framework := range lock.Dependencies {
@@ -533,11 +540,12 @@ var (
 
 func (p *paketLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
-	lines := strings.Split(string(content), "\n")
+	lines := strings.SplitSeq(string(content), "\n")
 	seen := make(map[string]bool)
 	inNuget := false
 
-	for _, line := range lines {
+	for line := range lines {
+		line = strings.TrimSuffix(line, "\r")
 		// Check for NUGET section
 		if line == "NUGET" {
 			inNuget = true
@@ -594,7 +602,20 @@ func (p *projectAssetsParser) Parse(filename string, content []byte) (*core.Resu
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
+	capacity := 0
+	for _, framework := range assets.Targets {
+		count := 0
+		for key, pkg := range framework {
+			if pkg.Type == "package" && strings.Contains(key, "/") {
+				count++
+			}
+		}
+		capacity = max(capacity, count)
+	}
 	var deps []core.Dependency
+	if capacity > 0 {
+		deps = make([]core.Dependency, 0, capacity)
+	}
 	seen := make(map[string]bool)
 
 	for _, framework := range assets.Targets {
@@ -697,7 +718,16 @@ func parseLibraries(filename string, content []byte) ([]core.Dependency, error) 
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
+	count := 0
+	for key, lib := range raw.Libraries {
+		if lib.Type != "project" && strings.Contains(key, "/") {
+			count++
+		}
+	}
 	var deps []core.Dependency
+	if count > 0 {
+		deps = make([]core.Dependency, 0, count)
+	}
 
 	for key, lib := range raw.Libraries {
 		if lib.Type == "project" {

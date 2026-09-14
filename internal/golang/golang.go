@@ -42,13 +42,13 @@ var (
 )
 
 func (p *goModParser) Parse(filename string, content []byte) (*core.Result, error) {
-	lines := strings.Split(string(content), "\n")
-	tools := collectToolPaths(lines)
-	replaced := collectReplacedModules(lines)
-	deps, declarations := collectRequireDeps(lines, tools, replaced)
+	text := string(content)
+	tools := collectToolPaths(text)
+	replaced := collectReplacedModules(text)
+	deps, declarations := collectRequireDeps(text, tools, replaced)
 
 	var modulePath string
-	for _, line := range lines {
+	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "module ") || strings.HasPrefix(trimmed, "module\t") {
 			modulePath = strings.TrimSpace(strings.Trim(strings.TrimSpace(trimmed[len("module"):]), `"`))
@@ -61,11 +61,11 @@ func (p *goModParser) Parse(filename string, content []byte) (*core.Result, erro
 
 // collectToolPaths scans go.mod lines for tool directives (both single-line and block form)
 // and returns a set of tool import paths.
-func collectToolPaths(lines []string) map[string]bool {
+func collectToolPaths(text string) map[string]bool {
 	tools := make(map[string]bool)
 	inToolBlock := false
 
-	for _, line := range lines {
+	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 
 		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
@@ -101,13 +101,13 @@ func collectToolPaths(lines []string) map[string]bool {
 
 // collectRequireDeps scans go.mod lines for require directives (both single-line and block form)
 // and returns dependencies, marking tool-related modules as development scope.
-func collectRequireDeps(lines []string, tools map[string]bool, replaced map[moduleVersion]bool) ([]core.Dependency, []core.Declaration) {
+func collectRequireDeps(text string, tools map[string]bool, replaced map[moduleVersion]bool) ([]core.Dependency, []core.Declaration) {
 	var deps []core.Dependency
 	var declarations []core.Declaration
 	inRequireBlock := false
 	locations := make(map[string]int)
 
-	for _, line := range lines {
+	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 
 		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
@@ -169,10 +169,10 @@ func appendGoDeclaration(
 
 // collectReplacedModules returns module paths named on the left side of a
 // replace directive, in either single-line or block form.
-func collectReplacedModules(lines []string) map[moduleVersion]bool {
+func collectReplacedModules(text string) map[moduleVersion]bool {
 	replaced := make(map[moduleVersion]bool)
 	inReplaceBlock := false
-	for _, line := range lines {
+	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "//") {
 			continue
@@ -251,9 +251,9 @@ type goSumKey struct {
 func (p *goSumParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	seen := make(map[goSumKey]bool)
-	lines := strings.Split(string(content), "\n")
+	text := string(content)
 
-	for _, line := range lines {
+	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -311,11 +311,11 @@ func (p *goGraphParser) Parse(filename string, content []byte) (*core.Result, er
 	var deps []core.Dependency
 	seen := make(map[string]bool)
 	directDeps := make(map[string]bool)
-	lines := strings.Split(string(content), "\n")
+	text := string(content)
 
 	// First pass: identify direct dependencies (those required by the main module)
 	// The main module appears without a version in the first column
-	for _, line := range lines {
+	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -340,7 +340,7 @@ func (p *goGraphParser) Parse(filename string, content []byte) (*core.Result, er
 	}
 
 	// Second pass: collect all dependencies
-	for _, line := range lines {
+	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
