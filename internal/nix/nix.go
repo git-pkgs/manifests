@@ -127,7 +127,7 @@ func (p *flakeLockParser) Parse(filename string, content []byte) (*core.Result, 
 
 	for name, node := range lock.Nodes {
 		// Skip root node
-		if name == "root" {
+		if name == lock.Root {
 			continue
 		}
 

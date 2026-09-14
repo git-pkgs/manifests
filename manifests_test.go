@@ -38,6 +38,7 @@ func TestParseAllEcosystems(t *testing.T) {
 		{"helm Chart.lock", "testdata/helm/Chart.lock", "helm", Lockfile},
 		{"helm requirements.yaml", "testdata/helm/legacy/requirements.yaml", "helm", Manifest},
 		{"helm requirements.lock", "testdata/helm/legacy/requirements.lock", "helm", Lockfile},
+		{"nix flake.lock", "testdata/nix/flake.lock", "nix", Lockfile},
 		{"vagrant Vagrantfile", "testdata/vagrant/Vagrantfile", "vagrant", Manifest},
 	}
 

@@ -55,7 +55,7 @@
         "type": "github"
       }
     },
-    "root": {
+    "project": {
       "inputs": {
         "flake-utils": "flake-utils",
         "home-manager": "home-manager",
@@ -78,6 +78,6 @@
       }
     }
   },
-  "root": "root",
+  "root": "project",
   "version": 7
 }
