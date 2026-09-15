@@ -174,6 +174,68 @@ func TestDiscoverManifestsReaderWarnings(t *testing.T) {
 	}
 }
 
+func TestDiscoverManifestsWarnsOnMissingLiteralWorkspaceMember(t *testing.T) {
+	tests := []struct {
+		name  string
+		files map[string]string
+		want  string
+	}{
+		{
+			name: "go.work",
+			files: map[string]string{
+				"go.work":      "go 1.26\nuse (\n\t./svc-a\n\t./svc-b\n\t./missing\n)\n",
+				"svc-a/go.mod": "module example.com/a",
+				"svc-b/go.mod": "module example.com/b",
+			},
+			want: `go.work: workspace member "./missing" has no go.mod`,
+		},
+		{
+			name: "cargo",
+			files: map[string]string{
+				"Cargo.toml":             "[workspace]\nmembers = [\"crates/core\", \"crates/gone\"]\n",
+				"crates/core/Cargo.toml": "[package]",
+			},
+			want: `Cargo.toml: workspace member "crates/gone" has no Cargo.toml`,
+		},
+		{
+			name: "npm literal",
+			files: map[string]string{
+				"package.json":          `{"workspaces":["apps/web","apps/gone"]}`,
+				"apps/web/package.json": `{"name":"web"}`,
+			},
+			want: `package.json: workspace member "apps/gone" has no package.json`,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, warnings := DiscoverManifests(mapFSReader(test.files))
+			if len(warnings) != 1 || warnings[0].Error() != test.want {
+				t.Fatalf("warnings = %v, want [%q]", warnings, test.want)
+			}
+			if len(got) < 2 {
+				t.Errorf("valid members should still be returned, got %+v", got)
+			}
+		})
+	}
+}
+
+func TestDiscoverManifestsNoWarningForEmptyWildcardMember(t *testing.T) {
+	reader := mapFSReader(map[string]string{
+		"go.work":      "go 1.26\nuse (\n\t./svc-a\n\t./extras/*\n)\n",
+		"svc-a/go.mod": "module example.com/a",
+	})
+	got, warnings := DiscoverManifests(reader)
+	if len(warnings) != 0 {
+		t.Fatalf("wildcard with zero matches should not warn: %v", warnings)
+	}
+	want := []DiscoveredManifest{
+		{Path: "svc-a/go.mod", Ecosystem: "golang", Kind: Manifest, ParentPath: "go.work"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
 func TestDiscoverManifestsGoWorkspaceRootModule(t *testing.T) {
 	reader := mapFSReader(map[string]string{
 		"go.mod":  "module example.com/root\n",

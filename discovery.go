@@ -61,8 +61,13 @@ type DiscoveredManifest struct {
 }
 
 type manifestDiscovery struct {
-	reader RepositoryReader
-	items  map[discoveredManifestKey]DiscoveredManifest
+	reader   RepositoryReader
+	items    map[discoveredManifestKey]DiscoveredManifest
+	warnings []error
+}
+
+func (d *manifestDiscovery) warn(err error) {
+	d.warnings = append(d.warnings, err)
 }
 
 type discoveredManifestKey struct {
@@ -84,10 +89,9 @@ func DiscoverManifests(reader RepositoryReader) ([]DiscoveredManifest, []error) 
 		reader: reader,
 		items:  make(map[discoveredManifestKey]DiscoveredManifest),
 	}
-	var warnings []error
 	for _, pattern := range []string{"*", ".github/workflows/*.yml", ".github/workflows/*.yaml"} {
 		if err := discovery.addMatches(pattern, ""); err != nil {
-			warnings = append(warnings, fmt.Errorf("discovering manifests matching %q: %w", pattern, err))
+			discovery.warn(fmt.Errorf("discovering manifests matching %q: %w", pattern, err))
 		}
 	}
 
@@ -99,11 +103,11 @@ func DiscoverManifests(reader RepositoryReader) ([]DiscoveredManifest, []error) 
 	}
 	for _, discover := range workspaceDiscoveries {
 		if err := discover(); err != nil {
-			warnings = append(warnings, err)
+			discovery.warn(err)
 		}
 	}
 
-	return discovery.sorted(), warnings
+	return discovery.sorted(), discovery.warnings
 }
 
 func (d *manifestDiscovery) addMatches(pattern, parentPath string) error {
@@ -157,9 +161,25 @@ func (d *manifestDiscovery) addWorkspaceManifests(
 	if err != nil {
 		return err
 	}
-	included, err := d.workspaceManifestPaths(includePatterns, manifestName)
-	if err != nil {
-		return err
+
+	included := make(map[string]struct{})
+	for _, pattern := range includePatterns {
+		normalized, ok := normalizeRepositoryPattern(pattern)
+		if !ok {
+			continue
+		}
+		matches, err := d.reader.Glob(path.Join(normalized, manifestName))
+		if err != nil {
+			return fmt.Errorf("expanding workspace pattern %q: %w", pattern, err)
+		}
+		if len(matches) == 0 && isLiteralPattern(normalized) {
+			d.warn(fmt.Errorf("%s: workspace member %q has no %s", parentPath, pattern, manifestName))
+		}
+		for _, match := range matches {
+			if p, valid := normalizeRepositoryPath(match); valid {
+				included[p] = struct{}{}
+			}
+		}
 	}
 
 	paths := make([]string, 0, len(included))
@@ -173,6 +193,13 @@ func (d *manifestDiscovery) addWorkspaceManifests(
 		d.add(manifestPath, parentPath)
 	}
 	return nil
+}
+
+// isLiteralPattern reports whether a workspace member pattern names a
+// single directory rather than a glob. Wildcard entries that expand to
+// nothing are not treated as missing.
+func isLiteralPattern(pattern string) bool {
+	return !strings.ContainsAny(pattern, "*?[{")
 }
 
 func (d *manifestDiscovery) workspaceManifestPaths(patterns []string, manifestName string) (map[string]struct{}, error) {
