@@ -172,7 +172,7 @@ func (d *manifestDiscovery) addWorkspaceManifests(
 		if err != nil {
 			return fmt.Errorf("expanding workspace pattern %q: %w", pattern, err)
 		}
-		if len(matches) == 0 && isLiteralPattern(normalized) {
+		if len(matches) == 0 && isLiteralPattern(normalized) && !patternCovers(excludePatterns, normalized) {
 			d.warn(fmt.Errorf("%s: workspace member %q has no %s", parentPath, pattern, manifestName))
 		}
 		for _, match := range matches {
@@ -200,6 +200,22 @@ func (d *manifestDiscovery) addWorkspaceManifests(
 // nothing are not treated as missing.
 func isLiteralPattern(pattern string) bool {
 	return !strings.ContainsAny(pattern, "*?[{")
+}
+
+// patternCovers reports whether name matches any of the given patterns.
+// Used to suppress a missing-member warning when the same entry is also
+// excluded.
+func patternCovers(patterns []string, name string) bool {
+	for _, p := range patterns {
+		p, ok := normalizeRepositoryPattern(p)
+		if !ok {
+			continue
+		}
+		if ok, _ := doublestar.PathMatch(p, name); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (d *manifestDiscovery) workspaceManifestPaths(patterns []string, manifestName string) (map[string]struct{}, error) {
@@ -252,7 +268,7 @@ func (d *manifestDiscovery) sorted() []DiscoveredManifest {
 
 func normalizeRepositoryPath(value string) (string, bool) {
 	value = strings.TrimSpace(strings.ReplaceAll(value, `\`, "/"))
-	if value == "" || strings.HasPrefix(value, "/") {
+	if value == "" || strings.HasPrefix(value, "/") || hasWindowsVolume(value) {
 		return "", false
 	}
 	value = path.Clean(value)
@@ -260,6 +276,18 @@ func normalizeRepositoryPath(value string) (string, bool) {
 		return "", false
 	}
 	return value, true
+}
+
+// hasWindowsVolume reports whether s begins with a Windows drive
+// letter (e.g. "C:/"). Such paths are absolute on Windows and outside
+// the repository reader's root, so they are rejected alongside
+// "/"-prefixed and "../" paths.
+func hasWindowsVolume(s string) bool {
+	if len(s) < 2 || s[1] != ':' {
+		return false
+	}
+	c := s[0]
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
 func normalizeRepositoryPattern(value string) (string, bool) {

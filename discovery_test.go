@@ -118,7 +118,7 @@ func TestDiscoverManifestsNPMWorkspaceForms(t *testing.T) {
 
 func TestDiscoverManifestsRejectsOutsideWorkspaceMembers(t *testing.T) {
 	reader := mapFSReader(map[string]string{
-		"Cargo.toml":              `[workspace]` + "\n" + `members = ["../outside", "/absolute"]`,
+		"Cargo.toml":              `[workspace]` + "\n" + `members = ["../outside", "/absolute", "C:/drive"]`,
 		"outside/Cargo.toml":      `[package]`,
 		"absolute/Cargo.toml":     `[package]`,
 		"nested/other/Cargo.toml": `[package]`,
@@ -216,6 +216,42 @@ func TestDiscoverManifestsWarnsOnMissingLiteralWorkspaceMember(t *testing.T) {
 				t.Errorf("valid members should still be returned, got %+v", got)
 			}
 		})
+	}
+}
+
+func TestDiscoverManifestsNoWarningForExcludedLiteralMember(t *testing.T) {
+	// A literal include that is also covered by an exclude pattern
+	// should not warn even when it has no manifest.
+	reader := mapFSReader(map[string]string{
+		"pnpm-workspace.yaml":   "packages:\n  - apps/web\n  - apps/gone\n  - \"!apps/gone\"\n",
+		"apps/web/package.json": `{"name":"web"}`,
+	})
+	got, warnings := DiscoverManifests(reader)
+	if len(warnings) != 0 {
+		t.Fatalf("excluded literal should not warn: %v", warnings)
+	}
+	want := []DiscoveredManifest{
+		{Path: "apps/web/package.json", Ecosystem: "npm", Kind: Manifest, ParentPath: "pnpm-workspace.yaml"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestDiscoverManifestsRejectsDriveAbsoluteMember(t *testing.T) {
+	reader := mapFSReader(map[string]string{
+		"go.work":      "go 1.26\nuse (\n\t./svc-a\n\tC:\\src\\svc\n)\n",
+		"svc-a/go.mod": "module example.com/a",
+	})
+	got, warnings := DiscoverManifests(reader)
+	if len(warnings) != 0 {
+		t.Fatalf("drive-absolute member should be rejected silently, not warned: %v", warnings)
+	}
+	want := []DiscoveredManifest{
+		{Path: "svc-a/go.mod", Ecosystem: "golang", Kind: Manifest, ParentPath: "go.work"},
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
 	}
 }
 
