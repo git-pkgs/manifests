@@ -330,6 +330,7 @@ type ParseResult struct {
     Dependencies []Dependency
     Declarations []Declaration
     Sources      []Source      // Ordered manifest-level source declarations
+    Scripts      map[string][]string // Hook or task names with ordered commands or paths
 }
 ```
 
@@ -338,6 +339,23 @@ type ParseResult struct {
 `Licenses` contains decoded values as declared by the manifest; it does not normalize them into SPDX expressions. `LicenseFile` is populated when a format explicitly identifies a license file. Both are empty for formats without license metadata.
 
 `Digest` contains a file-level verification value when the format defines one. For `Chart.lock`, it covers the dependency declarations from `Chart.yaml` and is separate from each dependency's `Integrity` value.
+
+`Scripts` contains declared commands, callbacks or script paths, including named tasks as well as install hooks. For example, `result.Scripts["postinstall"]` holds the command from npm's `scripts.postinstall`. Lists preserve declaration order; empty declarations are omitted.
+
+| Format | Script declarations |
+| --- | --- |
+| `package.json`, `composer.json`, `shard.yml`, .NET `project.json` | Entries in `scripts` |
+| `Cargo.toml` | `package.build`, under `build`; explicit `true` produces `build.rs`, `false` produces no entry |
+| `.gemspec` | Literal `extensions` arrays, `%w` lists and `<<` additions |
+| `.podspec` | Quoted or heredoc `prepare_command` |
+| `deno.json` | Task strings and task objects' `command` values, under the task name |
+| `dub.json` | Build, generate and run commands; platform suffixes are retained, with `configurations/<name>/`, `buildTypes/<name>/` and `subPackages/<name>/` prefixes for nested declarations |
+| `.csproj`, `.vbproj`, `.fsproj` | `PreBuildEvent`, `PostBuildEvent` and direct `Exec` commands under `Target/<name>` |
+| `pyproject.toml` | Poetry's build script under `tool.poetry.build`, and PDM's explicit `tool.pdm.build.custom-hook` |
+| OPAM | `build`, `install`, `remove`, `run-test`, `build-test` and `build-doc`, each as a raw field value retaining arguments and filters |
+| `APKBUILD`, `PKGBUILD` | Unindented `install` assignments, under `install`, without shell expansion |
+
+Parsing does not execute scripts, evaluate conditions or follow script paths. Ruby string bodies retain source escapes and heredoc indentation. Dynamic Ruby expressions and arbitrary build code are not resolved. A missing entry does not establish that a package has no install hooks: files such as an undeclared `build.rs` or `deps/build.jl` require separate filesystem discovery.
 
 Chef cookbook and Vagrant box PURLs remain empty while `chef` and `vagrant`
 are only candidate Package URL types without accepted name and namespace rules.

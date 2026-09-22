@@ -1,0 +1,8 @@
+name: native-widget
+dependencies:
+  openssl:
+    version: "~> 2.0"
+scripts:
+  postinstall: |
+    make native
+    make copy

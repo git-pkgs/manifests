@@ -57,7 +57,9 @@ func (p *apkbuildParser) Parse(filename string, content []byte) (*core.Result, e
 		deps = append(deps, dep)
 	}
 
-	return &core.Result{Name: vars["pkgname"], Version: vars["pkgver"], Dependencies: deps}, nil
+	var scripts map[string][]string
+	core.AddScript(&scripts, "install", strings.Fields(core.ShellInstall(string(content)))...)
+	return &core.Result{Name: vars["pkgname"], Version: vars["pkgver"], Dependencies: deps, Scripts: scripts}, nil
 }
 
 func parseApkbuildVars(content string) map[string]string {

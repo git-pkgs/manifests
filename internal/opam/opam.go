@@ -26,8 +26,21 @@ func (p *parser) Parse(_ string, content []byte) (*core.Result, error) {
 		Name:         opamScalar(opamField(text, "name")),
 		Version:      opamScalar(opamField(text, "version")),
 		Licenses:     opamTopLevelStrings(opamField(text, "license")),
+		Scripts:      opamScripts(text),
 		Dependencies: opamDependencies(opamField(text, "depends")),
 	}, nil
+}
+
+func opamScripts(text string) map[string][]string {
+	var scripts map[string][]string
+	for _, field := range []string{"build", "install", "remove", "run-test", "build-test", "build-doc"} {
+		value := opamField(text, field)
+		if value != "[]" && strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(value, "["), "]")) != "" {
+			// Keep argument boundaries, filters, and variable references intact.
+			core.AddScript(&scripts, field, value)
+		}
+	}
+	return scripts
 }
 
 func opamField(text, field string) string {

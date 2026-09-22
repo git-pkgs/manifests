@@ -272,12 +272,18 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 				Name            string         `toml:"name"`
 				Version         string         `toml:"version"`
 				License         string         `toml:"license"`
+				Build           any            `toml:"build"`
 				Dependencies    map[string]any `toml:"dependencies"`
 				DevDependencies map[string]any `toml:"dev-dependencies"`
 				Group           map[string]struct {
 					Dependencies map[string]any `toml:"dependencies"`
 				} `toml:"group"`
 			} `toml:"poetry"`
+			PDM struct {
+				Build struct {
+					CustomHook string `toml:"custom-hook"`
+				} `toml:"build"`
+			} `toml:"pdm"`
 		} `toml:"tool"`
 		Project struct {
 			Name                 string              `toml:"name"`
@@ -399,12 +405,23 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 	if !projectDeclaresLicense && pyproject.Tool.Poetry.License != "" {
 		licenses = []string{pyproject.Tool.Poetry.License}
 	}
+	var scripts map[string][]string
+	switch build := pyproject.Tool.Poetry.Build.(type) {
+	case string:
+		core.AddScript(&scripts, "tool.poetry.build", build)
+	case map[string]any:
+		if script, ok := build["script"].(string); ok {
+			core.AddScript(&scripts, "tool.poetry.build", script)
+		}
+	}
+	core.AddScript(&scripts, "tool.pdm.build.custom-hook", pyproject.Tool.PDM.Build.CustomHook)
 
 	return &core.Result{
 		Name:         selfName,
 		Version:      selfVersion,
 		Licenses:     licenses,
 		LicenseFile:  licenseFile,
+		Scripts:      scripts,
 		Dependencies: deps,
 		Declarations: declarations,
 	}, nil

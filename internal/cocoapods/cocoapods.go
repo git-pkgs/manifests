@@ -176,7 +176,39 @@ var (
 	podspecLicenseHashRegex = regexp.MustCompile(`(?s)\.license\s*=\s*\{([^}]*)\}`)
 	podspecLicenseTypeRegex = regexp.MustCompile(`(?::type|["']type["']|\btype)\s*(?:=>|:)\s*["']([^"']+)["']`)
 	podspecLicenseFileRegex = regexp.MustCompile(`(?::file|["']file["']|\bfile)\s*(?:=>|:)\s*["']([^"']+)["']`)
+	podspecPrepareRegex     = regexp.MustCompile(`(?m)^[\t ]*\w+\.prepare_command[\t ]*=[\t ]*(?:("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|<<[-~]?["']?(\w+)["']?)[\t ]*(?:#.*)?\r?$`)
 )
+
+func podspecScripts(text string) map[string][]string {
+	var scripts map[string][]string
+	for {
+		match := podspecPrepareRegex.FindStringSubmatchIndex(text)
+		if match == nil {
+			break
+		}
+		literal := ""
+		if match[2] >= 0 {
+			literal = text[match[2]:match[3]]
+		}
+		delimiter := ""
+		if match[4] >= 0 {
+			delimiter = text[match[4]:match[5]]
+		}
+		text = text[match[1]:]
+		if literal != "" {
+			core.AddScript(&scripts, "prepare_command", literal[1:len(literal)-1])
+			continue
+		}
+		text = strings.TrimPrefix(text, "\n")
+		end := regexp.MustCompile(`(?m)^[\t ]*` + regexp.QuoteMeta(delimiter) + `[\t ]*\r?$`).FindStringIndex(text)
+		if end == nil {
+			break
+		}
+		core.AddScript(&scripts, "prepare_command", text[:end[0]])
+		text = text[end[1]:]
+	}
+	return scripts
+}
 
 func (p *podspecParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
@@ -222,6 +254,7 @@ func (p *podspecParser) Parse(filename string, content []byte) (*core.Result, er
 		Version:      selfVersion,
 		Licenses:     licenses,
 		LicenseFile:  licenseFile,
+		Scripts:      podspecScripts(text),
 		Dependencies: deps,
 	}, nil
 }

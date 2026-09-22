@@ -1,0 +1,7 @@
+{
+  "dependencies": { "Example.Library": "1.0.0" },
+  "scripts": {
+    "precompile": ["echo preparing", "generate-code"],
+    "postcompile": "copy-assets"
+  }
+}
