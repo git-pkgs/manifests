@@ -29,6 +29,7 @@ type packageJSON struct {
 	Version              string         `json:"version"`
 	License              any            `json:"license"`
 	Licenses             []npmLicense   `json:"licenses"`
+	Scripts              map[string]any `json:"scripts"`
 	Dependencies         map[string]any `json:"dependencies"`
 	DevDependencies      map[string]any `json:"devDependencies"`
 	OptionalDependencies map[string]any `json:"optionalDependencies"`
@@ -56,6 +57,7 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Res
 		Name:         pkg.Name,
 		Version:      pkg.Version,
 		Licenses:     npmLicenses(pkg.License, pkg.Licenses),
+		Scripts:      core.StringScripts(pkg.Scripts),
 		Dependencies: deps,
 		Declarations: declarations,
 	}, nil

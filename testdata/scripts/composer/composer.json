@@ -1,0 +1,9 @@
+{
+  "name": "example/app",
+  "require": { "example/library": "^1.0" },
+  "scripts": {
+    "post-install-cmd": ["Example\\Installer::install", "@php scripts/setup.php"],
+    "post-update-cmd": "@post-install-cmd",
+    "test": "php tests/run.php"
+  }
+}

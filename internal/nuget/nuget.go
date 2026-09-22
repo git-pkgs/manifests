@@ -38,12 +38,22 @@ type csprojParser struct{}
 type csprojProject struct {
 	PropertyGroups []csprojPropertyGroup `xml:"PropertyGroup"`
 	ItemGroups     []csprojItemGroup     `xml:"ItemGroup"`
+	Targets        []csprojTarget        `xml:"Target"`
+}
+
+type csprojTarget struct {
+	Name string `xml:"Name,attr"`
+	Exec []struct {
+		Command string `xml:"Command,attr"`
+	} `xml:"Exec"`
 }
 
 type csprojPropertyGroup struct {
-	AssemblyName string `xml:"AssemblyName"`
-	PackageID    string `xml:"PackageId"`
-	Version      string `xml:"Version"`
+	AssemblyName   string `xml:"AssemblyName"`
+	PackageID      string `xml:"PackageId"`
+	Version        string `xml:"Version"`
+	PreBuildEvent  string `xml:"PreBuildEvent"`
+	PostBuildEvent string `xml:"PostBuildEvent"`
 }
 
 type csprojItemGroup struct {
@@ -212,7 +222,10 @@ func (p *csprojParser) Parse(filename string, content []byte) (*core.Result, err
 	base := filepath.Base(filename)
 	selfName := strings.TrimSuffix(base, filepath.Ext(base))
 	var selfVersion string
+	var scripts map[string][]string
 	for _, pg := range project.PropertyGroups {
+		core.AddScript(&scripts, "PreBuildEvent", pg.PreBuildEvent)
+		core.AddScript(&scripts, "PostBuildEvent", pg.PostBuildEvent)
 		if pg.PackageID != "" {
 			selfName = pg.PackageID
 		} else if pg.AssemblyName != "" {
@@ -222,10 +235,16 @@ func (p *csprojParser) Parse(filename string, content []byte) (*core.Result, err
 			selfVersion = pg.Version
 		}
 	}
+	for _, target := range project.Targets {
+		for _, exec := range target.Exec {
+			core.AddScript(&scripts, "Target/"+url.PathEscape(target.Name), exec.Command)
+		}
+	}
 
 	return &core.Result{
 		Name:         selfName,
 		Version:      selfVersion,
+		Scripts:      scripts,
 		Dependencies: deps,
 		Declarations: declarations,
 	}, nil
@@ -658,6 +677,7 @@ type projectJSONParser struct{}
 
 type projectJSON struct {
 	Dependencies map[string]any `json:"dependencies"`
+	Scripts      map[string]any `json:"scripts"`
 }
 
 func (p *projectJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
@@ -690,7 +710,7 @@ func (p *projectJSONParser) Parse(filename string, content []byte) (*core.Result
 		appendNuGetDeclaration(&declarations, locations, "dependencies", name, version, core.Runtime)
 	}
 
-	return &core.Result{Dependencies: deps, Declarations: declarations}, nil
+	return &core.Result{Dependencies: deps, Declarations: declarations, Scripts: core.StringScripts(proj.Scripts)}, nil
 }
 
 // libraryEntry holds the fields shared by deps.json and project.lock.json libraries.

@@ -1,0 +1,6 @@
+[package]
+name = "native-widget"
+build = "scripts/build.rs"
+
+[dependencies]
+libc = "0.2"

@@ -1,0 +1,4 @@
+pkgname=widget
+pkgver=1.0
+depends=('glibc')
+install='widget.install'

@@ -17,6 +17,7 @@ type composerJSON struct {
 	Name       string            `json:"name"`
 	Version    string            `json:"version"`
 	License    any               `json:"license"`
+	Scripts    map[string]any    `json:"scripts"`
 	Require    map[string]string `json:"require"`
 	RequireDev map[string]string `json:"require-dev"`
 }
@@ -64,6 +65,7 @@ func (p *composerJSONParser) Parse(filename string, content []byte) (*core.Resul
 		Name:         composer.Name,
 		Version:      composer.Version,
 		Licenses:     composerLicenses(composer.License),
+		Scripts:      core.StringScripts(composer.Scripts),
 		Dependencies: deps,
 	}, nil
 }

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PreBuildEvent>echo preparing</PreBuildEvent>
+    <PostBuildEvent>echo complete</PostBuildEvent>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Example.Library" Version="1.0.0" />
+  </ItemGroup>
+  <Target Name="Generate" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Exec Command="echo &quot;generating&quot;" />
+    <Exec Command="generate-code" />
+  </Target>
+</Project>

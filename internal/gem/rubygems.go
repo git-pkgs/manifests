@@ -391,10 +391,29 @@ func (p *gemfileLockParser) Parse(filename string, content []byte) (*core.Result
 type gemspecParser struct{}
 
 var (
-	gemspecLicenseRegex  = regexp.MustCompile(`(?m)\.license\s*=\s*["']([^"']+)["']`)
-	gemspecLicensesRegex = regexp.MustCompile(`(?s)\.licenses\s*=\s*\[([^\]]*)\]`)
-	rubyQuotedRegex      = regexp.MustCompile(`["']([^"']+)["']`)
+	gemspecLicenseRegex      = regexp.MustCompile(`(?m)\.license\s*=\s*["']([^"']+)["']`)
+	gemspecLicensesRegex     = regexp.MustCompile(`(?s)\.licenses\s*=\s*\[([^\]]*)\]`)
+	rubyQuotedRegex          = regexp.MustCompile(`["']([^"']+)["']`)
+	gemspecExtensionsRegex   = regexp.MustCompile(`(?m)^[\t ]*\w+\.extensions[\t ]*(?:=|\+=|<<)[\t ]*(\[(?:\s*` + rubyScriptLiteral + `\s*,?)*\s*\]|%w\[[^\]\\]*\]|%w\([^\)\\]*\)|` + rubyScriptLiteral + `)[\t ]*(?:#.*)?\r?$`)
+	gemspecScriptStringRegex = regexp.MustCompile(rubyScriptLiteral)
 )
+
+const rubyScriptLiteral = `(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`
+
+func gemspecScripts(text string) map[string][]string {
+	var scripts map[string][]string
+	for _, match := range gemspecExtensionsRegex.FindAllStringSubmatch(text, -1) {
+		value := match[1]
+		if strings.HasPrefix(value, "%w") {
+			core.AddScript(&scripts, "extensions", strings.Fields(value[len("%w["):len(value)-1])...)
+			continue
+		}
+		for _, literal := range gemspecScriptStringRegex.FindAllString(value, -1) {
+			core.AddScript(&scripts, "extensions", literal[1:len(literal)-1])
+		}
+	}
+	return scripts
+}
 
 // extractGemspecAttr extracts a string literal from lines like `s.name = "foo"`
 // or `spec.version = 'foo'`. Returns empty when the RHS is not a string literal
@@ -521,6 +540,7 @@ func (p *gemspecParser) Parse(filename string, content []byte) (*core.Result, er
 		Name:         selfName,
 		Version:      selfVersion,
 		Licenses:     licenses,
+		Scripts:      gemspecScripts(text),
 		Dependencies: deps,
 	}, nil
 }

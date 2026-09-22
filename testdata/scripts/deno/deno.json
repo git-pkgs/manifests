@@ -1,0 +1,8 @@
+{
+  "imports": { "chalk": "npm:chalk@^5.0" },
+  "tasks": {
+    "build": "deno run -A build.ts",
+    "test": { "command": "deno test", "dependencies": ["build"] },
+    "all": { "dependencies": ["build", "test"] }
+  }
+}

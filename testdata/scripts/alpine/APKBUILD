@@ -1,0 +1,5 @@
+pkgname=widget
+pkgver=1.0
+depends="musl"
+install="$pkgname.pre-install
+  $pkgname.post-install"

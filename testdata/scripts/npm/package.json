@@ -1,0 +1,11 @@
+{
+  "name": "native-widget",
+  "scripts": {
+    "preinstall": "node scripts/check.js",
+    "install": "node-gyp rebuild",
+    "postinstall": "node scripts/setup.js",
+    "test": "node --test",
+    "empty": ""
+  },
+  "dependencies": { "bindings": "^1.0.0" }
+}

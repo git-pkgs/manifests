@@ -1,0 +1,14 @@
+{
+  "name": "native-widget",
+  "dependencies": { "vibe-d": "~>0.9" },
+  "preBuildCommands": ["echo preparing", "make native"],
+  "postBuildCommands-windows": ["copy widget.dll bin"],
+  "configurations": [
+    { "name": "release", "postBuildCommands": ["strip widget"] }
+  ],
+  "buildTypes": { "coverage": { "preRunCommands": ["mkdir -p coverage"] } },
+  "subPackages": [
+    { "name": "helper", "preGenerateCommands": ["generate helper"] },
+    "external"
+  ]
+}

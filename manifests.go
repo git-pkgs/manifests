@@ -94,6 +94,11 @@ type ParseResult struct {
 	// Sources preserves manifest-level source declarations in source order.
 	// A source declaration does not imply that any dependency resolved there.
 	Sources []Source
+	// Scripts maps declared hook or task names to ordered commands, callbacks,
+	// or script paths. Keys and values are ecosystem-specific; declarations
+	// are not executed or resolved. An empty map does not rule out implicit
+	// hooks or code in formats the parser cannot statically inspect.
+	Scripts map[string][]string
 }
 
 // Options configures Parse.
@@ -156,6 +161,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Dependencies: res.Dependencies,
 		Declarations: res.Declarations,
 		Sources:      res.Sources,
+		Scripts:      res.Scripts,
 	}, nil
 }
 

@@ -1,0 +1,9 @@
+[project]
+name = "native-widget"
+dependencies = ["cython>=3"]
+
+[project.scripts]
+widget = "widget:main"
+
+[tool.poetry.build]
+script = "scripts/build.py"

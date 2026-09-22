@@ -39,6 +39,7 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 			Version     inheritableString `toml:"version"`
 			License     inheritableString `toml:"license"`
 			LicenseFile inheritableString `toml:"license-file"`
+			Build       any               `toml:"build"`
 		} `toml:"package"`
 		Dependencies      map[string]any `toml:"dependencies"`
 		DevDependencies   map[string]any `toml:"dev-dependencies"`
@@ -87,11 +88,21 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 	if cargo.Package.License != "" {
 		licenses = []string{string(cargo.Package.License)}
 	}
+	var scripts map[string][]string
+	switch build := cargo.Package.Build.(type) {
+	case string:
+		core.AddScript(&scripts, "build", build)
+	case bool:
+		if build {
+			core.AddScript(&scripts, "build", "build.rs")
+		}
+	}
 	return &core.Result{
 		Name:         pkgName,
 		Version:      string(cargo.Package.Version),
 		Licenses:     licenses,
 		LicenseFile:  string(cargo.Package.LicenseFile),
+		Scripts:      scripts,
 		Dependencies: filtered,
 		Declarations: declarations,
 	}, nil

@@ -19,6 +19,7 @@ type denoJSON struct {
 	Name    string            `json:"name"`
 	Version string            `json:"version"`
 	Imports map[string]string `json:"imports"`
+	Tasks   map[string]any    `json:"tasks"`
 }
 
 func (p *denoJSONParser) Parse(filename string, content []byte) (*core.Result, error) {
@@ -41,7 +42,15 @@ func (p *denoJSONParser) Parse(filename string, content []byte) (*core.Result, e
 		}
 	}
 
-	return &core.Result{Name: deno.Name, Version: deno.Version, Dependencies: deps}, nil
+	scripts := core.StringScripts(deno.Tasks)
+	for name, task := range deno.Tasks {
+		if properties, ok := task.(map[string]any); ok {
+			if command, ok := properties["command"].(string); ok {
+				core.AddScript(&scripts, name, command)
+			}
+		}
+	}
+	return &core.Result{Name: deno.Name, Version: deno.Version, Dependencies: deps, Scripts: scripts}, nil
 }
 
 // denoLockParser parses deno.lock files.

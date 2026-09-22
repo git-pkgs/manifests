@@ -103,6 +103,8 @@ type Result struct {
 	// These entries are configuration, not evidence that any dependency was
 	// resolved from a particular source.
 	Sources []Source
+	// Scripts maps declared hook or task names to ordered commands or script paths.
+	Scripts map[string][]string
 }
 
 // Parser is the interface implemented by all manifest parsers.
