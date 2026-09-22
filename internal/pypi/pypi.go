@@ -57,7 +57,7 @@ func init() {
 	core.Register("pypi", core.Manifest, &setupPyParser{}, core.ExactMatch("setup.py"))
 	core.Register("pypi", core.Manifest, &setupCfgParser{}, core.ExactMatch("setup.cfg"))
 
-	// pylock.toml - lockfile (PEP 665)
+	// pylock.toml - lockfile (PEP 751)
 	core.Register("pypi", core.Lockfile, &pylockTomlParser{}, core.ExactMatch("pylock.toml"))
 }
 
@@ -1069,7 +1069,7 @@ func parseExtrasRequire(content string) map[string][]string {
 	return groups
 }
 
-// pylockTomlParser parses pylock.toml files (PEP 665).
+// pylockTomlParser parses pylock.toml files (PEP 751).
 type pylockTomlParser struct{}
 
 type pylockToml struct {
