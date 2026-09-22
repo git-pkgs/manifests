@@ -266,12 +266,10 @@ func extractChecksum(line string) (name, version, hash string, ok bool) {
 	version = stripPlatformSuffix(trimmed[parenStart+1 : parenStart+parenEnd])
 
 	// Find sha256=
-	shaIdx := strings.Index(trimmed, "sha256=")
-	if shaIdx < 0 {
+	_, hash, ok = strings.Cut(trimmed, "sha256=")
+	if !ok {
 		return "", "", "", false
 	}
-
-	hash = trimmed[shaIdx+7:]
 	return name, version, hash, true
 }
 
