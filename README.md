@@ -407,3 +407,7 @@ const (
     Optional    Scope = "optional"
 )
 ```
+
+## License
+
+[MIT](LICENSE).
