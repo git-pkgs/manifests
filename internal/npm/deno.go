@@ -34,10 +34,11 @@ func (p *denoJSONParser) Parse(filename string, content []byte) (*core.Result, e
 		name, version := parseDenoSpec(spec)
 		if name != "" {
 			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: version,
-				Scope:   core.Runtime,
-				Direct:  true,
+				Name:      name,
+				Version:   version,
+				Scope:     core.Runtime,
+				Direct:    true,
+				Ecosystem: denoSpecEcosystem(spec),
 			})
 		}
 	}
@@ -95,6 +96,7 @@ func (p *denoLockParser) Parse(filename string, content []byte) (*core.Result, e
 			Scope:     core.Runtime,
 			Integrity: pkg.Integrity,
 			Direct:    false,
+			Ecosystem: "npm",
 		})
 	}
 
@@ -121,6 +123,15 @@ func parseDenoSpec(spec string) (name, version string) {
 	}
 
 	return spec, ""
+}
+
+// denoSpecEcosystem returns the package ecosystem of an npm: import, or empty
+// so the dependency keeps the deno ecosystem.
+func denoSpecEcosystem(spec string) string {
+	if strings.HasPrefix(spec, "npm:") {
+		return "npm"
+	}
+	return ""
 }
 
 // parseNPMSpec parses an npm spec like "chalk@5.3.0" or "chalk".

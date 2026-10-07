@@ -16,6 +16,8 @@
 package manifests
 
 import (
+	"cmp"
+
 	"github.com/git-pkgs/manifests/internal/core"
 	"github.com/git-pkgs/purl"
 )
@@ -140,11 +142,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 
 	// Generate PURLs for all dependencies
 	for i := range res.Dependencies {
-		version := ""
-		if kind == Lockfile || kind == Supplement {
-			version = res.Dependencies[i].Version
-		}
-		res.Dependencies[i].PURL = makePURL(eco, res.Dependencies[i].Name, version, res.Dependencies[i].RegistryURL)
+		res.Dependencies[i].PURL = dependencyPURL(eco, kind, res.Dependencies[i])
 	}
 	for i := range res.Declarations {
 		res.Declarations[i].PURL = declarationPURL(eco, res.Declarations[i])
@@ -165,13 +163,34 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 	}, nil
 }
 
-// declarationPURL preserves a parser-supplied package identity or builds one
-// from the parser's ecosystem.
+// dependencyPURL preserves a parser-supplied package identity or builds one
+// from the dependency's ecosystem, falling back to the parser's. Only
+// lockfiles and supplements include the version.
+func dependencyPURL(ecosystem string, kind Kind, dep core.Dependency) string {
+	if dep.NoPURL {
+		return ""
+	}
+	if dep.PURL != "" {
+		return dep.PURL
+	}
+	version := ""
+	if kind == Lockfile || kind == Supplement {
+		version = dep.Version
+	}
+	return makePURL(cmp.Or(dep.Ecosystem, ecosystem), dep.Name, version, dep.RegistryURL)
+}
+
+// declarationPURL preserves a parser-supplied package identity or builds a
+// versionless one from the declaration's ecosystem, falling back to the
+// parser's.
 func declarationPURL(ecosystem string, declaration core.Declaration) string {
+	if declaration.NoPURL {
+		return ""
+	}
 	if declaration.PURL != "" {
 		return declaration.PURL
 	}
-	return makePURL(ecosystem, declaration.Name, "", "")
+	return makePURL(cmp.Or(declaration.Ecosystem, ecosystem), declaration.Name, "", "")
 }
 
 // makePURL creates a Package URL for a dependency.

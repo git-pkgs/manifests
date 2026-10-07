@@ -53,9 +53,19 @@ type Dependency struct {
 	Scope   Scope
 	// Integrity is an opaque verification value derived from the manifest or
 	// lockfile. Its digest encoding is ecosystem-specific.
-	Integrity   string
-	Direct      bool
-	PURL        string
+	Integrity string
+	Direct    bool
+	// PURL identifies the package. Parse preserves a parser-supplied value and
+	// otherwise builds it from Ecosystem, Name and, for lockfiles and
+	// supplements, Version.
+	PURL string
+	// Ecosystem is the PURL type of this dependency when it differs from the
+	// file's ecosystem, such as an npm package imported from deno.json. Empty
+	// means the file's ecosystem.
+	Ecosystem string
+	// NoPURL marks a source-only entry, such as a direct download URL, whose
+	// package identity is unknown. Parse leaves its PURL empty.
+	NoPURL      bool
 	RegistryURL string
 	// Source is set only when this dependency has an explicit source override.
 	// It is intentionally separate from RegistryURL because paths and Git
@@ -76,7 +86,13 @@ type Declaration struct {
 	Direct bool
 	// PURL identifies the declared package without a version. Parsers may set
 	// it when a file can contain references from more than one ecosystem.
-	PURL     string
+	PURL string
+	// Ecosystem is the PURL type of this declaration when it differs from the
+	// file's ecosystem. Empty means the file's ecosystem.
+	Ecosystem string
+	// NoPURL marks a source-only entry whose package identity is unknown.
+	// Parse leaves its PURL empty.
+	NoPURL   bool
 	Location string
 	Source   Source
 }

@@ -243,6 +243,8 @@ type Dependency struct {
     Integrity   string // Opaque verification value, when available
     Direct      bool   // True if declared directly, false if transitive
     PURL        string // Package URL (pkg:ecosystem/name@version)
+    Ecosystem   string // PURL type when it differs from the file's ecosystem
+    NoPURL      bool   // Source-only entry with no known package identity
     RegistryURL string // Source registry URL (if non-default)
     Source      Source // Explicit Git, path, or ecosystem source override
 }
@@ -257,6 +259,18 @@ convert the value with knowledge of the source format.
 
 When a dependency comes from a non-default registry, the PURL includes a `repository_url` qualifier (e.g., `pkg:npm/foo@1.0.0?repository_url=https://npm.mycompany.com/`). Default registries like registry.npmjs.org, pypi.org, and rubygems.org are not included in the PURL.
 
+A file can refer to packages from more than one ecosystem, such as `npm:`
+imports in `deno.json`. `Parse` resolves each dependency's PURL in this order:
+
+1. `NoPURL` leaves the PURL empty. Source-only entries, such as direct download
+   URLs, keep their location in `Source` without an invented package identity.
+2. A PURL supplied by the parser is preserved as written.
+3. Otherwise the PURL is built from `Ecosystem`, or from the file's ecosystem
+   when `Ecosystem` is empty. Manifest PURLs omit the version. Lockfile and
+   supplement PURLs include it.
+
+`Declaration` follows the same order and always omits the version.
+
 ### Declaration
 
 ```go
@@ -265,8 +279,10 @@ type Declaration struct {
     Version  string // Version requirement as written in the manifest
     Scope    Scope  // runtime, development, test, build, optional
     Direct   bool   // Direct rather than generated or transitive
-    PURL     string // Versionless Package URL
-    Location string // Opaque parser-defined identity within the manifest
+    PURL      string // Versionless Package URL
+    Ecosystem string // PURL type when it differs from the file's ecosystem
+    NoPURL    bool   // Source-only entry with no known package identity
+    Location  string // Opaque parser-defined identity within the manifest
     Source   Source // Explicit source override as written
 }
 ```
@@ -276,9 +292,9 @@ merging, interpolation, or other effective-model resolution. Consumers can use
 `Location` to match the same logical entry across edits, but should not parse
 its ecosystem-specific value. A declaration PURL omits the version because the
 raw requirement may be a range or property expression. When a parser supplies
-its own PURL, `Parse` preserves it so one manifest can refer to packages from
-different ecosystems. Otherwise `Parse` builds the PURL from the parser's
-ecosystem.
+its own PURL or `Ecosystem`, `Parse` uses it so one manifest can refer to
+packages from different ecosystems. Otherwise `Parse` builds the PURL from the
+parser's ecosystem.
 
 `Direct` distinguishes explicit requirements from generated or transitive
 entries when the source format records that distinction, such as `go.mod`.
