@@ -9,11 +9,11 @@ require (
 	github.com/bazelbuild/buildtools v0.0.0-20260716142318-04cf7de1434f
 	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/git-pkgs/pom v0.1.8
-	github.com/git-pkgs/purl v0.1.20
+	github.com/git-pkgs/purl v0.1.21
 	go.yaml.in/yaml/v3 v3.0.5
 )
 
 require (
-	github.com/git-pkgs/vers v0.7.0 // indirect
+	github.com/git-pkgs/vers v0.7.1 // indirect
 	github.com/package-url/packageurl-go v0.1.7 // indirect
 )
