@@ -1,6 +1,7 @@
 package cran
 
 import (
+	"cmp"
 	"encoding/json"
 	"strings"
 
@@ -192,19 +193,42 @@ func parseRPackageSpec(spec string) (name, version string) {
 type renvLockParser struct{}
 
 type renvLock struct {
+	R struct {
+		Repositories []renvRepository `json:"Repositories"`
+	} `json:"R"`
 	Packages map[string]renvPackage `json:"Packages"`
 }
 
+type renvRepository struct {
+	Name string `json:"Name"`
+	URL  string `json:"URL"`
+}
+
 type renvPackage struct {
-	Package string `json:"Package"`
-	Version string `json:"Version"`
-	Hash    string `json:"Hash"`
+	Package        string `json:"Package"`
+	Version        string `json:"Version"`
+	Hash           string `json:"Hash"`
+	Source         string `json:"Source"`
+	Repository     string `json:"Repository"`
+	RemoteUsername string `json:"RemoteUsername"`
+	RemoteRepo     string `json:"RemoteRepo"`
+	RemoteRef      string `json:"RemoteRef"`
+	RemoteSha      string `json:"RemoteSha"`
+	RemoteSubdir   string `json:"RemoteSubdir"`
+	RemoteURL      string `json:"RemoteUrl"`
 }
 
 func (p *renvLockParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var lock renvLock
 	if err := json.Unmarshal(content, &lock); err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
+	}
+
+	repositories := make(map[string]string, len(lock.R.Repositories))
+	for _, repo := range lock.R.Repositories {
+		if repo.Name != "" && repo.URL != "" {
+			repositories[repo.Name] = repo.URL
+		}
 	}
 
 	var deps []core.Dependency
@@ -215,14 +239,85 @@ func (p *renvLockParser) Parse(filename string, content []byte) (*core.Result, e
 			integrity = "md5-" + pkg.Hash
 		}
 
-		deps = append(deps, core.Dependency{
+		dep := core.Dependency{
 			Name:      pkg.Package,
 			Version:   pkg.Version,
 			Scope:     core.Runtime,
 			Integrity: integrity,
 			Direct:    false,
-		})
+		}
+		applyRenvSource(&dep, pkg, repositories)
+		deps = append(deps, dep)
 	}
 
 	return &core.Result{Dependencies: deps}, nil
+}
+
+// applyRenvSource sets dep's source and identity from its renv record.
+// Entries without a recorded source keep the CRAN identity older lockfiles
+// implied.
+func applyRenvSource(dep *core.Dependency, pkg renvPackage, repositories map[string]string) {
+	ref := cmp.Or(pkg.RemoteSha, pkg.RemoteRef)
+	switch pkg.Source {
+	case "", "Repository":
+		applyRenvRepository(dep, pkg.Repository, repositories)
+	case "CRAN":
+		applyRenvRepository(dep, cmp.Or(pkg.Repository, pkg.Source), repositories)
+	case "Bioconductor":
+		dep.Ecosystem = "bioconductor"
+		dep.Source = core.Source{Kind: core.SourceRegistry, Value: cmp.Or(pkg.Repository, pkg.Source)}
+	case "GitHub":
+		dep.NoPURL = true
+		dep.Source = core.Source{Kind: core.SourceGitHub, Value: renvRemoteRepo(pkg), Ref: ref, Rel: pkg.RemoteSubdir}
+	case "GitLab", "Bitbucket":
+		// renv records these by host, owner and name rather than a clone URL,
+		// so keep the remotes-style coordinate it accepts for reinstalling.
+		value := ""
+		if repo := renvRemoteRepo(pkg); repo != "" {
+			value = strings.ToLower(pkg.Source) + "::" + repo
+		}
+		dep.NoPURL = true
+		dep.Source = core.Source{Kind: core.SourceGit, Value: value, Ref: ref, Rel: pkg.RemoteSubdir}
+	case "git":
+		dep.NoPURL = true
+		dep.Source = core.Source{Kind: core.SourceGit, Value: pkg.RemoteURL, Ref: ref, Rel: pkg.RemoteSubdir}
+	case "URL":
+		dep.NoPURL = true
+		dep.Source = core.Source{Kind: core.SourceURL, Value: pkg.RemoteURL}
+	case "Local":
+		dep.NoPURL = true
+		dep.Source = core.Source{Kind: core.SourcePath, Value: pkg.RemoteURL}
+	default:
+		dep.NoPURL = true
+	}
+}
+
+// applyRenvRepository sets dep's identity from its repository name. A
+// repository whose URL is unknown has no package identity.
+func applyRenvRepository(dep *core.Dependency, name string, repositories map[string]string) {
+	if name == "" {
+		return
+	}
+	dep.Source = core.Source{Kind: core.SourceRegistry, Value: name}
+	switch {
+	case name == "CRAN" || name == "RSPM" || name == "PPM" || name == "P3M":
+		// Posit Package Manager serves CRAN under the RSPM, PPM and P3M names.
+	case strings.HasPrefix(strings.ToLower(name), "bioc"):
+		dep.Ecosystem = "bioconductor"
+	case strings.HasPrefix(name, "https://"), strings.HasPrefix(name, "http://"):
+		dep.RegistryURL = name
+	case repositories[name] != "":
+		dep.RegistryURL = repositories[name]
+	default:
+		dep.NoPURL = true
+	}
+}
+
+// renvRemoteRepo returns the owner/name coordinate of a hosted Git remote, or
+// empty when either part is missing.
+func renvRemoteRepo(pkg renvPackage) string {
+	if pkg.RemoteUsername == "" || pkg.RemoteRepo == "" {
+		return ""
+	}
+	return pkg.RemoteUsername + "/" + pkg.RemoteRepo
 }

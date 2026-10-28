@@ -328,7 +328,7 @@ type Source struct {
     Branch string     // Literal branch selector
     Tag    string     // Literal tag selector
     Ref    string     // Literal revision selector
-    Rel    string     // Literal repository-relative cookbook path
+    Rel    string     // Literal repository-relative package path
 }
 ```
 
@@ -348,6 +348,22 @@ In `deno.json`, remote URL imports use the `url` source kind. Local path and
 `file:` imports use the `path` source kind. Both are source-only entries named
 by their import map key, with `NoPURL` set. Runtime builtins such as `node:fs`,
 inline `data:` modules and bare values are not reported as dependencies.
+
+In `renv.lock`, packages installed from a repository use the `registry` source
+kind with the recorded repository name. CRAN packages keep a `cran` PURL, as
+do packages from Posit Package Manager recorded as `RSPM`, `PPM` or `P3M`.
+Bioconductor packages, including those from repositories such as `BioCsoft`,
+use a `bioconductor` PURL. Packages from other repositories keep a `cran` PURL
+with a `repository_url` taken from the lockfile's repository list, or from the
+repository value when it is a URL. A repository with no known URL has no
+package identity. GitHub packages use the `github` source kind with an
+`owner/repo` value. GitLab and Bitbucket packages use the `git` source kind
+with a `gitlab::owner/repo` or `bitbucket::owner/repo` coordinate. `git`, `URL`
+and `Local` packages use the `git`, `url` and `path` source kinds with their
+recorded `RemoteUrl`. Git sources keep `RemoteSha`, or `RemoteRef` when no
+commit is recorded, in `Ref` and `RemoteSubdir` in `Rel`. These source-only
+entries and packages with an unrecognised source have `NoPURL` set. Packages
+with no recorded source keep a `cran` PURL.
 
 Parsers that do not preserve source locations leave `Declarations` empty.
 Declarations are available for `package.json`, Cargo manifests, `go.mod`, Python

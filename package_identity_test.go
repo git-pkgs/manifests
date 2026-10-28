@@ -272,3 +272,94 @@ func TestDenoImportSources(t *testing.T) {
 		}
 	}
 }
+
+func TestRenvLockSources(t *testing.T) {
+	// https://github.com/git-pkgs/manifests/issues/123
+	content := []byte(`{
+  "R": {
+    "Version": "4.5.0",
+    "Repositories": [
+      {"Name": "CRAN", "URL": "https://cloud.r-project.org"},
+      {"Name": "internal", "URL": "https://r.example.com"}
+    ]
+  },
+  "Packages": {
+    "BiocGenerics": {"Package": "BiocGenerics", "Version": "0.58.1", "Source": "Bioconductor", "Repository": "Bioconductor"},
+    "survival": {"Package": "survival", "Version": "2.34", "Source": "Repository", "Repository": "CRAN", "Hash": "abc123"},
+    "rspmpkg": {"Package": "rspmpkg", "Version": "1.2.0", "Source": "Repository", "Repository": "RSPM"},
+    "ppmpkg": {"Package": "ppmpkg", "Version": "1.3.0", "Source": "Repository", "Repository": "PPM"},
+    "p3mpkg": {"Package": "p3mpkg", "Version": "1.4.0", "Source": "Repository", "Repository": "P3M"},
+    "IRanges": {"Package": "IRanges", "Version": "2.40.0", "Source": "Repository", "Repository": "BioCsoft"},
+    "S4Vectors": {"Package": "S4Vectors", "Version": "0.44.0", "Source": "Bioconductor"},
+    "legacy": {"Package": "legacy", "Version": "1.0.0"},
+    "internalpkg": {"Package": "internalpkg", "Version": "0.2.0", "Source": "Repository", "Repository": "internal"},
+    "universe": {"Package": "universe", "Version": "0.3.0", "Source": "Repository", "Repository": "https://ropensci.r-universe.dev"},
+    "mystery": {"Package": "mystery", "Version": "0.4.0", "Source": "Repository", "Repository": "unlisted"},
+    "ghpkg": {"Package": "ghpkg", "Version": "0.5.0", "Source": "GitHub", "RemoteType": "github", "RemoteHost": "api.github.com", "RemoteUsername": "acme", "RemoteRepo": "ghpkg", "RemoteRef": "main", "RemoteSha": "0123abc", "RemoteSubdir": "pkg"},
+    "glpkg": {"Package": "glpkg", "Version": "0.6.0", "Source": "GitLab", "RemoteUsername": "acme", "RemoteRepo": "glpkg", "RemoteRef": "v0.6.0"},
+    "gitpkg": {"Package": "gitpkg", "Version": "0.7.0", "Source": "git", "RemoteUrl": "https://git.example.com/gitpkg.git", "RemoteSha": "4567def"},
+    "urlpkg": {"Package": "urlpkg", "Version": "0.8.0", "Source": "URL", "RemoteUrl": "https://example.com/urlpkg_0.8.0.tar.gz"},
+    "localpkg": {"Package": "localpkg", "Version": "0.9.0", "Source": "Local", "RemoteUrl": "~/src/localpkg"},
+    "unknownpkg": {"Package": "unknownpkg", "Version": "1.1.0", "Source": "unknown"}
+  }
+}`)
+
+	want := map[string]struct {
+		purl, ecosystem string
+		source          Source
+	}{
+		"BiocGenerics": {"pkg:bioconductor/BiocGenerics@0.58.1", "bioconductor", Source{Kind: SourceRegistry, Value: "Bioconductor"}},
+		"survival":     {"pkg:cran/survival@2.34", "cran", Source{Kind: SourceRegistry, Value: "CRAN"}},
+		"rspmpkg":      {"pkg:cran/rspmpkg@1.2.0", "cran", Source{Kind: SourceRegistry, Value: "RSPM"}},
+		"ppmpkg":       {"pkg:cran/ppmpkg@1.3.0", "cran", Source{Kind: SourceRegistry, Value: "PPM"}},
+		"p3mpkg":       {"pkg:cran/p3mpkg@1.4.0", "cran", Source{Kind: SourceRegistry, Value: "P3M"}},
+		"IRanges":      {"pkg:bioconductor/IRanges@2.40.0", "bioconductor", Source{Kind: SourceRegistry, Value: "BioCsoft"}},
+		"S4Vectors":    {"pkg:bioconductor/S4Vectors@0.44.0", "bioconductor", Source{Kind: SourceRegistry, Value: "Bioconductor"}},
+		"legacy":       {"pkg:cran/legacy@1.0.0", "cran", Source{}},
+		"internalpkg":  {"pkg:cran/internalpkg@0.2.0?repository_url=https:%2F%2Fr.example.com", "cran", Source{Kind: SourceRegistry, Value: "internal"}},
+		"universe":     {"pkg:cran/universe@0.3.0?repository_url=https:%2F%2Fropensci.r-universe.dev", "cran", Source{Kind: SourceRegistry, Value: "https://ropensci.r-universe.dev"}},
+		"mystery":      {"", "", Source{Kind: SourceRegistry, Value: "unlisted"}},
+		"ghpkg":        {"", "", Source{Kind: SourceGitHub, Value: "acme/ghpkg", Ref: "0123abc", Rel: "pkg"}},
+		"glpkg":        {"", "", Source{Kind: SourceGit, Value: "gitlab::acme/glpkg", Ref: "v0.6.0"}},
+		"gitpkg":       {"", "", Source{Kind: SourceGit, Value: "https://git.example.com/gitpkg.git", Ref: "4567def"}},
+		"urlpkg":       {"", "", Source{Kind: SourceURL, Value: "https://example.com/urlpkg_0.8.0.tar.gz"}},
+		"localpkg":     {"", "", Source{Kind: SourcePath, Value: "~/src/localpkg"}},
+		"unknownpkg":   {"", "", Source{}},
+	}
+
+	result, err := Parse("renv.lock", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if len(result.Dependencies) != len(want) {
+		t.Fatalf("got %d dependencies, want %d: %+v", len(result.Dependencies), len(want), result.Dependencies)
+	}
+	for _, dep := range result.Dependencies {
+		w, ok := want[dep.Name]
+		if !ok {
+			t.Errorf("unexpected dependency %q", dep.Name)
+			continue
+		}
+		if dep.PURL != w.purl {
+			t.Errorf("%s PURL = %q, want %q", dep.Name, dep.PURL, w.purl)
+		}
+		if dep.Ecosystem != w.ecosystem {
+			t.Errorf("%s Ecosystem = %q, want %q", dep.Name, dep.Ecosystem, w.ecosystem)
+		}
+		if dep.Source != w.source {
+			t.Errorf("%s Source = %+v, want %+v", dep.Name, dep.Source, w.source)
+		}
+		if dep.NoPURL != (w.purl == "") {
+			t.Errorf("%s NoPURL = %v, want %v", dep.Name, dep.NoPURL, w.purl == "")
+		}
+		if dep.Direct {
+			t.Errorf("%s Direct = true, want false", dep.Name)
+		}
+		if dep.Version == "" {
+			t.Errorf("%s Version is empty", dep.Name)
+		}
+		if dep.Name == "survival" && dep.Integrity != "md5-abc123" {
+			t.Errorf("survival Integrity = %q, want %q", dep.Integrity, "md5-abc123")
+		}
+	}
+}
