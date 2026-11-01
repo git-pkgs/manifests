@@ -3,6 +3,8 @@ package git
 import (
 	"os"
 	"testing"
+
+	"github.com/git-pkgs/manifests/internal/core"
 )
 
 func TestGitmodules(t *testing.T) {
@@ -17,29 +19,34 @@ func TestGitmodules(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(res.Dependencies) != 3 {
-		t.Fatalf("expected 3 dependencies, got %d", len(res.Dependencies))
+	want := []core.Dependency{
+		{Name: "github.com/example/foo", Scope: core.Runtime, Direct: true,
+			Source: core.Source{Kind: core.SourceGit, Value: "https://github.com/example/foo.git"}},
+		{Name: "github.com/example/bar", Scope: core.Runtime, Direct: true,
+			Source: core.Source{Kind: core.SourceGit, Value: "git@github.com:example/bar.git"}},
+		{Name: "gitlab.com/example/baz", Scope: core.Runtime, Direct: true,
+			Source: core.Source{Kind: core.SourceGit, Value: "https://gitlab.com/example/baz.git", Branch: "main"}},
+		{Name: "deps/sibling", Scope: core.Runtime, Direct: true, NoPURL: true,
+			Source: core.Source{Kind: core.SourceGit, Value: "../sibling.git"}},
 	}
-
-	depMap := make(map[string]string)
-	for _, d := range res.Dependencies {
-		depMap[d.Name] = d.RegistryURL
+	if len(res.Dependencies) != len(want) {
+		t.Fatalf("got %d dependencies, want %d: %+v", len(res.Dependencies), len(want), res.Dependencies)
 	}
-
-	expected := map[string]string{
-		"lib/foo":    "https://github.com/example/foo.git",
-		"vendor/bar": "git@github.com:example/bar.git",
-		"tools/baz":  "https://gitlab.com/example/baz.git",
-	}
-
-	for name, wantURL := range expected {
-		gotURL, ok := depMap[name]
-		if !ok {
-			t.Errorf("expected %s dependency", name)
-			continue
+	for i, dep := range res.Dependencies {
+		if dep != want[i] {
+			t.Errorf("dependency %d = %+v, want %+v", i, dep, want[i])
 		}
-		if gotURL != wantURL {
-			t.Errorf("%s url = %q, want %q", name, gotURL, wantURL)
-		}
+	}
+}
+
+func TestGitmodulesWithoutURL(t *testing.T) {
+	parser := &gitmodulesParser{}
+	res, err := parser.Parse(".gitmodules", []byte("[submodule \"foo\"]\n\tpath = foo\n"))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := []core.Dependency{{Name: "foo", Scope: core.Runtime, Direct: true, NoPURL: true}}
+	if len(res.Dependencies) != 1 || res.Dependencies[0] != want[0] {
+		t.Errorf("got %+v, want %+v", res.Dependencies, want)
 	}
 }

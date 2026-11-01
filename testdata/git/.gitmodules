@@ -8,3 +8,6 @@
 	path = tools/baz
 	url = https://gitlab.com/example/baz.git
 	branch = main
+[submodule "deps/sibling"]
+	path = deps/sibling
+	url = ../sibling.git
