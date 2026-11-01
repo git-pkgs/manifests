@@ -57,7 +57,7 @@ func (p *packageSwiftParser) Parse(_ string, content []byte) (*core.Result, erro
 func packageDependency(args []argument) core.Dependency {
 	dep := core.Dependency{Scope: core.Runtime, Direct: true}
 	if repository := argumentString(args, "url"); repository != "" {
-		dep.Name = swiftSourceCoordinate(repository)
+		dep.Name = core.GitCoordinate(repository)
 		dep.Source = core.Source{Kind: core.SourceGit, Value: repository}
 	} else if identity := argumentString(args, "id"); identity != "" {
 		dep.Name = strings.ToLower(identity)

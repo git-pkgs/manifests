@@ -107,18 +107,3 @@ func TestPackageResolvedV2(t *testing.T) {
 		}
 	}
 }
-
-func TestSwiftSourceCoordinate(t *testing.T) {
-	tests := map[string]string{
-		"https://github.com/apple/swift-argument-parser.git": "github.com/apple/swift-argument-parser",
-		"ssh://git@github.com/apple/swift-nio.git":           "github.com/apple/swift-nio",
-		"git@github.com:apple/swift-log.git":                 "github.com/apple/swift-log",
-		"../local-package":                                   "",
-	}
-
-	for rawURL, want := range tests {
-		if got := swiftSourceCoordinate(rawURL); got != want {
-			t.Errorf("swiftSourceCoordinate(%q) = %q, want %q", rawURL, got, want)
-		}
-	}
-}

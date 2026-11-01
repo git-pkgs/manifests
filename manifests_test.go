@@ -1232,3 +1232,36 @@ func TestPipfileLockRegistryURL(t *testing.T) {
 		}
 	}
 }
+
+func TestGitmodulesPURLs(t *testing.T) {
+	content, err := os.ReadFile("testdata/git/.gitmodules")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	result, err := Parse(".gitmodules", content)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	want := map[string]string{
+		"github.com/example/foo": "pkg:git/github.com/example/foo",
+		"github.com/example/bar": "pkg:git/github.com/example/bar",
+		"gitlab.com/example/baz": "pkg:git/gitlab.com/example/baz",
+		"deps/sibling":           "",
+	}
+	if len(result.Dependencies) != len(want) {
+		t.Fatalf("Dependencies has %d entries, want %d: %+v", len(result.Dependencies), len(want), result.Dependencies)
+	}
+	for _, dependency := range result.Dependencies {
+		wantPURL, ok := want[dependency.Name]
+		if !ok {
+			t.Errorf("unexpected dependency: %+v", dependency)
+			continue
+		}
+		if dependency.PURL != wantPURL {
+			t.Errorf("%s PURL = %q, want %q", dependency.Name, dependency.PURL, wantPURL)
+		}
+		if dependency.Source.Kind != SourceGit {
+			t.Errorf("%s source = %+v, want a git source", dependency.Name, dependency.Source)
+		}
+	}
+}

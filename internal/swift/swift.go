@@ -3,7 +3,6 @@ package swift
 import (
 	"cmp"
 	"encoding/json"
-	"net/url"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -15,40 +14,6 @@ func init() {
 		core.GlobMatch("Package@swift-*.swift"),
 	))
 	core.Register("swift", core.Lockfile, &packageResolvedParser{}, core.ExactMatch("Package.resolved"))
-}
-
-func swiftSourceCoordinate(rawURL string) string {
-	if strings.Contains(rawURL, "://") {
-		parsed, err := url.Parse(rawURL)
-		if err != nil || parsed.Hostname() == "" {
-			return ""
-		}
-
-		host := strings.ToLower(parsed.Hostname())
-		if parsed.Port() != "" {
-			host += ":" + parsed.Port()
-		}
-		return joinSwiftSourceCoordinate(host, parsed.Path)
-	}
-
-	separator := strings.IndexByte(rawURL, ':')
-	if separator <= 0 {
-		return ""
-	}
-	host := rawURL[:separator]
-	if at := strings.LastIndexByte(host, '@'); at >= 0 {
-		host = host[at+1:]
-	}
-	return joinSwiftSourceCoordinate(strings.ToLower(host), rawURL[separator+1:])
-}
-
-func joinSwiftSourceCoordinate(host, path string) string {
-	path = strings.Trim(strings.TrimSpace(path), "/")
-	path = strings.TrimSuffix(path, ".git")
-	if host == "" || path == "" {
-		return ""
-	}
-	return host + "/" + path
 }
 
 // packageResolvedParser parses Package.resolved files.
@@ -117,7 +82,7 @@ func parsePackageResolvedV1(filename string, content []byte) ([]core.Dependency,
 
 	var deps []core.Dependency
 	for _, pin := range resolved.Object.Pins {
-		name := swiftSourceCoordinate(pin.RepositoryURL)
+		name := core.GitCoordinate(pin.RepositoryURL)
 		if name == "" {
 			name = pin.Package
 		}
@@ -146,7 +111,7 @@ func parsePackageResolvedV2(filename string, content []byte) ([]core.Dependency,
 		var source core.Source
 		switch pin.Kind {
 		case "remoteSourceControl":
-			if coordinate := swiftSourceCoordinate(pin.Location); coordinate != "" {
+			if coordinate := core.GitCoordinate(pin.Location); coordinate != "" {
 				name = coordinate
 			}
 			source = pin.State.source(pin.Location)
