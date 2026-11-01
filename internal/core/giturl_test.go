@@ -13,6 +13,8 @@ func TestGitCoordinate(t *testing.T) {
 		"./vendor/local.git":                                 "",
 		"/srv/git/local.git":                                 "",
 		"file:///srv/git/local.git":                          "",
+		"file://localhost/srv/git/local.git":                 "",
+		"git@h:team/repo.git":                                "h/team/repo",
 		"C:\\repos\\local":                                   "",
 	}
 

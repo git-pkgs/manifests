@@ -12,7 +12,7 @@ import (
 func GitCoordinate(rawURL string) string {
 	if strings.Contains(rawURL, "://") {
 		parsed, err := url.Parse(rawURL)
-		if err != nil || parsed.Hostname() == "" {
+		if err != nil || parsed.Hostname() == "" || parsed.Scheme == "file" {
 			return ""
 		}
 
@@ -23,17 +23,14 @@ func GitCoordinate(rawURL string) string {
 		return joinGitCoordinate(host, parsed.Path)
 	}
 
+	// A single character before the first colon is a Windows drive prefix.
 	separator := strings.IndexByte(rawURL, ':')
-	if separator <= 0 || strings.ContainsAny(rawURL[:separator], "/\\") {
+	if separator <= 1 || strings.ContainsAny(rawURL[:separator], "/\\") {
 		return ""
 	}
 	host := rawURL[:separator]
 	if at := strings.LastIndexByte(host, '@'); at >= 0 {
 		host = host[at+1:]
-	}
-	if len(host) == 1 {
-		// A single-letter host is a Windows drive prefix, not a remote.
-		return ""
 	}
 	return joinGitCoordinate(strings.ToLower(host), rawURL[separator+1:])
 }
