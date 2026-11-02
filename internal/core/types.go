@@ -54,6 +54,11 @@ type Dependency struct {
 	// Integrity is an opaque verification value derived from the manifest or
 	// lockfile. Its digest encoding is ecosystem-specific.
 	Integrity string
+	// Artifacts holds verification values for individual files of this
+	// package version, such as a package archive and its manifest, when the
+	// source records them separately. It is optional and independent of
+	// Integrity. Parse orders the records and drops exact duplicates.
+	Artifacts []ArtifactIntegrity `json:",omitempty"`
 	Direct    bool
 	// PURL identifies the package. Parse preserves a parser-supplied value and
 	// otherwise builds it from Ecosystem, Name and, for lockfiles and
@@ -73,6 +78,20 @@ type Dependency struct {
 	// It is intentionally separate from RegistryURL because paths and Git
 	// repositories are not package registries.
 	Source Source
+}
+
+// ArtifactIntegrity is a verification value for one file of a dependency's
+// package version.
+type ArtifactIntegrity struct {
+	// Artifact names the file the value verifies, using the source format's
+	// own term, such as "toml" or "fpkg" in a Flix packages.lock.
+	Artifact string
+	// Algorithm is the hash algorithm as named by the source, such as
+	// "sha256". It is empty when the source does not name one.
+	Algorithm string
+	// Digest is the hash value in the source's encoding, without the
+	// algorithm name.
+	Digest string
 }
 
 // Declaration is a dependency-like reference at a stable logical location

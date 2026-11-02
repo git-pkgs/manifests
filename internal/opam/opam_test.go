@@ -1,6 +1,7 @@
 package opam
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -47,7 +48,7 @@ depends: [
 		{Name: "unix", Scope: core.Runtime, Direct: true},
 		{Name: "ocamlformat", Version: ">= 0.27.0", Scope: core.Development, Direct: true},
 	}
-	if !slices.Equal(result.Dependencies, want) {
+	if !reflect.DeepEqual(result.Dependencies, want) {
 		t.Errorf("Dependencies = %#v, want %#v", result.Dependencies, want)
 	}
 }

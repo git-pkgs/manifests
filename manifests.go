@@ -17,6 +17,7 @@ package manifests
 
 import (
 	"cmp"
+	"slices"
 
 	"github.com/git-pkgs/manifests/internal/core"
 	"github.com/git-pkgs/purl"
@@ -32,8 +33,13 @@ type (
 // Dependency represents a parsed dependency. Its Integrity field is an opaque
 // verification value whose digest encoding depends on the source format.
 // Before v1, callers constructing values should use keyed fields so additive
-// metadata fields remain source-compatible.
+// metadata fields remain source-compatible. Dependency contains a slice, so
+// values cannot be compared with == or used as map keys.
 type Dependency = core.Dependency
+
+// ArtifactIntegrity is a verification value for one file of a dependency's
+// package version, such as its package archive or its manifest.
+type ArtifactIntegrity = core.ArtifactIntegrity
 
 // Declaration represents a dependency-like reference at a stable logical
 // location in a manifest. Location is ecosystem-specific and opaque.
@@ -145,6 +151,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		dep := &res.Dependencies[i]
 		dep.PURL = dependencyPURL(eco, kind, *dep)
 		dep.Ecosystem = entryEcosystem(eco, dep.Ecosystem, dep.NoPURL)
+		dep.Artifacts = normalizeArtifacts(dep.Artifacts)
 	}
 	for i := range res.Declarations {
 		declaration := &res.Declarations[i]
@@ -165,6 +172,23 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Sources:      res.Sources,
 		Scripts:      res.Scripts,
 	}, nil
+}
+
+// normalizeArtifacts orders artifact integrity records so output does not
+// depend on parser iteration order, then drops exact duplicates. An empty
+// collection becomes nil.
+func normalizeArtifacts(artifacts []core.ArtifactIntegrity) []core.ArtifactIntegrity {
+	if len(artifacts) == 0 {
+		return nil
+	}
+	slices.SortFunc(artifacts, func(a, b core.ArtifactIntegrity) int {
+		return cmp.Or(
+			cmp.Compare(a.Artifact, b.Artifact),
+			cmp.Compare(a.Algorithm, b.Algorithm),
+			cmp.Compare(a.Digest, b.Digest),
+		)
+	})
+	return slices.Compact(artifacts)
 }
 
 // entryEcosystem returns the ecosystem a parser set on a dependency or
