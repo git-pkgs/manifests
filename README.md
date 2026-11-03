@@ -250,16 +250,17 @@ fields in minor releases. Use keyed composite literals when constructing
 
 ```go
 type Dependency struct {
-    Name        string // Package name
-    Version     string // Version constraint or resolved version
-    Scope       Scope  // runtime, development, test, build, optional
-    Integrity   string // Opaque verification value, when available
-    Direct      bool   // True if declared directly, false if transitive
-    PURL        string // Package URL (pkg:ecosystem/name@version)
-    Ecosystem   string // Ecosystem name, in the same form as ParseResult.Ecosystem
-    NoPURL      bool   // Source-only entry with no known package identity
-    RegistryURL string // Source registry URL (if non-default)
-    Source      Source // Explicit Git, path, or ecosystem source override
+    Name        string              // Package name
+    Version     string              // Version constraint or resolved version
+    Scope       Scope               // runtime, development, test, build, optional
+    Integrity   string              // Opaque verification value, when available
+    Artifacts   []ArtifactIntegrity // Per-file verification values, when recorded
+    Direct      bool                // True if declared directly, false if transitive
+    PURL        string              // Package URL (pkg:ecosystem/name@version)
+    Ecosystem   string              // Ecosystem name, in the same form as ParseResult.Ecosystem
+    NoPURL      bool                // Source-only entry with no known package identity
+    RegistryURL string              // Source registry URL (if non-default)
+    Source      Source              // Explicit Git, path, or ecosystem source override
 }
 ```
 
@@ -269,6 +270,33 @@ prefix such as `sha256-` when the source stores it separately. That prefix does
 not imply Subresource Integrity: the digest may use hexadecimal, base64, Nix
 base32, or another ecosystem-specific form. Consumers should only decode or
 convert the value with knowledge of the source format.
+
+`Artifacts` records verification values for individual files of a package
+version when the source lists them separately. Flix's `packages.lock`, for
+example, can record both a package's `flix.toml` manifest and its `.fpkg`
+archive with the same algorithm. Each record keeps its file's role, so a
+manifest digest is never mistaken for an archive digest:
+
+```go
+type ArtifactIntegrity struct {
+    Artifact  string // File role, in the source format's own terms (e.g. "toml", "fpkg")
+    Algorithm string // Hash algorithm as named by the source (e.g. "sha256"), if any
+    Digest    string // Hash value in the source's encoding, without the algorithm
+}
+```
+
+One package version stays one `Dependency` however many files it records.
+`Parse` sorts each dependency's records by artifact, algorithm and digest, then
+drops exact duplicates, so output does not depend on parser iteration order.
+`Artifacts` is optional and independent of `Integrity`. Parsers that do not
+record per-file values leave it nil, with their `Integrity` values unchanged.
+
+Compatibility: adding `Artifacts` means unkeyed `Dependency` struct literals no
+longer compile, so construct values with keyed fields. Because the field is a
+slice, `Dependency` values can no longer be compared with `==` or used as map
+keys; compare them with `reflect.DeepEqual` or by the fields you need. In JSON
+the field is tagged `omitempty`, so encoded dependencies without artifact
+records are unchanged.
 
 When a dependency comes from a non-default registry, the PURL includes a `repository_url` qualifier (e.g., `pkg:npm/foo@1.0.0?repository_url=https://npm.mycompany.com/`). Default registries like registry.npmjs.org, pypi.org, and rubygems.org are not included in the PURL.
 

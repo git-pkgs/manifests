@@ -2,6 +2,7 @@ package git
 
 import (
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -33,7 +34,7 @@ func TestGitmodules(t *testing.T) {
 		t.Fatalf("got %d dependencies, want %d: %+v", len(res.Dependencies), len(want), res.Dependencies)
 	}
 	for i, dep := range res.Dependencies {
-		if dep != want[i] {
+		if !reflect.DeepEqual(dep, want[i]) {
 			t.Errorf("dependency %d = %+v, want %+v", i, dep, want[i])
 		}
 	}
@@ -46,7 +47,7 @@ func TestGitmodulesWithoutURL(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 	want := []core.Dependency{{Name: "foo", Scope: core.Runtime, Direct: true, NoPURL: true}}
-	if len(res.Dependencies) != 1 || res.Dependencies[0] != want[0] {
+	if !reflect.DeepEqual(res.Dependencies, want) {
 		t.Errorf("got %+v, want %+v", res.Dependencies, want)
 	}
 }
