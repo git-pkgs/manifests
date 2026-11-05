@@ -10,7 +10,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.4
 	github.com/git-pkgs/pom v0.1.8
 	github.com/git-pkgs/purl v0.1.24
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 )
 
 require (
