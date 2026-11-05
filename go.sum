@@ -2,8 +2,8 @@ github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/bazelbuild/buildtools v0.0.0-20260716142318-04cf7de1434f h1:2mT6QcXmMFtvg7bezs1Fef7nnpJyeCmfWoWNjwtvNZ4=
 github.com/bazelbuild/buildtools v0.0.0-20260716142318-04cf7de1434f/go.mod h1:PLNUetjLa77TCCziPsz0EI8a6CUxgC+1jgmWv0H25tg=
-github.com/bmatcuk/doublestar/v4 v4.10.3 h1:1UIv1+fqH3++ViVkpnaPTB+Pi1UHycnPFAq14zgK+gI=
-github.com/bmatcuk/doublestar/v4 v4.10.3/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
+github.com/bmatcuk/doublestar/v4 v4.10.4 h1:oTKkRmRuOsKMqFe1AQazd9gGBFNEpOmgKp/xzB97dnA=
+github.com/bmatcuk/doublestar/v4 v4.10.4/go.mod h1:xBQ8jztBU6kakFMg+8WGxn0c6z1fTSPVIjEY1Wr7jzc=
 github.com/git-pkgs/pom v0.1.8 h1:mXCuWw6XkrKKZb6IurRZyIznYLPhV5AYg5ZO38Uj/l8=
 github.com/git-pkgs/pom v0.1.8/go.mod h1:sQBeYRzjCUn77fcABPn6I/a1aBHFxm55jTmkNxYtGtw=
 github.com/git-pkgs/purl v0.1.22 h1:qT9FNXT/3/RbWnQCxMHn1CFeuruMsq0RBH154oLt1Xs=
