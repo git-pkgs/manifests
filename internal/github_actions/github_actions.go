@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
+	"github.com/git-pkgs/purl"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -88,21 +89,23 @@ func collectStepActions(
 		if step.Uses == "" {
 			continue
 		}
+		if image, ok := strings.CutPrefix(step.Uses, "docker://"); ok {
+			deps = appendDockerDep(image, deps, seen)
+			continue
+		}
 
 		name, version := parseGitHubAction(step.Uses)
 		if name == "" {
 			continue
 		}
-		if !strings.HasPrefix(name, "docker://") {
-			location := core.NextLocation(locations, "jobs/"+url.PathEscape(jobName)+"/steps/"+url.PathEscape(name))
-			*declarations = append(*declarations, core.Declaration{
-				Name:     name,
-				Version:  version,
-				Scope:    core.Runtime,
-				Direct:   true,
-				Location: location,
-			})
-		}
+		location := core.NextLocation(locations, "jobs/"+url.PathEscape(jobName)+"/steps/"+url.PathEscape(name))
+		*declarations = append(*declarations, core.Declaration{
+			Name:     name,
+			Version:  version,
+			Scope:    core.Runtime,
+			Direct:   true,
+			Location: location,
+		})
 
 		key := name + "@" + version
 		if seen[key] {
@@ -173,23 +176,18 @@ func appendDockerDep(image string, deps []core.Dependency, seen map[string]bool)
 	seen[key] = true
 
 	return append(deps, core.Dependency{
-		Name:    "docker://" + name,
-		Version: version,
-		Scope:   core.Runtime,
-		Direct:  true,
+		Name:      "docker://" + name,
+		Version:   version,
+		Scope:     core.Runtime,
+		Direct:    true,
+		Ecosystem: "docker",
+		PURL:      purl.BuildPURLString("docker", name, "", ""),
 	})
 }
 
 // parseGitHubAction parses a GitHub Action reference.
-// Formats: owner/repo@ref, owner/repo/path@ref, docker://image:tag
+// Formats: owner/repo@ref, owner/repo/path@ref
 func parseGitHubAction(uses string) (name, version string) {
-	// Skip docker:// references (handled separately)
-	if strings.HasPrefix(uses, "docker://") {
-		image := strings.TrimPrefix(uses, "docker://")
-		imgName, imgVersion := core.ParseDockerImage(image)
-		return "docker://" + imgName, imgVersion
-	}
-
 	// Skip local actions
 	if strings.HasPrefix(uses, "./") || strings.HasPrefix(uses, "../") {
 		return "", ""
