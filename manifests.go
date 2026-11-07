@@ -51,6 +51,10 @@ type Declaration = core.Declaration
 // a resolved package location.
 type Source = core.Source
 
+// Publication preserves package publication settings declared by a manifest.
+// A declaration does not show that a package was published with those settings.
+type Publication = core.Publication
+
 // Re-export constants.
 const (
 	Manifest   Kind = core.Manifest
@@ -107,6 +111,8 @@ type ParseResult struct {
 	// are not executed or resolved. An empty map does not rule out implicit
 	// hooks or code in formats the parser cannot statically inspect.
 	Scripts map[string][]string
+	// Publication holds settings that affect publishing this package.
+	Publication Publication
 }
 
 // Options configures Parse.
@@ -171,6 +177,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Declarations: res.Declarations,
 		Sources:      res.Sources,
 		Scripts:      res.Scripts,
+		Publication:  res.Publication,
 	}, nil
 }
 

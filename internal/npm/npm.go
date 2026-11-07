@@ -16,6 +16,7 @@ import (
 func init() {
 	// package.json - manifest
 	core.Register("npm", core.Manifest, &npmPackageJSONParser{}, core.ExactMatch("package.json"))
+	core.Register("npm", core.Supplement, &npmRCParser{}, core.ExactMatch(".npmrc"))
 
 	// package-lock.json - lockfile
 	core.Register("npm", core.Lockfile, &npmPackageLockParser{}, core.ExactMatch("package-lock.json", "npm-shrinkwrap.json"))
@@ -24,19 +25,86 @@ func init() {
 	core.Register("npm", core.Lockfile, &npmLsParser{}, core.ExactMatch("npm-ls.json"))
 }
 
+type npmRCParser struct{}
+
+func (p *npmRCParser) Parse(_ string, content []byte) (*core.Result, error) {
+	var provenance *bool
+	for line := range bytes.Lines(content) {
+		key, value, ok := strings.Cut(strings.TrimSpace(string(line)), "=")
+		if !ok || !strings.EqualFold(strings.TrimSpace(key), "provenance") {
+			continue
+		}
+		switch strings.ToLower(npmRCValue(value)) {
+		case "true":
+			enabled := true
+			provenance = &enabled
+		case "false":
+			enabled := false
+			provenance = &enabled
+		default:
+			provenance = nil
+		}
+	}
+	return &core.Result{Publication: core.Publication{Provenance: provenance}}, nil
+}
+
+func npmRCValue(value string) string {
+	value = strings.TrimSpace(value)
+	var quote byte
+	escaped := false
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if escaped {
+			escaped = false
+			continue
+		}
+		if character == '\\' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if character == quote {
+				quote = 0
+			}
+			continue
+		}
+		if character == '\'' || character == '"' {
+			quote = character
+			continue
+		}
+		if (character == '#' || character == ';') &&
+			(index == 0 || value[index-1] == ' ' || value[index-1] == '\t') {
+			value = value[:index]
+			break
+		}
+	}
+	value = strings.TrimSpace(value)
+	if len(value) >= 2 &&
+		((value[0] == '"' && value[len(value)-1] == '"') ||
+			(value[0] == '\'' && value[len(value)-1] == '\'')) {
+		value = value[1 : len(value)-1]
+	}
+	return strings.TrimSpace(value)
+}
+
 // npmPackageJSONParser parses package.json files.
 type npmPackageJSONParser struct{}
 
 type packageJSON struct {
-	Name                 string         `json:"name"`
-	Version              string         `json:"version"`
-	License              any            `json:"license"`
-	Licenses             []npmLicense   `json:"licenses"`
-	Scripts              map[string]any `json:"scripts"`
-	Dependencies         map[string]any `json:"dependencies"`
-	DevDependencies      map[string]any `json:"devDependencies"`
-	OptionalDependencies map[string]any `json:"optionalDependencies"`
-	PeerDependencies     map[string]any `json:"peerDependencies"`
+	Name                 string          `json:"name"`
+	Version              string          `json:"version"`
+	License              any             `json:"license"`
+	Licenses             []npmLicense    `json:"licenses"`
+	Scripts              map[string]any  `json:"scripts"`
+	Dependencies         map[string]any  `json:"dependencies"`
+	DevDependencies      map[string]any  `json:"devDependencies"`
+	OptionalDependencies map[string]any  `json:"optionalDependencies"`
+	PeerDependencies     map[string]any  `json:"peerDependencies"`
+	PublishConfig        json.RawMessage `json:"publishConfig"`
+}
+
+type publishConfig struct {
+	Provenance json.RawMessage `json:"provenance"`
 }
 
 type npmLicense struct {
@@ -63,7 +131,22 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Res
 		Scripts:      core.StringScripts(pkg.Scripts),
 		Dependencies: deps,
 		Declarations: declarations,
+		Publication: core.Publication{
+			Provenance: npmPublishConfigProvenance(pkg.PublishConfig),
+		},
 	}, nil
+}
+
+func npmPublishConfigProvenance(raw json.RawMessage) *bool {
+	var config publishConfig
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return nil
+	}
+	var provenance *bool
+	if err := json.Unmarshal(config.Provenance, &provenance); err != nil {
+		return nil
+	}
+	return provenance
 }
 
 // collectNpmDeclarations appends dependencies and source declarations from

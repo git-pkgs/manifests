@@ -46,6 +46,13 @@ type Source struct {
 	Rel    string
 }
 
+// Publication preserves package publication settings declared by a manifest.
+type Publication struct {
+	// Provenance reports an explicit request to publish provenance. Nil means
+	// the manifest does not declare the setting.
+	Provenance *bool
+}
+
 // Dependency represents a parsed dependency from a manifest or lockfile.
 type Dependency struct {
 	Name    string
@@ -144,6 +151,8 @@ type Result struct {
 	Sources []Source
 	// Scripts maps declared hook or task names to ordered commands or script paths.
 	Scripts map[string][]string
+	// Publication holds settings that affect publishing this package.
+	Publication Publication
 }
 
 // Parser is the interface implemented by all manifest parsers.
