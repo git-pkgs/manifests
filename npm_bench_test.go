@@ -1,6 +1,7 @@
 package manifests
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -67,6 +68,21 @@ func TestNPMLargeLockfile(t *testing.T) {
 	}
 }
 
+func TestNPMCompactLockfileJSONCompatibility(t *testing.T) {
+	data := []byte(`{"ignored":{"nested":["value"]},"lockfileVersion":3,"packages":{"":{"dependencies":{"duplicate":"*"}},"node_modules/duplicate":{"version":"1.0.0","version":"2.0.0","integrity":"sha512-test"}}}`)
+	result, err := Parse("package-lock.json", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Dependencies) != 1 {
+		t.Fatalf("got %d dependencies, want 1", len(result.Dependencies))
+	}
+	dependency := result.Dependencies[0]
+	if dependency.Name != "duplicate" || dependency.Version != "2.0.0" || dependency.Integrity != "sha512-test" || !dependency.Direct {
+		t.Fatalf("unexpected dependency: %+v", dependency)
+	}
+}
+
 func BenchmarkNPMLockfile(b *testing.B) {
 	for _, format := range []int{1, 3} {
 		for _, count := range []int{10, 1000, 10000} {
@@ -86,5 +102,30 @@ func BenchmarkNPMLockfile(b *testing.B) {
 				}
 			})
 		}
+	}
+}
+
+func BenchmarkNPMLockfileCompact(b *testing.B) {
+	for _, count := range []int{1000, 10000} {
+		b.Run(fmt.Sprintf("v3/packages=%d", count), func(b *testing.B) {
+			pretty := npmLockHistory(b, 3, count)
+			var compact bytes.Buffer
+			if err := json.Compact(&compact, pretty); err != nil {
+				b.Fatal(err)
+			}
+			data := compact.Bytes()
+			b.ReportAllocs()
+			b.SetBytes(int64(len(data)))
+			b.ResetTimer()
+			for range b.N {
+				result, err := Parse("package-lock.json", data)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if len(result.Dependencies) != count {
+					b.Fatalf("got %d dependencies, want %d", len(result.Dependencies), count)
+				}
+			}
+		})
 	}
 }

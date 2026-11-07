@@ -3,6 +3,8 @@ package npm
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/json/jsontext"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"iter"
 	"net/url"
@@ -194,11 +196,11 @@ func (p *npmPackageLockParser) Parse(filename string, content []byte) (*core.Res
 }
 
 func hasPackageLockPackages(content []byte) bool {
-	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder := newPackageLockDecoder(content)
 	if !decodeJSONObjectOpening(decoder) {
 		return false
 	}
-	for decoder.More() {
+	for decoder.PeekKind() != '}' {
 		key, ok := decodeJSONKey(decoder)
 		if !ok {
 			return false
@@ -300,12 +302,12 @@ func (e *packageLockEntry) toDependency(directDependencies map[string]bool) (cor
 }
 
 func parsePackageLockDirectDependencies(content []byte) map[string]bool {
-	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder := newPackageLockDecoder(content)
 	if !decodeJSONObjectOpening(decoder) {
 		return nil
 	}
 
-	for decoder.More() {
+	for decoder.PeekKind() != '}' {
 		key, ok := decodeJSONKey(decoder)
 		if !ok {
 			return nil
@@ -321,12 +323,12 @@ func parsePackageLockDirectDependencies(content []byte) map[string]bool {
 	return nil
 }
 
-func decodePackageLockRootDependencies(decoder *json.Decoder) map[string]bool {
+func decodePackageLockRootDependencies(decoder *jsontext.Decoder) map[string]bool {
 	if !decodeJSONObjectOpening(decoder) {
 		return nil
 	}
 
-	for decoder.More() {
+	for decoder.PeekKind() != '}' {
 		path, ok := decodeJSONKey(decoder)
 		if !ok {
 			return nil
@@ -346,9 +348,9 @@ func decodePackageLockRootDependencies(decoder *json.Decoder) map[string]bool {
 	return nil
 }
 
-func decodePackageLockRoot(decoder *json.Decoder) (map[string]bool, error) {
+func decodePackageLockRoot(decoder *jsontext.Decoder) (map[string]bool, error) {
 	var root packageLockRoot
-	if err := decoder.Decode(&root); err != nil {
+	if err := jsonv2.UnmarshalDecode(decoder, &root, json.DefaultOptionsV1()); err != nil {
 		return nil, err
 	}
 
@@ -360,18 +362,21 @@ func decodePackageLockRoot(decoder *json.Decoder) (map[string]bool, error) {
 	return directDependencies, nil
 }
 
-func decodeJSONObjectOpening(decoder *json.Decoder) bool {
-	opening, err := decoder.Token()
-	return err == nil && opening == json.Delim('{')
+func newPackageLockDecoder(content []byte) *jsontext.Decoder {
+	return jsontext.NewDecoder(bytes.NewReader(content), json.DefaultOptionsV1())
 }
 
-func decodeJSONKey(decoder *json.Decoder) (string, bool) {
-	token, err := decoder.Token()
+func decodeJSONObjectOpening(decoder *jsontext.Decoder) bool {
+	opening, err := decoder.ReadToken()
+	return err == nil && opening.Kind() == '{'
+}
+
+func decodeJSONKey(decoder *jsontext.Decoder) (string, bool) {
+	token, err := decoder.ReadToken()
 	if err != nil {
 		return "", false
 	}
-	key, ok := token.(string)
-	return key, ok
+	return token.String(), token.Kind() == '"'
 }
 
 func collectPackageLockDependencyNames(directDependencies map[string]bool, dependencies map[string]json.RawMessage) {
@@ -519,13 +524,13 @@ func extractJSONStringValue(line string) string {
 // read. v2 and v3 list every installed package under "packages"; v1 only has
 // the nested "dependencies" tree.
 func decodePackageLock(content []byte) ([]core.Dependency, error) {
-	decoder := json.NewDecoder(bytes.NewReader(content))
+	decoder := newPackageLockDecoder(content)
 	if !decodeJSONObjectOpening(decoder) {
 		return nil, errPackageLock
 	}
 
 	var tree map[string]packageLockDep
-	for decoder.More() {
+	for decoder.PeekKind() != '}' {
 		key, ok := decodeJSONKey(decoder)
 		if !ok {
 			return nil, errPackageLock
@@ -537,7 +542,7 @@ func decodePackageLock(content []byte) ([]core.Dependency, error) {
 			}
 			return decodePackageLockEntries(decoder)
 		case "dependencies":
-			if err := decoder.Decode(&tree); err != nil {
+			if err := jsonv2.UnmarshalDecode(decoder, &tree, json.DefaultOptionsV1()); err != nil {
 				return nil, err
 			}
 		default:
@@ -553,11 +558,11 @@ func decodePackageLock(content []byte) ([]core.Dependency, error) {
 // decodePackageLockEntries reads the entries of an open "packages" object in
 // document order. The root entry is converted last because it can appear after
 // the packages it declares.
-func decodePackageLockEntries(decoder *json.Decoder) ([]core.Dependency, error) {
+func decodePackageLockEntries(decoder *jsontext.Decoder) ([]core.Dependency, error) {
 	var entries []packageLockEntry
 	var directDependencies map[string]bool
 
-	for decoder.More() {
+	for decoder.PeekKind() != '}' {
 		path, ok := decodeJSONKey(decoder)
 		if !ok {
 			return nil, errPackageLock
@@ -571,7 +576,7 @@ func decodePackageLockEntries(decoder *json.Decoder) ([]core.Dependency, error) 
 			continue
 		}
 		entries = append(entries, packageLockEntry{Path: path})
-		if err := decoder.Decode(&entries[len(entries)-1]); err != nil {
+		if err := jsonv2.UnmarshalDecode(decoder, &entries[len(entries)-1], json.DefaultOptionsV1()); err != nil {
 			return nil, err
 		}
 	}
@@ -589,31 +594,8 @@ func decodePackageLockEntries(decoder *json.Decoder) ([]core.Dependency, error) 
 }
 
 // skipJSONValue reads past the next value without copying it.
-func skipJSONValue(decoder *json.Decoder) bool {
-	token, err := decoder.Token()
-	if err != nil {
-		return false
-	}
-	depth := 0
-	switch token {
-	case json.Delim('{'), json.Delim('['):
-		depth = 1
-	default:
-		return true
-	}
-	for depth > 0 {
-		token, err = decoder.Token()
-		if err != nil {
-			return false
-		}
-		switch token {
-		case json.Delim('{'), json.Delim('['):
-			depth++
-		case json.Delim('}'), json.Delim(']'):
-			depth--
-		}
-	}
-	return true
+func skipJSONValue(decoder *jsontext.Decoder) bool {
+	return decoder.SkipValue() == nil
 }
 
 // extractPackageName extracts the package name from a node_modules path.
