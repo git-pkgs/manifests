@@ -16,12 +16,36 @@ import (
 func init() {
 	// package.json - manifest
 	core.Register("npm", core.Manifest, &npmPackageJSONParser{}, core.ExactMatch("package.json"))
+	core.Register("npm", core.Supplement, &npmRCParser{}, core.ExactMatch(".npmrc"))
 
 	// package-lock.json - lockfile
 	core.Register("npm", core.Lockfile, &npmPackageLockParser{}, core.ExactMatch("package-lock.json", "npm-shrinkwrap.json"))
 
 	// npm-ls.json - lockfile (output from npm ls --json)
 	core.Register("npm", core.Lockfile, &npmLsParser{}, core.ExactMatch("npm-ls.json"))
+}
+
+type npmRCParser struct{}
+
+func (p *npmRCParser) Parse(_ string, content []byte) (*core.Result, error) {
+	var provenance *bool
+	for line := range bytes.Lines(content) {
+		key, value, ok := strings.Cut(strings.TrimSpace(string(line)), "=")
+		if !ok || !strings.EqualFold(strings.TrimSpace(key), "provenance") {
+			continue
+		}
+		switch strings.ToLower(strings.TrimSpace(value)) {
+		case "true":
+			enabled := true
+			provenance = &enabled
+		case "false":
+			enabled := false
+			provenance = &enabled
+		default:
+			provenance = nil
+		}
+	}
+	return &core.Result{Publication: core.Publication{Provenance: provenance}}, nil
 }
 
 // npmPackageJSONParser parses package.json files.
@@ -37,6 +61,11 @@ type packageJSON struct {
 	DevDependencies      map[string]any `json:"devDependencies"`
 	OptionalDependencies map[string]any `json:"optionalDependencies"`
 	PeerDependencies     map[string]any `json:"peerDependencies"`
+	PublishConfig        publishConfig  `json:"publishConfig"`
+}
+
+type publishConfig struct {
+	Provenance *bool `json:"provenance"`
 }
 
 type npmLicense struct {
@@ -63,6 +92,9 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Res
 		Scripts:      core.StringScripts(pkg.Scripts),
 		Dependencies: deps,
 		Declarations: declarations,
+		Publication: core.Publication{
+			Provenance: pkg.PublishConfig.Provenance,
+		},
 	}, nil
 }
 

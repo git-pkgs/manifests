@@ -91,6 +91,63 @@ func TestPURLGeneration(t *testing.T) {
 	}
 }
 
+func TestNPMPublishConfigProvenance(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    *bool
+	}{
+		{name: "enabled", content: `{"publishConfig":{"provenance":true}}`, want: boolPointer(true)},
+		{name: "disabled", content: `{"publishConfig":{"provenance":false}}`, want: boolPointer(false)},
+		{name: "absent", content: `{}`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Parse("package.json", []byte(test.content))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(result.Publication.Provenance, test.want) {
+				t.Fatalf("provenance = %v, want %v", result.Publication.Provenance, test.want)
+			}
+		})
+	}
+}
+
+func TestNPMRCProvenance(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    *bool
+	}{
+		{name: "enabled", content: "registry=https://registry.npmjs.org\nprovenance=true\n", want: boolPointer(true)},
+		{name: "disabled", content: "provenance=false\n", want: boolPointer(false)},
+		{name: "dynamic", content: "provenance=${PROVENANCE}\n"},
+		{name: "dynamic overrides literal", content: "provenance=true\nprovenance=${PROVENANCE}\n"},
+		{name: "absent", content: "registry=https://registry.npmjs.org\n"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := Parse(".npmrc", []byte(test.content))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Kind != Supplement {
+				t.Fatalf("kind = %q, want %q", result.Kind, Supplement)
+			}
+			if !reflect.DeepEqual(result.Publication.Provenance, test.want) {
+				t.Fatalf("provenance = %v, want %v", result.Publication.Provenance, test.want)
+			}
+		})
+	}
+}
+
+func boolPointer(value bool) *bool {
+	return &value
+}
+
 func TestNPMLockfileNestedDependencies(t *testing.T) {
 	const content = `{"lockfileVersion":1,"dependencies":{
 		"parent":{"version":"1.0.0","dev":true,"dependencies":{

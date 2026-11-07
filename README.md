@@ -416,6 +416,7 @@ type ParseResult struct {
     Declarations []Declaration
     Sources      []Source      // Ordered manifest-level source declarations
     Scripts      map[string][]string // Hook or task names with ordered commands or paths
+    Publication  Publication   // Package publication settings
 }
 ```
 
@@ -426,6 +427,8 @@ type ParseResult struct {
 `Digest` contains a file-level verification value when the format defines one. For `Chart.lock`, it covers the dependency declarations from `Chart.yaml` and is separate from each dependency's `Integrity` value.
 
 `Scripts` contains declared commands, callbacks or script paths, including named tasks as well as install hooks. For example, `result.Scripts["postinstall"]` holds the command from npm's `scripts.postinstall`. Lists preserve declaration order; empty declarations are omitted.
+
+`Publication.Provenance` preserves an explicit package provenance setting. It is a pointer so callers can distinguish an omitted setting from `false`. The npm parsers read `publishConfig.provenance` and `.npmrc`'s `provenance` key; the value describes configuration and does not prove that a registry received an attestation.
 
 | Format | Script declarations |
 | --- | --- |
