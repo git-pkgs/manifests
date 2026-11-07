@@ -93,12 +93,16 @@ func TestPURLGeneration(t *testing.T) {
 
 func TestNPMPublishConfigProvenance(t *testing.T) {
 	tests := []struct {
-		name    string
-		content string
-		want    *bool
+		name     string
+		content  string
+		wantName string
+		want     *bool
 	}{
 		{name: "enabled", content: `{"publishConfig":{"provenance":true}}`, want: boolPointer(true)},
 		{name: "disabled", content: `{"publishConfig":{"provenance":false}}`, want: boolPointer(false)},
+		{name: "string", content: `{"name":"example","publishConfig":{"provenance":"true"}}`, wantName: "example"},
+		{name: "null", content: `{"publishConfig":{"provenance":null}}`},
+		{name: "other publish config shape", content: `{"name":"example","publishConfig":"public"}`, wantName: "example"},
 		{name: "absent", content: `{}`},
 	}
 
@@ -111,6 +115,9 @@ func TestNPMPublishConfigProvenance(t *testing.T) {
 			if !reflect.DeepEqual(result.Publication.Provenance, test.want) {
 				t.Fatalf("provenance = %v, want %v", result.Publication.Provenance, test.want)
 			}
+			if result.Name != test.wantName {
+				t.Fatalf("name = %q, want %q", result.Name, test.wantName)
+			}
 		})
 	}
 }
@@ -122,7 +129,11 @@ func TestNPMRCProvenance(t *testing.T) {
 		want    *bool
 	}{
 		{name: "enabled", content: "registry=https://registry.npmjs.org\nprovenance=true\n", want: boolPointer(true)},
+		{name: "quoted", content: "provenance=\"true\"\n", want: boolPointer(true)},
+		{name: "inline hash comment", content: "provenance=true # publishing setting\n", want: boolPointer(true)},
 		{name: "disabled", content: "provenance=false\n", want: boolPointer(false)},
+		{name: "single quoted disabled", content: "provenance='false'\n", want: boolPointer(false)},
+		{name: "inline semicolon comment", content: "provenance=false ; publishing setting\n", want: boolPointer(false)},
 		{name: "dynamic", content: "provenance=${PROVENANCE}\n"},
 		{name: "dynamic overrides literal", content: "provenance=true\nprovenance=${PROVENANCE}\n"},
 		{name: "absent", content: "registry=https://registry.npmjs.org\n"},
