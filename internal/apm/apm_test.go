@@ -26,6 +26,7 @@ func TestGitCoordinate(t *testing.T) {
 		{"https://org.visualstudio.com/project/_git/repo", "", "org.visualstudio.com/project/repo", ""},
 		{"org.visualstudio.com/project/_git/repo/skills", "", "org.visualstudio.com/project/repo", "skills"},
 		{"enterprise-user@ghe.corp.com:Org/Repo.git", "", "ghe.corp.com/Org/Repo", ""},
+		{"user+emu@ghe.corp.com:Org/Repo.git", "", "ghe.corp.com/Org/Repo", ""},
 		{"git.example.com/team/repo/.github/skills/x", "", "git.example.com/team/repo/.github/skills/x", ""},
 		{"./packages/local", "", "", ""},
 		{"parent", "", "", ""},

@@ -31,7 +31,7 @@ const (
 )
 
 // scpLocator matches user@host:path SSH shorthand.
-var scpLocator = regexp.MustCompile(`^[A-Za-z0-9._-]+@([^:/]+):(.+)$`)
+var scpLocator = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.+-]*@([^:/]+):(.+)$`)
 
 // virtualFileExtensions mark single-file virtual packages.
 var virtualFileExtensions = []string{".prompt.md", ".instructions.md", ".agent.md"}
