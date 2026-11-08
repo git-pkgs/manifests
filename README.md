@@ -40,6 +40,7 @@ func main() {
 | Ecosystem | Manifests | Lockfiles |
 |-----------|-----------|-----------|
 | alpine | APKBUILD | |
+| apm | apm.yml | apm.lock.yaml, apm.lock |
 | arch | PKGBUILD | |
 | asdf | .tool-versions | |
 | bazel | MODULE.bazel | |
@@ -99,6 +100,28 @@ doesn't match a declared package or local target, every dependency keeps the
 
 `Package.resolved` pins are `Direct: false`, since the file doesn't record which
 pins are direct. A pin with no release version uses its revision as `Version`.
+
+### APM output
+
+APM Git dependencies use Ecosystem `git` and a `pkg:git` PURL built from the
+repository host and path. A repository subpath, such as one skill in a
+monorepo, becomes the PURL subpath, so two subpackages at one commit stay
+distinct. Lockfile Git entries use `resolved_commit` as `Version`, so a commit
+change is visible even when the package's display version is unchanged.
+Installation aliases do not change identity.
+
+Local paths, registry and marketplace packages, MCP servers and LSP servers
+have no PURL and keep their location in `Source`. Plain shorthand routes to the
+default registry only when `apm.yml` declares `registries.default`; a default
+set in the user's APM config is not visible offline. `<self>` is excluded.
+Lockfile `depth` sets `Direct` and `is_dev` sets development scope.
+
+Lockfile hashes are kept as `Artifacts` with distinct roles: `archive` for a
+registry archive, `tree` for the materialized package tree and
+`deployed:<path>` for each deployed file. Only the archive hash is also
+reported as `Integrity`. Lockfile versions `"1"` and `"2"` are supported. The
+unratified version `"3"` and any `replacements` table are rejected, because a
+replacement can install a different source than the declared repository.
 
 ## Lockfile Feature Support
 
@@ -165,6 +188,7 @@ pins are direct. A pin with no release version uses its revision as `Version`.
 | Brewfile.lock.json | | ✓ | | ✓ |
 | lake-manifest.json | ✓ | | | ✓ |
 | Package.resolved | | | | |
+| apm.lock.yaml, apm.lock | | ✓ | ✓ | ✓ |
 
 **Supplement files:** go.sum is parsed as a supplement rather than a lockfile. It provides integrity hashes that can be matched against go.mod dependencies by name and version, but it doesn't represent a standalone dependency tree.
 

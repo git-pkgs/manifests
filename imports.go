@@ -3,6 +3,7 @@ package manifests
 // Import all parser packages for their init() side effects.
 import (
 	_ "github.com/git-pkgs/manifests/internal/alpine"
+	_ "github.com/git-pkgs/manifests/internal/apm"
 	_ "github.com/git-pkgs/manifests/internal/arch"
 	_ "github.com/git-pkgs/manifests/internal/asdf"
 	_ "github.com/git-pkgs/manifests/internal/bazel"

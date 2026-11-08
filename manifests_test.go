@@ -29,6 +29,8 @@ func TestParseAllEcosystems(t *testing.T) {
 		{"pypi requirements.txt", "testdata/pypi/requirements.txt", "pypi", Manifest},
 		{"maven pom.xml", "testdata/maven/pom.xml", "maven", Manifest},
 		{"nuget central packages", "testdata/nuget/Directory.Packages.props", "nuget", Manifest},
+		{"apm apm.yml", "testdata/apm/apm.yml", "apm", Manifest},
+		{"apm apm.lock.yaml", "testdata/apm/apm.lock.yaml", "apm", Lockfile},
 		{"chef metadata.rb", "testdata/chef/metadata.rb", "chef", Manifest},
 		{"chef metadata.json", "testdata/chef/metadata.json", "chef", Manifest},
 		{"chef Berksfile", "testdata/chef/Berksfile", "chef", Manifest},
@@ -653,6 +655,11 @@ func TestIdentifyFiles(t *testing.T) {
 		kind      Kind
 		ok        bool
 	}{
+		// apm
+		{"apm.yml", "apm", Manifest, true},
+		{"apm.lock.yaml", "apm", Lockfile, true},
+		{"apm.lock", "apm", Lockfile, true},
+
 		// npm
 		{"package.json", "npm", Manifest, true},
 		{"package-lock.json", "npm", Lockfile, true},

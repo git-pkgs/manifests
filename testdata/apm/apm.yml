@@ -1,0 +1,47 @@
+name: agent-workspace
+version: 1.4.0
+description: Shared agent primitives for the platform team
+author: Contoso
+license: MIT
+scripts:
+  start: "copilot -p 'README.prompt.md'"
+  review: "copilot -p 'code-review.prompt.md'"
+dependencies:
+  apm:
+    - microsoft/apm-sample-package#v1.0.0
+    - ComposioHQ/awesome-claude-skills/brand-guidelines
+    - contoso/prompts/review.prompt.md
+    - gitlab.com/acme/coding-standards#main
+    - https://github.com/Acme-Corp/Security-Baseline.git
+    - ./packages/shared-skills
+    - git: https://gitlab.com/acme/repo.git
+      path: instructions/security
+      ref: v2.0
+      alias: acme-sec
+    - path: ./ai/agents/reviewer.agent.md
+    - name: sec-check
+      marketplace: acme-plugins
+      version: "~2.1.0"
+    - registry: jf-skills
+      id: acme/toolkit
+      version: ^2.0.0
+  mcp:
+    - io.github.github/github-mcp-server
+    - name: my-private-server
+      registry: false
+      transport: stdio
+      command: ./bin/my-server
+    - name: slack
+      registry: false
+      transport: http
+      url: https://mcp.slack.com/mcp
+  lsp:
+    - gopls
+    - name: pyright
+      command: pyright-langserver
+      extensionToLanguage:
+        ".py": python
+devDependencies:
+  apm:
+    - owner/test-helpers
+    - ../sibling-repo/lint-rules

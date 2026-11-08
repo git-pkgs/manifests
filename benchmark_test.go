@@ -64,6 +64,8 @@ var benchmarkFixtures = map[string][]string{
 		"testdata/chef/metadata.rb",
 		"testdata/chef/Berksfile",
 		"testdata/vagrant/Vagrantfile",
+		"testdata/apm/apm.yml",
+		"testdata/apm/apm.lock.yaml",
 	},
 }
 
