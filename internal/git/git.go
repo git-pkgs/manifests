@@ -30,8 +30,8 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 	lines := strings.Split(string(content), "\n")
 
 	var current *submodule
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
+	for i := 0; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
 
 		if match := submoduleHeaderRegex.FindStringSubmatch(line); match != nil {
 			if current != nil {
@@ -45,7 +45,20 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 			continue
 		}
 
-		key, val, ok := parseKeyValue(line)
+		key, raw, ok := parseKeyValue(line)
+		if !ok {
+			continue
+		}
+		val, more, ok := configValue(raw)
+		for more {
+			if i+1 < len(lines) {
+				i++
+				raw += "\n" + strings.TrimSuffix(lines[i], "\r")
+			} else {
+				raw += "\n"
+			}
+			val, more, ok = configValue(raw)
+		}
 		if !ok {
 			continue
 		}
@@ -95,4 +108,60 @@ func parseKeyValue(line string) (key, value string, ok bool) {
 		return "", "", false
 	}
 	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), true
+}
+
+// configValue decodes a value as git's parse_value does; more means it continues on the next line, !ok that git rejects it.
+func configValue(s string) (value string, more, ok bool) {
+	var b strings.Builder
+	quote := false
+	trim := 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !quote && strings.IndexByte(" \t\v\f\r", c) >= 0 {
+			if trim == 0 {
+				trim = b.Len()
+			}
+			if b.Len() > 0 {
+				b.WriteByte(c)
+			}
+			continue
+		}
+		if !quote && (c == ';' || c == '#') {
+			break
+		}
+		trim = 0
+		switch c {
+		case '\\':
+			i++
+			if i == len(s) {
+				return "", true, true
+			}
+			switch s[i] {
+			case '\n':
+				continue
+			case 't':
+				b.WriteByte('\t')
+			case 'b':
+				b.WriteByte('\b')
+			case 'n':
+				b.WriteByte('\n')
+			case '\\', '"':
+				b.WriteByte(s[i])
+			default:
+				return "", false, false
+			}
+		case '"':
+			quote = !quote
+		default:
+			b.WriteByte(c)
+		}
+	}
+	if quote {
+		return "", false, false
+	}
+	value = b.String()
+	if trim > 0 {
+		value = value[:trim]
+	}
+	return value, false, true
 }
