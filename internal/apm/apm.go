@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"fmt"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -28,6 +29,9 @@ const (
 	artifactTree     = "tree"
 	artifactDeployed = "deployed:"
 )
+
+// scpLocator matches user@host:path SSH shorthand.
+var scpLocator = regexp.MustCompile(`^[A-Za-z0-9._-]+@([^:/]+):(.+)$`)
 
 // virtualFileExtensions mark single-file virtual packages.
 var virtualFileExtensions = []string{".prompt.md", ".instructions.md", ".agent.md"}
@@ -59,14 +63,13 @@ func (p *manifestParser) Parse(filename string, content []byte) (*core.Result, e
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
-	defaultRegistry, _ := m.Registries["default"].(string)
 	var deps []core.Dependency
 	for _, group := range []struct {
 		deps  dependencyGroups
 		scope core.Scope
 	}{{m.Dependencies, core.Runtime}, {m.DevDependencies, core.Development}} {
 		for _, entry := range group.deps.APM {
-			if dep, ok := apmDependency(entry, defaultRegistry); ok {
+			if dep, ok := apmDependency(entry, m.Registries); ok {
 				deps = append(deps, withScope(dep, group.scope))
 			}
 		}
@@ -101,7 +104,8 @@ func withScope(dep core.Dependency, scope core.Scope) core.Dependency {
 }
 
 // apmDependency converts a dependencies.apm string or object entry.
-func apmDependency(entry any, defaultRegistry string) (core.Dependency, bool) {
+func apmDependency(entry any, registries map[string]any) (core.Dependency, bool) {
+	defaultRegistry, _ := registries["default"].(string)
 	switch e := entry.(type) {
 	case string:
 		s := strings.TrimSpace(e)
@@ -114,7 +118,7 @@ func apmDependency(entry any, defaultRegistry string) (core.Dependency, bool) {
 		locator, ref, _ := strings.Cut(s, "#")
 		// Plain shorthand with a selector routes to the default registry.
 		if defaultRegistry != "" && ref != "" && !isHostQualified(locator) && !isURL(locator) {
-			return registryDependency(locator, "", ref, defaultRegistry), true
+			return registryDependency(locator, "", ref, registryURL(registries, defaultRegistry)), true
 		}
 		return gitDependency(locator, "", ref, ""), true
 	case map[string]any:
@@ -126,7 +130,8 @@ func apmDependency(entry any, defaultRegistry string) (core.Dependency, bool) {
 			return dep, dep.Name != ""
 		case get("id") != "" || get("registry") != "":
 			id := get("id")
-			return registryDependency(id, get("path"), get("version"), cmp.Or(get("registry"), defaultRegistry)), id != ""
+			registry := registryURL(registries, cmp.Or(get("registry"), defaultRegistry))
+			return registryDependency(id, get("path"), get("version"), registry), id != ""
 		case get("git") != "":
 			return gitDependency(get("git"), get("path"), get("ref"), get("type")), true
 		case get("path") != "":
@@ -134,6 +139,21 @@ func apmDependency(entry any, defaultRegistry string) (core.Dependency, bool) {
 		}
 	}
 	return core.Dependency{}, false
+}
+
+// registryURL resolves a registry name through apm.yml, keeping names it does not declare.
+func registryURL(registries map[string]any, name string) string {
+	switch entry := registries[name].(type) {
+	case string:
+		if name != "default" {
+			return entry
+		}
+	case map[string]any:
+		if u, _ := entry["url"].(string); u != "" {
+			return u
+		}
+	}
+	return name
 }
 
 // mcpDependency converts a dependencies.mcp entry, which has no PURL.
@@ -223,23 +243,45 @@ func gitCoordinate(locator, hostType string) (repo, virtual string) {
 	if host == "" {
 		return "", ""
 	}
-	segments := slices.DeleteFunc(strings.Split(path, "/"), func(s string) bool { return s == "" })
-	if host == "dev.azure.com" {
+	segments, hadGitMarker := repoSegments(host, path)
+	count := repoSegmentCount(host, hostType, segments, hadGitMarker)
+	if count < 2 || len(segments) < count {
+		return "", ""
+	}
+	return host + "/" + repoPathCase(host, strings.Join(segments[:count], "/")), strings.Join(segments[count:], "/")
+}
+
+// repoSegments splits a repository path, dropping Azure DevOps markers and a .git suffix.
+func repoSegments(host, path string) (segments []string, hadGitMarker bool) {
+	segments = slices.DeleteFunc(strings.Split(path, "/"), func(s string) bool { return s == "" })
+	if isAzureDevOpsHost(host) {
+		if host == "ssh.dev.azure.com" && len(segments) > 0 && segments[0] == "v3" {
+			segments = segments[1:]
+		}
+		hadGitMarker = slices.Contains(segments, "_git")
 		segments = slices.DeleteFunc(segments, func(s string) bool { return s == "_git" })
 	}
 	if len(segments) > 0 {
 		last := len(segments) - 1
 		segments[last] = strings.TrimSuffix(segments[last], ".git")
 	}
-	count := repoSegmentCount(host, hostType, segments)
-	if count < 2 || len(segments) < count {
-		return "", ""
+	return segments, hadGitMarker
+}
+
+// repoPathCase lowercases GitHub repository paths, which APM treats as case-insensitive.
+func repoPathCase(host, path string) string {
+	if isGitHubHost(host) {
+		return strings.ToLower(path)
 	}
-	repoPath := strings.Join(segments[:count], "/")
-	if host == defaultHost {
-		repoPath = strings.ToLower(repoPath)
-	}
-	return host + "/" + repoPath, strings.Join(segments[count:], "/")
+	return path
+}
+
+func isGitHubHost(host string) bool {
+	return host == defaultHost || strings.HasSuffix(host, ".ghe.com")
+}
+
+func isAzureDevOpsHost(host string) bool {
+	return host == "dev.azure.com" || host == "ssh.dev.azure.com" || strings.HasSuffix(host, ".visualstudio.com")
 }
 
 // splitLocator returns the lowercased host and path of a Git locator.
@@ -255,12 +297,9 @@ func splitLocator(locator string) (host, path string) {
 			host += ":" + parsed.Port()
 		}
 		return host, parsed.Path
-	case strings.HasPrefix(locator, "git@"):
-		hostPart, path, ok := strings.Cut(strings.TrimPrefix(locator, "git@"), ":")
-		if !ok {
-			return "", ""
-		}
-		return strings.ToLower(hostPart), path
+	case scpLocator.MatchString(locator):
+		m := scpLocator.FindStringSubmatch(locator)
+		return strings.ToLower(m[1]), m[2]
 	case isHostQualified(locator):
 		hostPart, path, _ := strings.Cut(locator, "/")
 		hostPart = strings.ToLower(strings.TrimSuffix(hostPart, ":443"))
@@ -273,18 +312,24 @@ func splitLocator(locator string) (host, path string) {
 }
 
 // repoSegmentCount mirrors APM's per-host repository/subpath split.
-func repoSegmentCount(host, hostType string, segments []string) int {
+func repoSegmentCount(host, hostType string, segments []string, hadGitMarker bool) int {
 	switch {
-	case host == defaultHost:
+	case isGitHubHost(host):
 		return 2
-	case host == "dev.azure.com":
+	case strings.HasSuffix(host, ".visualstudio.com"):
+		// The organization is in the subdomain.
+		if hadGitMarker || len(segments) == 2 {
+			return 2
+		}
 		return 3
-	case hostType == "gitlab" || host == "gitlab.com" || strings.HasPrefix(host, "gitlab."):
+	case isAzureDevOpsHost(host):
+		return 3
+	case hostType == "gitlab" || host == "gitlab.com":
 		if start := virtualStart(segments); start > 0 {
 			return start
 		}
 		return len(segments)
-	case virtualStart(segments) > 0 || slices.Contains(segments, "collections"):
+	case hasVirtualFile(segments) || slices.Contains(segments, "collections"):
 		return 2
 	default:
 		return len(segments)
@@ -308,6 +353,12 @@ func virtualStart(segments []string) int {
 	return 0
 }
 
+func hasVirtualFile(segments []string) bool {
+	return slices.ContainsFunc(segments, func(s string) bool {
+		return slices.ContainsFunc(virtualFileExtensions, func(ext string) bool { return strings.HasSuffix(s, ext) })
+	})
+}
+
 // isHostQualified reports whether a shorthand starts with a host such as gitlab.com.
 func isHostQualified(locator string) bool {
 	first, rest, ok := strings.Cut(locator, "/")
@@ -316,7 +367,7 @@ func isHostQualified(locator string) bool {
 }
 
 func isURL(locator string) bool {
-	return strings.Contains(locator, "://") || strings.HasPrefix(locator, "git@")
+	return strings.Contains(locator, "://") || scpLocator.MatchString(locator)
 }
 
 func isLocalPath(s string) bool {
@@ -462,14 +513,11 @@ func lockRepo(entry lockEntry) string {
 	if entry.Port != 0 && !strings.Contains(host, ":") {
 		host = fmt.Sprintf("%s:%d", host, entry.Port)
 	}
-	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
-	if strings.Count(path, "/") < 1 {
+	segments, _ := repoSegments(host, path)
+	if len(segments) < 2 {
 		return ""
 	}
-	if host == defaultHost {
-		path = strings.ToLower(path)
-	}
-	return host + "/" + path
+	return host + "/" + repoPathCase(host, strings.Join(segments, "/"))
 }
 
 // lockArtifacts keeps archive, package-tree and deployed-file hashes distinct.

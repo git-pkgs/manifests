@@ -96,7 +96,7 @@ func TestAPMManifest(t *testing.T) {
 		"./packages/shared-skills":           {"", "", "", Runtime, true, Source{Kind: SourcePath, Value: "./packages/shared-skills"}},
 		"./ai/agents/reviewer.agent.md":      {"", "", "", Runtime, true, Source{Kind: SourcePath, Value: "./ai/agents/reviewer.agent.md"}},
 		"sec-check":                          {"~2.1.0", "", "", Runtime, true, Source{Kind: SourceRegistry, Value: "acme-plugins"}},
-		"acme/toolkit":                       {"^2.0.0", "", "", Runtime, true, Source{Kind: SourceRegistry, Value: "jf-skills"}},
+		"acme/toolkit":                       {"^2.0.0", "", "", Runtime, true, Source{Kind: SourceRegistry, Value: "https://artifactory.example.com/artifactory/api/skills/jf-skills-local"}},
 		"io.github.github/github-mcp-server": {"", "", "", Runtime, true, Source{Kind: SourceRegistry}},
 		"my-private-server":                  {"", "", "", Runtime, true, Source{}},
 		"slack":                              {"", "", "", Runtime, true, Source{Kind: SourceURL, Value: "https://mcp.slack.com/mcp"}},
@@ -113,17 +113,27 @@ version: 1.0.0
 registries:
   corp:
     url: https://registry.example.com
+  mirror: https://mirror.example.com
   default: corp
 dependencies:
   apm:
     - acme/toolkit#^2.0.0
     - acme/pinned
+    - id: acme/mirrored
+      registry: mirror
+      version: 1.0.0
+    - id: acme/user-level
+      registry: user-registry
+      version: 1.0.0
 `))
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
 	checkAPMRows(t, result.Dependencies, map[string]apmRow{
-		"acme/toolkit":           {"^2.0.0", "", "", Runtime, true, Source{Kind: SourceRegistry, Value: "corp"}},
+		"acme/toolkit":  {"^2.0.0", "", "", Runtime, true, Source{Kind: SourceRegistry, Value: "https://registry.example.com"}},
+		"acme/mirrored": {"1.0.0", "", "", Runtime, true, Source{Kind: SourceRegistry, Value: "https://mirror.example.com"}},
+		// Registries declared only in user config cannot be resolved offline.
+		"acme/user-level":        {"1.0.0", "", "", Runtime, true, Source{Kind: SourceRegistry, Value: "user-registry"}},
 		"github.com/acme/pinned": {"", "pkg:git/github.com/acme/pinned", "git", Runtime, true, Source{Kind: SourceGit, Value: "acme/pinned"}},
 	})
 }
@@ -298,5 +308,54 @@ dependencies:
 	}
 	if len(result.Dependencies) != 1 || result.Dependencies[0].Name != "github.com/owner/repo" {
 		t.Errorf("Dependencies = %+v, want only github.com/owner/repo", result.Dependencies)
+	}
+}
+
+func TestAPMManifestAndLockfileIdentitiesMatch(t *testing.T) {
+	manifest, err := Parse("apm.yml", []byte(`name: x
+version: 1.0.0
+dependencies:
+  apm:
+    - contoso.ghe.com/Owner/Repo/skills/x
+    - git@ssh.dev.azure.com:v3/org/project/repo
+    - https://org.visualstudio.com/project/_git/repo
+`))
+	if err != nil {
+		t.Fatalf("Parse apm.yml: %v", err)
+	}
+	lock, err := Parse("apm.lock.yaml", []byte(`lockfile_version: "1"
+dependencies:
+  - repo_url: owner/repo
+    host: contoso.ghe.com
+    virtual_path: skills/x
+    is_virtual: true
+    resolved_commit: 0123456789abcdef0123456789abcdef01234567
+  - repo_url: org/project/repo
+    host: ssh.dev.azure.com
+    resolved_commit: 0123456789abcdef0123456789abcdef01234567
+  - repo_url: project/repo
+    host: org.visualstudio.com
+    resolved_commit: 0123456789abcdef0123456789abcdef01234567
+`))
+	if err != nil {
+		t.Fatalf("Parse apm.lock.yaml: %v", err)
+	}
+
+	want := []string{
+		"pkg:git/contoso.ghe.com/owner/repo#skills/x",
+		"pkg:git/ssh.dev.azure.com/org/project/repo",
+		"pkg:git/org.visualstudio.com/project/repo",
+	}
+	for i, w := range want {
+		if got := manifest.Dependencies[i].PURL; got != w {
+			t.Errorf("manifest PURL = %q, want %q", got, w)
+		}
+		// Lockfile PURLs add the commit as the version.
+		if got := strings.Replace(lock.Dependencies[i].PURL, "@0123456789abcdef0123456789abcdef01234567", "", 1); got != w {
+			t.Errorf("lockfile PURL = %q, want %q", lock.Dependencies[i].PURL, w)
+		}
+		if manifest.Dependencies[i].Name != lock.Dependencies[i].Name {
+			t.Errorf("Name %q in manifest, %q in lockfile", manifest.Dependencies[i].Name, lock.Dependencies[i].Name)
+		}
 	}
 }

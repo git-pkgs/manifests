@@ -106,15 +106,26 @@ pins are direct. A pin with no release version uses its revision as `Version`.
 APM Git dependencies use Ecosystem `git` and a `pkg:git` PURL built from the
 repository host and path. A repository subpath, such as one skill in a
 monorepo, becomes the PURL subpath, so two subpackages at one commit stay
-distinct. Lockfile Git entries use `resolved_commit` as `Version`, so a commit
-change is visible even when the package's display version is unchanged.
-Installation aliases do not change identity.
+distinct. The split between repository and subpath follows APM's host rules:
+GitHub hosts (`github.com`, `*.ghe.com`) use two repository segments and
+lowercase them. Azure DevOps hosts (`dev.azure.com`, `ssh.dev.azure.com`,
+`*.visualstudio.com`) drop `_git` and the SSH `v3/` prefix. Hosts that APM
+configures through environment variables are not visible offline. Lockfile
+Git entries use `resolved_commit` as `Version`, so a commit change is visible
+even when the package's display version is unchanged. Installation aliases do
+not change identity.
 
 Local paths, registry and marketplace packages, MCP servers and LSP servers
-have no PURL and keep their location in `Source`. Plain shorthand routes to the
-default registry only when `apm.yml` declares `registries.default`; a default
-set in the user's APM config is not visible offline. `<self>` is excluded.
-Lockfile `depth` sets `Direct` and `is_dev` sets development scope.
+have no PURL. Local paths, registry and marketplace packages keep their
+location in `Source`, as do MCP servers from a registry and remote MCP servers
+with a `url`. String and object LSP entries and stdio MCP servers carry no
+`Source`, since their `command` is an executable rather than a package
+location. A registry dependency's `Source.Value` is the registry URL from
+`apm.yml`'s `registries`, or the registry name when `apm.yml` does not declare
+it. Plain shorthand routes to the default registry only when `apm.yml` declares
+`registries.default`; a default set in the user's APM config is not visible
+offline. `<self>` is excluded. Lockfile `depth` sets `Direct` and `is_dev` sets
+development scope.
 
 Lockfile hashes are kept as `Artifacts` with distinct roles: `archive` for a
 registry archive, `tree` for the materialized package tree and

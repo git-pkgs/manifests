@@ -6,6 +6,9 @@ license: MIT
 scripts:
   start: "copilot -p 'README.prompt.md'"
   review: "copilot -p 'code-review.prompt.md'"
+registries:
+  jf-skills:
+    url: https://artifactory.example.com/artifactory/api/skills/jf-skills-local
 dependencies:
   apm:
     - microsoft/apm-sample-package#v1.0.0
