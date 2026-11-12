@@ -831,7 +831,7 @@ func TestSwiftSourcePURLs(t *testing.T) {
 	want := map[string]string{
 		"github.com/krzyzanowskim/CryptoSwift": "pkg:swift/github.com/krzyzanowskim/CryptoSwift@1.6.0",
 		"github.com/apple/swift-docc-plugin":   "pkg:swift/github.com/apple/swift-docc-plugin@1.0.0",
-		"apple.swift-argument-parser":          "",
+		"apple.swift-argument-parser":          "pkg:swift/apple/swift-argument-parser@1.2.3",
 	}
 	if len(result.Dependencies) != len(want) {
 		t.Fatalf("Dependencies has %d entries, want %d: %+v", len(result.Dependencies), len(want), result.Dependencies)

@@ -72,8 +72,9 @@ let package = Package(name: "App", dependencies: [
 	}
 	for i, name := range []string{"apple.swift-log", "other.logging"} {
 		dep := result.Dependencies[i]
-		if dep.Name != name || dep.PURL != "" || dep.Ecosystem != "swift" || !dep.Direct {
-			t.Errorf("dependency = %+v, want registry identity %q without PURL", dep, name)
+		wantPURL := "pkg:swift/" + strings.Replace(name, ".", "/", 1)
+		if dep.Name != name || dep.PURL != wantPURL || dep.Ecosystem != "swift" || !dep.Direct {
+			t.Errorf("dependency = %+v, want registry identity %q with PURL %q", dep, name, wantPURL)
 		}
 		if dep.Source.Kind != SourceRegistry || dep.Source.Value != name {
 			t.Errorf("Source = %+v", dep.Source)

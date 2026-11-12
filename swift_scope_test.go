@@ -24,7 +24,7 @@ func TestSwiftTargetScopes(t *testing.T) {
 		if !ok || dep.Scope != scope || !dep.Direct {
 			t.Errorf("dependency = %+v, want direct dependency with scope %q", dep, scope)
 		}
-		if dep.Name == "vendor.logging" && (dep.PURL != "" || dep.Source.Kind != SourceRegistry || dep.Source.Value != "vendor.Logging") {
+		if dep.Name == "vendor.logging" && (dep.PURL != "pkg:swift/vendor/logging" || dep.Source.Kind != SourceRegistry || dep.Source.Value != "vendor.Logging") {
 			t.Errorf("registry identity was changed or mapped to a repository: %+v", dep)
 		}
 		if dep.Name == "github.com/Example/Runtime.Kit" && dep.Source.Value != "https://GitHub.com/Example/Runtime.Kit.git" {
@@ -99,15 +99,16 @@ func TestSwiftSourceAndRegistryIdentitiesStaySeparate(t *testing.T) {
 	tests := []struct {
 		filename string
 		content  string
+		wantPURL string
 	}{
 		{"Package.swift", `let package = Package(name: "App", dependencies: [
 			.package(url: "https://GitHub.com/Example/Logging.Kit.git", exact: "1.0.0"),
 			.package(id: "Example.Logging-Kit", exact: "1.0.0")
-		])`},
+		])`, "pkg:swift/example/logging-kit"},
 		{"Package.resolved", `{"version":2,"pins":[
 			{"identity":"logging.kit","kind":"remoteSourceControl","location":"https://GitHub.com/Example/Logging.Kit.git","state":{"version":"1.0.0"}},
 			{"identity":"Example.Logging-Kit","kind":"registry","location":"Example.Logging-Kit","state":{"version":"1.0.0"}}
-		]}`},
+		]}`, "pkg:swift/example/logging-kit@1.0.0"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.filename, func(t *testing.T) {
@@ -125,8 +126,8 @@ func TestSwiftSourceAndRegistryIdentitiesStaySeparate(t *testing.T) {
 			if registry.Name != "example.logging-kit" || registry.Source.Kind != SourceRegistry || registry.Source.Value != "Example.Logging-Kit" {
 				t.Errorf("registry identity = %+v", registry)
 			}
-			if registry.PURL != "" || registry.RegistryURL != "" {
-				t.Errorf("registry acquired an inferred provider or PURL: %+v", registry)
+			if registry.PURL != tt.wantPURL || registry.RegistryURL != "" {
+				t.Errorf("registry dependency = %+v, want PURL %q and no registry URL", registry, tt.wantPURL)
 			}
 		})
 	}
