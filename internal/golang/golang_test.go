@@ -242,6 +242,7 @@ require (
 	example.com/paren-local v1.0.0
 	example.com/slashes v1.0.0
 	example.com/windows v1.0.0
+	example.com/adjacent-comment v1.0.0
 )
 
 replace example.com/quoted-fork => "example.com/fork" "v1.1.0" // quoted "fork"
@@ -249,13 +250,18 @@ replace "example.com/quoted-local" => "../local fork" // spaces in a quoted path
 replace example.com/paren-local => "../local (copy)"
 replace example.com/slashes => "example.com/a//b" v1.2.0
 replace example.com/windows => C:/src/windows
+replace example.com/adjacent-comment => example.com/adjacent-comment v1.3.0//note
 `)
 
 	result, err := (&goModParser{}).Parse("go.mod", content)
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
-	want := map[string]string{"example.com/fork": "v1.1.0", "example.com/a//b": "v1.2.0"}
+	want := map[string]string{
+		"example.com/fork":             "v1.1.0",
+		"example.com/a//b":             "v1.2.0",
+		"example.com/adjacent-comment": "v1.3.0",
+	}
 	if len(result.Dependencies) != len(want) {
 		t.Fatalf("Dependencies = %+v, want %v", result.Dependencies, want)
 	}
@@ -277,6 +283,9 @@ func TestGoModTokens(t *testing.T) {
 		`a => "unterminated`:                   {"a", "=>", `"unterminated`},
 		`// only a comment`:                    nil,
 		`a=>b`:                                 {"a=>b"},
+		`a => b v1.1.0//note`:                  {"a", "=>", "b", "v1.1.0"},
+		`a => b//note`:                         {"a", "=>", "b"},
+		`a => "x//y"//note`:                    {"a", "=>", "x//y"},
 	} {
 		if got := goModTokens(line); !slices.Equal(got, want) {
 			t.Errorf("goModTokens(%q) = %q, want %q", line, got, want)

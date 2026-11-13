@@ -261,8 +261,8 @@ func parseReplacement(tokens []string) moduleReplacement {
 }
 
 // goModTokens splits a go.mod line into tokens as the go command does: tokens
-// are separated by white space, double-quoted strings are decoded and a token
-// starting with "//" begins a comment.
+// are separated by white space, double-quoted strings are decoded and "//"
+// outside a quoted string begins a comment, even directly after a token.
 func goModTokens(line string) []string {
 	var tokens []string
 	for {
@@ -274,6 +274,8 @@ func goModTokens(line string) []string {
 		end := strings.IndexAny(line, " \t\r")
 		if quoted {
 			end = quotedStringEnd(line)
+		} else if comment := strings.Index(line, "//"); comment >= 0 && (end < 0 || comment < end) {
+			end = comment
 		}
 		if end < 0 {
 			end = len(line)
