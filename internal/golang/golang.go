@@ -2,8 +2,9 @@ package golang
 
 import (
 	"net/url"
-	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -226,51 +227,95 @@ func collectReplacedModules(text string) map[moduleVersion]moduleReplacement {
 		}
 
 		spec := ""
-		if strings.HasPrefix(trimmed, "replace ") && !strings.Contains(trimmed, "(") {
-			spec = strings.TrimSpace(strings.TrimPrefix(trimmed, "replace "))
+		if strings.HasPrefix(trimmed, "replace ") {
+			spec = strings.TrimPrefix(trimmed, "replace ")
 		} else if inReplaceBlock {
 			spec = trimmed
 		}
-		left, right, ok := strings.Cut(spec, "=>")
-		if !ok {
+		tokens := goModTokens(spec)
+		arrow := slices.Index(tokens, "=>")
+		if arrow < 1 {
 			continue
 		}
-		fields := strings.Fields(left)
-		if len(fields) == 0 {
-			continue
-		}
-		module := moduleVersion{path: fields[0]}
-		if len(fields) > 1 {
-			module.version = fields[1]
+		module := moduleVersion{path: tokens[0]}
+		if arrow > 1 {
+			module.version = tokens[1]
 		}
 		if _, exists := replaced[module]; !exists {
-			replaced[module] = parseReplacement(right)
+			replaced[module] = parseReplacement(tokens[arrow+1:])
 		}
 	}
 	return replaced
 }
 
-// parseReplacement parses the right side of a replace directive.
-func parseReplacement(right string) moduleReplacement {
-	right, _, _ = strings.Cut(right, "//")
-	fields := strings.Fields(right)
-	if len(fields) == 0 {
+// parseReplacement parses the tokens on the right side of a replace directive.
+func parseReplacement(tokens []string) moduleReplacement {
+	if len(tokens) == 0 {
 		return moduleReplacement{}
 	}
-	replacement := moduleReplacement{path: fields[0], local: isLocalReplacement(fields[0])}
-	if len(fields) > 1 && !replacement.local {
-		replacement.version = fields[1]
+	replacement := moduleReplacement{path: tokens[0], local: isLocalReplacement(tokens[0])}
+	if len(tokens) > 1 && !replacement.local {
+		replacement.version = tokens[1]
 	}
 	return replacement
 }
 
-// isLocalReplacement reports whether a replacement path names a directory,
-// following the go.mod rule for relative and absolute paths.
+// goModTokens splits a go.mod line into tokens as the go command does: tokens
+// are separated by white space, double-quoted strings are decoded and a token
+// starting with "//" begins a comment.
+func goModTokens(line string) []string {
+	var tokens []string
+	for {
+		line = strings.TrimLeft(line, " \t\r")
+		if line == "" || strings.HasPrefix(line, "//") {
+			return tokens
+		}
+		quoted := line[0] == '"'
+		end := strings.IndexAny(line, " \t\r")
+		if quoted {
+			end = quotedStringEnd(line)
+		}
+		if end < 0 {
+			end = len(line)
+		}
+		token := line[:end]
+		if quoted {
+			if unquoted, err := strconv.Unquote(token); err == nil {
+				token = unquoted
+			}
+		}
+		tokens = append(tokens, token)
+		line = line[end:]
+	}
+}
+
+// quotedStringEnd returns the index just past the closing quote of the
+// double-quoted string that starts s, or -1 when it is unterminated.
+func quotedStringEnd(s string) int {
+	for i := 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			i++
+		case '"':
+			return i + 1
+		}
+	}
+	return -1
+}
+
+// isLocalReplacement reports whether a replacement path names a directory.
+// Like modfile.IsDirectoryPath, it accepts Unix and Windows path forms on any
+// host because go.mod files move between systems.
 func isLocalReplacement(path string) bool {
 	return path == "." || path == ".." ||
 		strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") ||
 		strings.HasPrefix(path, `.\`) || strings.HasPrefix(path, `..\`) ||
-		filepath.IsAbs(path)
+		strings.HasPrefix(path, "/") || strings.HasPrefix(path, `\`) ||
+		len(path) >= 2 && isASCIILetter(path[0]) && path[1] == ':'
+}
+
+func isASCIILetter(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 // newRequireDep builds a Dependency from a parsed require entry, determining

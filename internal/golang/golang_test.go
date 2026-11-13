@@ -2,6 +2,7 @@ package golang
 
 import (
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -230,10 +231,64 @@ replace (
 	}
 }
 
+func TestGoModQuotedReplaceDirectives(t *testing.T) {
+	content := []byte(`module example.com/application
+
+go 1.26
+
+require (
+	example.com/quoted-fork v1.0.0
+	example.com/quoted-local v1.0.0
+	example.com/paren-local v1.0.0
+	example.com/slashes v1.0.0
+	example.com/windows v1.0.0
+)
+
+replace example.com/quoted-fork => "example.com/fork" "v1.1.0" // quoted "fork"
+replace "example.com/quoted-local" => "../local fork" // spaces in a quoted path
+replace example.com/paren-local => "../local (copy)"
+replace example.com/slashes => "example.com/a//b" v1.2.0
+replace example.com/windows => C:/src/windows
+`)
+
+	result, err := (&goModParser{}).Parse("go.mod", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := map[string]string{"example.com/fork": "v1.1.0", "example.com/a//b": "v1.2.0"}
+	if len(result.Dependencies) != len(want) {
+		t.Fatalf("Dependencies = %+v, want %v", result.Dependencies, want)
+	}
+	for _, dep := range result.Dependencies {
+		if want[dep.Name] != dep.Version {
+			t.Errorf("dependency %s %s, want one of %v", dep.Name, dep.Version, want)
+		}
+	}
+	if len(result.Declarations) != 0 {
+		t.Errorf("Declarations = %+v, want none for replaced modules", result.Declarations)
+	}
+}
+
+func TestGoModTokens(t *testing.T) {
+	for line, want := range map[string][]string{
+		`example.com/a v1 => example.com/b v2`: {"example.com/a", "v1", "=>", "example.com/b", "v2"},
+		`a => "../dir with spaces" // comment`: {"a", "=>", "../dir with spaces"},
+		"a\t=>\t\"quoted\\\"name\" v1":         {"a", "=>", `quoted"name`, "v1"},
+		`a => "unterminated`:                   {"a", "=>", `"unterminated`},
+		`// only a comment`:                    nil,
+		`a=>b`:                                 {"a=>b"},
+	} {
+		if got := goModTokens(line); !slices.Equal(got, want) {
+			t.Errorf("goModTokens(%q) = %q, want %q", line, got, want)
+		}
+	}
+}
+
 func TestIsLocalReplacement(t *testing.T) {
 	for path, want := range map[string]bool{
 		".": true, "..": true, "./fork": true, "../fork": true, `.\fork`: true, `..\fork`: true,
-		"example.com/fork": false, "github.com/me/fork": false, "fork": false,
+		"/src/absolute": true, `\src\fork`: true, "C:/src/fork": true, `c:\src\fork`: true,
+		"example.com/fork": false, "github.com/me/fork": false, "fork": false, "1:fork": false,
 	} {
 		if got := isLocalReplacement(path); got != want {
 			t.Errorf("isLocalReplacement(%q) = %v, want %v", path, got, want)
