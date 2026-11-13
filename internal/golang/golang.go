@@ -3,6 +3,8 @@ package golang
 import (
 	"net/url"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -25,6 +27,14 @@ type goModParser struct{}
 type moduleVersion struct {
 	path    string
 	version string
+}
+
+// moduleReplacement is the right side of a replace directive. A local
+// replacement names a directory and has no version.
+type moduleReplacement struct {
+	path    string
+	version string
+	local   bool
 }
 
 var (
@@ -101,7 +111,8 @@ func collectToolPaths(text string) map[string]bool {
 
 // collectRequireDeps scans go.mod lines for require directives (both single-line and block form)
 // and returns dependencies, marking tool-related modules as development scope.
-func collectRequireDeps(text string, tools map[string]bool, replaced map[moduleVersion]bool) ([]core.Dependency, []core.Declaration) {
+// Dependencies reflect replace directives; declarations keep the require form.
+func collectRequireDeps(text string, tools map[string]bool, replaced map[moduleVersion]moduleReplacement) ([]core.Dependency, []core.Declaration) {
 	var deps []core.Dependency
 	var declarations []core.Declaration
 	inRequireBlock := false
@@ -127,7 +138,7 @@ func collectRequireDeps(text string, tools map[string]bool, replaced map[moduleV
 		if strings.HasPrefix(trimmed, "require ") && !strings.Contains(trimmed, "(") {
 			if match := singleRequireRegex.FindStringSubmatch(trimmed); match != nil {
 				dep := newRequireDep(match[1], match[2], line, tools)
-				deps = append(deps, dep)
+				deps = appendReplacedDep(deps, dep, replaced)
 				appendGoDeclaration(&declarations, locations, dep, replaced)
 			}
 			continue
@@ -136,7 +147,7 @@ func collectRequireDeps(text string, tools map[string]bool, replaced map[moduleV
 		if inRequireBlock {
 			if match := requireEntryRegex.FindStringSubmatch(trimmed); match != nil {
 				dep := newRequireDep(match[1], match[2], line, tools)
-				deps = append(deps, dep)
+				deps = appendReplacedDep(deps, dep, replaced)
 				appendGoDeclaration(&declarations, locations, dep, replaced)
 			}
 		}
@@ -145,16 +156,44 @@ func collectRequireDeps(text string, tools map[string]bool, replaced map[moduleV
 	return deps, declarations
 }
 
+// findReplacement returns the replace directive that applies to a required
+// module. A replacement naming the version takes precedence over one that
+// applies to every version.
+func findReplacement(replaced map[moduleVersion]moduleReplacement, path, version string) (moduleReplacement, bool) {
+	if replacement, ok := replaced[moduleVersion{path: path, version: version}]; ok {
+		return replacement, true
+	}
+	replacement, ok := replaced[moduleVersion{path: path}]
+	return replacement, ok
+}
+
+// appendReplacedDep appends dependency as Go builds it. A module replacement
+// supplies the module path and version. A local replacement has no version,
+// so the dependency is omitted.
+func appendReplacedDep(deps []core.Dependency, dependency core.Dependency, replaced map[moduleVersion]moduleReplacement) []core.Dependency {
+	replacement, ok := findReplacement(replaced, dependency.Name, dependency.Version)
+	if !ok {
+		return append(deps, dependency)
+	}
+	if replacement.local {
+		return deps
+	}
+	if replacement.version != "" {
+		dependency.Name = replacement.path
+		dependency.Version = replacement.version
+	}
+	return append(deps, dependency)
+}
+
 // appendGoDeclaration records a require directive unless a replace directive
 // changes that module's source.
 func appendGoDeclaration(
 	declarations *[]core.Declaration,
 	locations map[string]int,
 	dependency core.Dependency,
-	replaced map[moduleVersion]bool,
+	replaced map[moduleVersion]moduleReplacement,
 ) {
-	if replaced[moduleVersion{path: dependency.Name}] ||
-		replaced[moduleVersion{path: dependency.Name, version: dependency.Version}] {
+	if _, ok := findReplacement(replaced, dependency.Name, dependency.Version); ok {
 		return
 	}
 	location := core.NextLocation(locations, "require/"+url.PathEscape(dependency.Name))
@@ -167,10 +206,11 @@ func appendGoDeclaration(
 	})
 }
 
-// collectReplacedModules returns module paths named on the left side of a
-// replace directive, in either single-line or block form.
-func collectReplacedModules(text string) map[moduleVersion]bool {
-	replaced := make(map[moduleVersion]bool)
+// collectReplacedModules maps the left side of each replace directive, in
+// either single-line or block form, to its replacement. Go rejects conflicting
+// replacements; the first one is kept.
+func collectReplacedModules(text string) map[moduleVersion]moduleReplacement {
+	replaced := make(map[moduleVersion]moduleReplacement)
 	inReplaceBlock := false
 	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -187,25 +227,97 @@ func collectReplacedModules(text string) map[moduleVersion]bool {
 		}
 
 		spec := ""
-		if strings.HasPrefix(trimmed, "replace ") && !strings.Contains(trimmed, "(") {
-			spec = strings.TrimSpace(strings.TrimPrefix(trimmed, "replace "))
+		if strings.HasPrefix(trimmed, "replace ") {
+			spec = strings.TrimPrefix(trimmed, "replace ")
 		} else if inReplaceBlock {
 			spec = trimmed
 		}
-		left, _, ok := strings.Cut(spec, "=>")
-		if !ok {
+		tokens := goModTokens(spec)
+		arrow := slices.Index(tokens, "=>")
+		if arrow < 1 {
 			continue
 		}
-		fields := strings.Fields(left)
-		if len(fields) > 0 {
-			module := moduleVersion{path: fields[0]}
-			if len(fields) > 1 {
-				module.version = fields[1]
-			}
-			replaced[module] = true
+		module := moduleVersion{path: tokens[0]}
+		if arrow > 1 {
+			module.version = tokens[1]
+		}
+		if _, exists := replaced[module]; !exists {
+			replaced[module] = parseReplacement(tokens[arrow+1:])
 		}
 	}
 	return replaced
+}
+
+// parseReplacement parses the tokens on the right side of a replace directive.
+func parseReplacement(tokens []string) moduleReplacement {
+	if len(tokens) == 0 {
+		return moduleReplacement{}
+	}
+	replacement := moduleReplacement{path: tokens[0], local: isLocalReplacement(tokens[0])}
+	if len(tokens) > 1 && !replacement.local {
+		replacement.version = tokens[1]
+	}
+	return replacement
+}
+
+// goModTokens splits a go.mod line into tokens as the go command does: tokens
+// are separated by white space, double-quoted strings are decoded and "//"
+// outside a quoted string begins a comment, even directly after a token.
+func goModTokens(line string) []string {
+	var tokens []string
+	for {
+		line = strings.TrimLeft(line, " \t\r")
+		if line == "" || strings.HasPrefix(line, "//") {
+			return tokens
+		}
+		quoted := line[0] == '"'
+		end := strings.IndexAny(line, " \t\r")
+		if quoted {
+			end = quotedStringEnd(line)
+		} else if comment := strings.Index(line, "//"); comment >= 0 && (end < 0 || comment < end) {
+			end = comment
+		}
+		if end < 0 {
+			end = len(line)
+		}
+		token := line[:end]
+		if quoted {
+			if unquoted, err := strconv.Unquote(token); err == nil {
+				token = unquoted
+			}
+		}
+		tokens = append(tokens, token)
+		line = line[end:]
+	}
+}
+
+// quotedStringEnd returns the index just past the closing quote of the
+// double-quoted string that starts s, or -1 when it is unterminated.
+func quotedStringEnd(s string) int {
+	for i := 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			i++
+		case '"':
+			return i + 1
+		}
+	}
+	return -1
+}
+
+// isLocalReplacement reports whether a replacement path names a directory.
+// Like modfile.IsDirectoryPath, it accepts Unix and Windows path forms on any
+// host because go.mod files move between systems.
+func isLocalReplacement(path string) bool {
+	return path == "." || path == ".." ||
+		strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../") ||
+		strings.HasPrefix(path, `.\`) || strings.HasPrefix(path, `..\`) ||
+		strings.HasPrefix(path, "/") || strings.HasPrefix(path, `\`) ||
+		len(path) >= 2 && isASCIILetter(path[0]) && path[1] == ':'
+}
+
+func isASCIILetter(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 // newRequireDep builds a Dependency from a parsed require entry, determining

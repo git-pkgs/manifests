@@ -2,6 +2,7 @@ package golang
 
 import (
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -52,11 +53,15 @@ func TestGoMod(t *testing.T) {
 		}
 	}
 
-	// Check single-line require
-	if net, ok := depMap["golang.org/x/net"]; !ok {
-		t.Error("expected golang.org/x/net dependency")
-	} else if net.Version != "v1.2.3" {
-		t.Errorf("net version = %q, want %q", net.Version, "v1.2.3")
+	// The single-line require of golang.org/x/net v1.2.3 is replaced by the
+	// first matching replace directive.
+	if _, ok := depMap["golang.org/x/net"]; ok {
+		t.Error("golang.org/x/net should be reported as its replacement")
+	}
+	if net, ok := depMap["example.com/fork/net"]; !ok {
+		t.Error("expected example.com/fork/net dependency")
+	} else if net.Version != "v1.4.5" || !net.Direct {
+		t.Errorf("fork/net = %+v, want direct v1.4.5", net)
 	}
 
 	// Check tool dependencies are marked as Development scope
@@ -132,6 +137,170 @@ replace (
 		}
 		if declaration.Name != expected.name || declaration.Scope != expected.scope || declaration.Direct != expected.direct {
 			t.Errorf("declaration at %q = %+v, want %+v", declaration.Location, declaration, expected)
+		}
+	}
+}
+
+func TestGoModReplaceDirectives(t *testing.T) {
+	content := []byte(`module example.com/application
+
+go 1.26
+
+require (
+	example.com/same-path v1.0.0
+	example.com/forked v1.2.0 // indirect
+	example.com/pinned v2.0.0
+	example.com/unpinned v3.0.0
+	example.com/local v0.3.0
+	example.com/local-version v0.4.0
+	example.com/absolute v0.5.0
+	example.com/tool v6.0.0
+	example.com/untouched v7.0.0
+	example.com/missing-version v8.0.0
+)
+
+tool example.com/tool/cmd/tool
+
+replace example.com/same-path => example.com/same-path v1.1.0
+
+replace (
+	example.com/forked v1.2.0 => github.com/me/forked v1.2.1 // patched fork
+	example.com/pinned v1.9.0 => example.com/pinned v1.9.9
+	example.com/pinned v2.0.0 => example.com/pinned v2.0.1
+	example.com/pinned => example.com/pinned v9.9.9
+	example.com/unpinned v2.0.0 => example.com/unpinned v2.0.1
+	example.com/local => ../local
+	example.com/local-version v0.4.0 => ./vendor/local
+	example.com/absolute => /src/absolute
+	example.com/tool => github.com/me/tool v6.0.1
+	example.com/missing-version => example.com/elsewhere // no version
+)
+`)
+
+	result, err := (&goModParser{}).Parse("go.mod", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	got := make(map[string]core.Dependency)
+	for _, dep := range result.Dependencies {
+		if _, dup := got[dep.Name]; dup {
+			t.Errorf("duplicate dependency %s", dep.Name)
+		}
+		got[dep.Name] = dep
+	}
+	want := map[string]struct {
+		version string
+		scope   core.Scope
+		direct  bool
+	}{
+		"example.com/same-path":       {"v1.1.0", core.Runtime, true},
+		"github.com/me/forked":        {"v1.2.1", core.Runtime, false},
+		"example.com/pinned":          {"v2.0.1", core.Runtime, true},
+		"example.com/unpinned":        {"v3.0.0", core.Runtime, true},
+		"github.com/me/tool":          {"v6.0.1", core.Development, true},
+		"example.com/untouched":       {"v7.0.0", core.Runtime, true},
+		"example.com/missing-version": {"v8.0.0", core.Runtime, true},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("Dependencies = %+v, want %d entries", result.Dependencies, len(want))
+	}
+	for name, expected := range want {
+		dep, ok := got[name]
+		if !ok {
+			t.Errorf("missing dependency %s", name)
+			continue
+		}
+		if dep.Version != expected.version || dep.Scope != expected.scope || dep.Direct != expected.direct {
+			t.Errorf("%s = %+v, want %+v", name, dep, expected)
+		}
+	}
+	for _, name := range []string{"example.com/local", "example.com/local-version", "example.com/absolute", "example.com/forked", "example.com/tool"} {
+		if _, ok := got[name]; ok {
+			t.Errorf("%s should be replaced or omitted", name)
+		}
+	}
+
+	// Declarations keep the require form and omit replaced modules.
+	declared := make(map[string]bool)
+	for _, declaration := range result.Declarations {
+		declared[declaration.Name] = true
+	}
+	if len(declared) != 2 || !declared["example.com/unpinned"] || !declared["example.com/untouched"] {
+		t.Errorf("Declarations = %+v, want unpinned and untouched", result.Declarations)
+	}
+}
+
+func TestGoModQuotedReplaceDirectives(t *testing.T) {
+	content := []byte(`module example.com/application
+
+go 1.26
+
+require (
+	example.com/quoted-fork v1.0.0
+	example.com/quoted-local v1.0.0
+	example.com/paren-local v1.0.0
+	example.com/slashes v1.0.0
+	example.com/windows v1.0.0
+	example.com/adjacent-comment v1.0.0
+)
+
+replace example.com/quoted-fork => "example.com/fork" "v1.1.0" // quoted "fork"
+replace "example.com/quoted-local" => "../local fork" // spaces in a quoted path
+replace example.com/paren-local => "../local (copy)"
+replace example.com/slashes => "example.com/a//b" v1.2.0
+replace example.com/windows => C:/src/windows
+replace example.com/adjacent-comment => example.com/adjacent-comment v1.3.0//note
+`)
+
+	result, err := (&goModParser{}).Parse("go.mod", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := map[string]string{
+		"example.com/fork":             "v1.1.0",
+		"example.com/a//b":             "v1.2.0",
+		"example.com/adjacent-comment": "v1.3.0",
+	}
+	if len(result.Dependencies) != len(want) {
+		t.Fatalf("Dependencies = %+v, want %v", result.Dependencies, want)
+	}
+	for _, dep := range result.Dependencies {
+		if want[dep.Name] != dep.Version {
+			t.Errorf("dependency %s %s, want one of %v", dep.Name, dep.Version, want)
+		}
+	}
+	if len(result.Declarations) != 0 {
+		t.Errorf("Declarations = %+v, want none for replaced modules", result.Declarations)
+	}
+}
+
+func TestGoModTokens(t *testing.T) {
+	for line, want := range map[string][]string{
+		`example.com/a v1 => example.com/b v2`: {"example.com/a", "v1", "=>", "example.com/b", "v2"},
+		`a => "../dir with spaces" // comment`: {"a", "=>", "../dir with spaces"},
+		"a\t=>\t\"quoted\\\"name\" v1":         {"a", "=>", `quoted"name`, "v1"},
+		`a => "unterminated`:                   {"a", "=>", `"unterminated`},
+		`// only a comment`:                    nil,
+		`a=>b`:                                 {"a=>b"},
+		`a => b v1.1.0//note`:                  {"a", "=>", "b", "v1.1.0"},
+		`a => b//note`:                         {"a", "=>", "b"},
+		`a => "x//y"//note`:                    {"a", "=>", "x//y"},
+	} {
+		if got := goModTokens(line); !slices.Equal(got, want) {
+			t.Errorf("goModTokens(%q) = %q, want %q", line, got, want)
+		}
+	}
+}
+
+func TestIsLocalReplacement(t *testing.T) {
+	for path, want := range map[string]bool{
+		".": true, "..": true, "./fork": true, "../fork": true, `.\fork`: true, `..\fork`: true,
+		"/src/absolute": true, `\src\fork`: true, "C:/src/fork": true, `c:\src\fork`: true,
+		"example.com/fork": false, "github.com/me/fork": false, "fork": false, "1:fork": false,
+	} {
+		if got := isLocalReplacement(path); got != want {
+			t.Errorf("isLocalReplacement(%q) = %v, want %v", path, got, want)
 		}
 	}
 }
