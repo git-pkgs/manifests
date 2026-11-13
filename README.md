@@ -203,6 +203,8 @@ replacement can install a different source than the declared repository.
 
 **Supplement files:** go.sum is parsed as a supplement rather than a lockfile. It provides integrity hashes that can be matched against go.mod dependencies by name and version, but it doesn't represent a standalone dependency tree.
 
+**Replace directives:** go.mod dependencies report the module Go builds with. A `replace` directive that names a module and version substitutes that module and version, with a version-specific replacement taking precedence over one for every version. Dependencies replaced by a local directory are omitted because they have no published version. `Declarations` keep the require directives that are not replaced.
+
 ## API
 
 ### Parse
