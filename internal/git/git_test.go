@@ -99,3 +99,40 @@ func TestConfigValue(t *testing.T) {
 		}
 	}
 }
+
+func TestGitmodulesCommentLineEndingInBackslash(t *testing.T) {
+	content := "[submodule \"one\"]\n" +
+		"\tpath = one\n" +
+		"# example = \\\n" +
+		"[submodule \"two\"]\n" +
+		"\tpath = two\n" +
+		"\t; note = \\\n" +
+		"\turl = https://github.com/example/two.git\n"
+	res, err := (&gitmodulesParser{}).Parse(".gitmodules", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := []core.Dependency{
+		{Name: "one", Scope: core.Runtime, Direct: true, NoPURL: true},
+		{Name: "github.com/example/two", Scope: core.Runtime, Direct: true,
+			Source: core.Source{Kind: core.SourceGit, Value: "https://github.com/example/two.git"}},
+	}
+	if !reflect.DeepEqual(res.Dependencies, want) {
+		t.Errorf("got %+v, want %+v", res.Dependencies, want)
+	}
+}
+
+func TestGitmodulesBackslashBeforeTrailingSpace(t *testing.T) {
+	content := "[submodule \"one\"]\n" +
+		"\tpath = one\n" +
+		"\turl = https://github.com/example/one.git\\ \n" +
+		"\tbranch = main\n"
+	res, err := (&gitmodulesParser{}).Parse(".gitmodules", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := []core.Dependency{{Name: "one", Scope: core.Runtime, Direct: true, NoPURL: true}}
+	if !reflect.DeepEqual(res.Dependencies, want) {
+		t.Errorf("got %+v, want %+v", res.Dependencies, want)
+	}
+}

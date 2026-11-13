@@ -31,7 +31,11 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 
 	var current *submodule
 	for i := 0; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
+		physical := strings.TrimSuffix(lines[i], "\r")
+		line := strings.TrimSpace(physical)
+		if strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
 
 		if match := submoduleHeaderRegex.FindStringSubmatch(line); match != nil {
 			if current != nil {
@@ -45,7 +49,7 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 			continue
 		}
 
-		key, raw, ok := parseKeyValue(line)
+		key, raw, ok := parseKeyValue(physical)
 		if !ok {
 			continue
 		}
@@ -107,7 +111,7 @@ func parseKeyValue(line string) (key, value string, ok bool) {
 	if len(parts) != keyValueParts {
 		return "", "", false
 	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), true
+	return strings.TrimSpace(parts[0]), parts[1], true
 }
 
 // configValue decodes a value as git's parse_value does; more means it continues on the next line, !ok that git rejects it.
