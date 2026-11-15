@@ -14,7 +14,10 @@ func init() {
 // gitmodulesParser parses .gitmodules files.
 type gitmodulesParser struct{}
 
-var submoduleHeaderRegex = regexp.MustCompile(`^\[submodule\s+"([^"]+)"\]`)
+// Section names are case-insensitive in git config, so `[Submodule "..."]` is
+// as valid as `[submodule "..."]`. The quoted subsection name is case-sensitive
+// and is captured verbatim.
+var submoduleHeaderRegex = regexp.MustCompile(`(?i)^\[submodule\s+"([^"]+)"\]`)
 
 type submodule struct {
 	name   string
