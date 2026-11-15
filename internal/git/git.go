@@ -14,9 +14,7 @@ func init() {
 // gitmodulesParser parses .gitmodules files.
 type gitmodulesParser struct{}
 
-// Section names are case-insensitive in git config, so `[Submodule "..."]` is
-// as valid as `[submodule "..."]`. The quoted subsection name is case-sensitive
-// and is captured verbatim.
+// Section names are case-insensitive; the quoted subsection name is not.
 var submoduleHeaderRegex = regexp.MustCompile(`(?i)^\[submodule\s+"([^"]+)"\]`)
 
 type submodule struct {
@@ -58,17 +56,6 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 			continue
 		}
 
-		if current == nil {
-			// A value continued with a backslash newline may continue with a
-			// line that looks like a submodule header. Consume the whole value
-			// so that line is not mistaken for the start of a submodule.
-			if eq := strings.IndexByte(physical, '='); eq >= 0 {
-				_, n, _ := configValue(s[start+eq+1:])
-				pos = start + eq + 1 + n
-			}
-			continue
-		}
-
 		eq := strings.IndexByte(physical, '=')
 		if eq < 0 {
 			continue
@@ -76,7 +63,7 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 		key := strings.ToLower(strings.TrimSpace(physical[:eq]))
 		val, n, ok := configValue(s[start+eq+1:])
 		pos = start + eq + 1 + n
-		if !ok {
+		if !ok || current == nil {
 			continue
 		}
 		switch key {
