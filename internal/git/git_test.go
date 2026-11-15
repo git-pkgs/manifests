@@ -176,3 +176,25 @@ func TestGitmodulesBackslashBeforeTrailingSpace(t *testing.T) {
 		t.Errorf("got %+v, want %+v", res.Dependencies, want)
 	}
 }
+
+func TestGitmodulesOtherSectionEndsSubmodule(t *testing.T) {
+	content := "[submodule \"a\"]\n" +
+		"\tpath = a\n" +
+		"[foo]\n" +
+		"\turl = https://github.com/example/other.git\n" +
+		"[submodule \"b\"]\n" +
+		"\tpath = b\n" +
+		"\turl = https://github.com/example/b.git\n"
+	res, err := (&gitmodulesParser{}).Parse(".gitmodules", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := []core.Dependency{
+		{Name: "a", Scope: core.Runtime, Direct: true, NoPURL: true},
+		{Name: "github.com/example/b", Scope: core.Runtime, Direct: true,
+			Source: core.Source{Kind: core.SourceGit, Value: "https://github.com/example/b.git"}},
+	}
+	if !reflect.DeepEqual(res.Dependencies, want) {
+		t.Errorf("got %+v, want %+v", res.Dependencies, want)
+	}
+}

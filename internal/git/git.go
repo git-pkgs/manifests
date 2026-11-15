@@ -45,6 +45,16 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 			continue
 		}
 
+		// Any other section header ends the current submodule. Its keys belong
+		// to that section, not to the submodule that came before it.
+		if strings.HasPrefix(line, "[") {
+			if current != nil {
+				deps = append(deps, current.dependency())
+				current = nil
+			}
+			continue
+		}
+
 		if current == nil {
 			continue
 		}
