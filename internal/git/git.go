@@ -7,8 +7,6 @@ import (
 	"github.com/git-pkgs/manifests/internal/core"
 )
 
-const keyValueParts = 2 // key=value
-
 func init() {
 	core.Register("git", core.Manifest, &gitmodulesParser{}, core.ExactMatch(".gitmodules"))
 }
@@ -27,11 +25,17 @@ type submodule struct {
 
 func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
-	lines := strings.Split(string(content), "\n")
+	s := string(content)
 
 	var current *submodule
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
+	for pos := 0; pos < len(s); {
+		start := pos
+		pos = lineEnd(s, start)
+		physical := strings.TrimSuffix(strings.TrimSuffix(s[start:pos], "\n"), "\r")
+		line := strings.TrimSpace(physical)
+		if strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
+			continue
+		}
 
 		if match := submoduleHeaderRegex.FindStringSubmatch(line); match != nil {
 			if current != nil {
@@ -45,7 +49,13 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 			continue
 		}
 
-		key, val, ok := parseKeyValue(line)
+		eq := strings.IndexByte(physical, '=')
+		if eq < 0 {
+			continue
+		}
+		key := strings.ToLower(strings.TrimSpace(physical[:eq]))
+		val, n, ok := configValue(s[start+eq+1:])
+		pos = start + eq + 1 + n
 		if !ok {
 			continue
 		}
@@ -89,10 +99,83 @@ func (s *submodule) dependency() core.Dependency {
 	return dep
 }
 
-func parseKeyValue(line string) (key, value string, ok bool) {
-	parts := strings.SplitN(line, "=", keyValueParts)
-	if len(parts) != keyValueParts {
-		return "", "", false
+// lineEnd returns the index just past the newline at or after i, or len(s).
+func lineEnd(s string, i int) int {
+	if j := strings.IndexByte(s[i:], '\n'); j >= 0 {
+		return i + j + 1
 	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]), true
+	return len(s)
+}
+
+// configValue decodes the value at the start of s as git's parse_value does, in one pass; n is the bytes used through the newline that ends it, !ok means git rejects it.
+func configValue(s string) (value string, n int, ok bool) {
+	var b strings.Builder
+	quote, comment := false, false
+	trim := 0
+	for n < len(s) {
+		c := s[n]
+		n++
+		if c == '\r' && n < len(s) && s[n] == '\n' {
+			c = '\n'
+			n++
+		}
+		if c == '\n' {
+			break
+		}
+		if comment {
+			continue
+		}
+		if !quote && (c == ' ' || c == '\t' || c == '\r') {
+			if trim == 0 {
+				trim = b.Len()
+			}
+			if b.Len() > 0 {
+				b.WriteByte(c)
+			}
+			continue
+		}
+		if !quote && (c == ';' || c == '#') {
+			comment = true
+			continue
+		}
+		trim = 0
+		switch c {
+		case '\\':
+			if n == len(s) {
+				continue
+			}
+			e := s[n]
+			n++
+			if e == '\r' && n < len(s) && s[n] == '\n' {
+				e = '\n'
+				n++
+			}
+			switch e {
+			case '\n':
+				continue
+			case 't':
+				b.WriteByte('\t')
+			case 'b':
+				b.WriteByte('\b')
+			case 'n':
+				b.WriteByte('\n')
+			case '\\', '"':
+				b.WriteByte(e)
+			default:
+				return "", lineEnd(s, n), false
+			}
+		case '"':
+			quote = !quote
+		default:
+			b.WriteByte(c)
+		}
+	}
+	if quote {
+		return "", n, false
+	}
+	value = b.String()
+	if trim > 0 {
+		value = value[:trim]
+	}
+	return value, n, true
 }
