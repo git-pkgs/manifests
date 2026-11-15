@@ -436,6 +436,27 @@ manifests, and `Vagrantfile`. The Maven parser includes parents, dependencies,
 dependency management, plugins, plugin dependencies, plugin management, build
 extensions, and their profile-scoped forms.
 
+### Replacement
+
+```go
+type Replacement struct {
+    Name               string // Package the directive targets
+    Version            string // Targeted version; empty targets every version
+    ReplacementName    string // Package used instead, when the replacement is a package
+    ReplacementVersion string // Version of ReplacementName, when given
+    Source             Source // Replacement that is not a package, such as a local directory
+    Location           string // Opaque parser-defined identity within the manifest
+}
+```
+
+`Replacements` records directives that substitute the package or source used
+for another package, in source order. `Parse` does not apply them, so
+`Dependencies` still reports each requirement as written. A `go.mod` replace
+only takes effect when that file is the main module, which `Parse` cannot know.
+`go.mod` replace directives are recorded with a `path` source for a local
+directory and a `ReplacementName` otherwise. `Declarations` omit modules named
+on the left side of a replace directive.
+
 ### ParseResult
 
 ```go
@@ -449,6 +470,7 @@ type ParseResult struct {
     Digest       string       // file-level verification value, when present
     Dependencies []Dependency
     Declarations []Declaration
+    Replacements []Replacement // Replace or override directives, not applied
     Sources      []Source      // Ordered manifest-level source declarations
     Scripts      map[string][]string // Hook or task names with ordered commands or paths
     Publication  Publication   // Package publication settings

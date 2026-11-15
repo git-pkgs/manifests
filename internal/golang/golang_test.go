@@ -2,6 +2,7 @@ package golang
 
 import (
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -75,6 +76,67 @@ func TestGoMod(t *testing.T) {
 	// Non-tool dependencies should be Runtime scope
 	if depMap["github.com/gomodule/redigo"].Scope != core.Runtime {
 		t.Errorf("redigo scope = %v, want Runtime", depMap["github.com/gomodule/redigo"].Scope)
+	}
+
+	fork := "example.com/fork/net"
+	local := core.Source{Kind: core.SourcePath, Value: "./fork/net"}
+	wantReplacements := []core.Replacement{
+		{Name: "bad/thing", Version: "v1.4.5", ReplacementName: "good/thing", ReplacementVersion: "v1.4.5", Location: "replace/bad%2Fthing"},
+		{Name: "golang.org/x/net", Version: "v1.2.3", ReplacementName: fork, ReplacementVersion: "v1.4.5", Location: "replace/golang.org%2Fx%2Fnet"},
+		{Name: "golang.org/x/net", ReplacementName: fork, ReplacementVersion: "v1.4.5", Location: "replace/golang.org%2Fx%2Fnet/2"},
+		{Name: "golang.org/x/net", Version: "v1.2.3", Source: local, Location: "replace/golang.org%2Fx%2Fnet/3"},
+		{Name: "golang.org/x/net", Source: local, Location: "replace/golang.org%2Fx%2Fnet/4"},
+	}
+	if !slices.Equal(res.Replacements, wantReplacements) {
+		t.Errorf("replacements = %+v, want %+v", res.Replacements, wantReplacements)
+	}
+}
+
+func TestGoModTokens(t *testing.T) {
+	for line, want := range map[string][]string{
+		`example.com/a v1 => example.com/b v2`: {"example.com/a", "v1", "=>", "example.com/b", "v2"},
+		`a => "../dir with spaces" // comment`: {"a", "=>", "../dir with spaces"},
+		"a\t=>\t\"quoted\\\"name\" v1":         {"a", "=>", `quoted"name`, "v1"},
+		`a => "unterminated`:                   {"a", "=>", `"unterminated`},
+		`// only a comment`:                    nil,
+		`a=>b`:                                 {"a=>b"},
+		`a => b v1.1.0//note`:                  {"a", "=>", "b", "v1.1.0"},
+		`a => b//note`:                         {"a", "=>", "b"},
+		`a => "x//y"//note`:                    {"a", "=>", "x//y"},
+	} {
+		if got := goModTokens(line); !slices.Equal(got, want) {
+			t.Errorf("goModTokens(%q) = %q, want %q", line, got, want)
+		}
+	}
+}
+
+func TestIsLocalReplacement(t *testing.T) {
+	for path, want := range map[string]bool{
+		".": true, "..": true, "./fork": true, "../fork": true, `.\fork`: true, `..\fork`: true,
+		"/src/absolute": true, `\src\fork`: true, "C:/src/fork": true, `c:\src\fork`: true,
+		"example.com/fork": false, "github.com/me/fork": false, "fork": false, "1:fork": false,
+	} {
+		if got := isLocalReplacement(path); got != want {
+			t.Errorf("isLocalReplacement(%q) = %v, want %v", path, got, want)
+		}
+	}
+}
+
+func TestGoModQuotedRequire(t *testing.T) {
+	content := []byte("module example.com/app\n\nrequire \"example.com/a\" v1.0.0//note\n\nrequire (\n\t\"example.com/b\" v2.0.0//note\n\texample.com/c v3.0.0// indirect\n)\n")
+	res, err := (&goModParser{}).Parse("go.mod", content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []core.Dependency{
+		{Name: "example.com/a", Version: "v1.0.0", Scope: core.Runtime, Direct: true},
+		{Name: "example.com/b", Version: "v2.0.0", Scope: core.Runtime, Direct: true},
+		{Name: "example.com/c", Version: "v3.0.0", Scope: core.Runtime, Direct: false},
+	}
+	if !slices.EqualFunc(res.Dependencies, want, func(a, b core.Dependency) bool {
+		return a.Name == b.Name && a.Version == b.Version && a.Scope == b.Scope && a.Direct == b.Direct
+	}) {
+		t.Errorf("dependencies = %+v, want %+v", res.Dependencies, want)
 	}
 }
 
