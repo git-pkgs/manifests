@@ -3,6 +3,7 @@ package git
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -79,24 +80,63 @@ func TestGitmodulesQuotedValues(t *testing.T) {
 func TestConfigValue(t *testing.T) {
 	tests := []struct {
 		in, want string
-		more, ok bool
+		n        int
+		ok       bool
 	}{
-		{`plain`, "plain", false, true},
-		{`"quoted value"`, "quoted value", false, true},
-		{`a "b c" d`, "a b c d", false, true},
-		{`trailing   ; comment`, "trailing", false, true},
-		{`"kept  "  # comment`, "kept  ", false, true},
-		{`esc\"aped\\ \t\n`, "esc\"aped\\ \t\n", false, true},
-		{`"open`, "", false, false},
-		{`bad\q`, "", false, false},
-		{`ends with \`, "", true, true},
-		{`# only a comment \`, "", false, true},
+		{`plain`, "plain", 5, true},
+		{"plain\nnext", "plain", 6, true},
+		{`"quoted value"`, "quoted value", 14, true},
+		{`a "b c" d`, "a b c d", 9, true},
+		{`trailing   ; comment`, "trailing", 20, true},
+		{`"kept  "  # comment`, "kept  ", 19, true},
+		{`esc\"aped\\ \t\n`, "esc\"aped\\ \t\n", 16, true},
+		{"a\\\nb\nc", "ab", 5, true},
+		{"x\\\r\ny\r\nnext", "xy", 7, true},
+		{`ends with \`, "ends with ", 11, true},
+		{"# comment \\\nnext", "", 12, true},
+		{"a \v", "a \v", 3, true},
+		{"a \f\r", "a \f", 4, true},
+		{`"open`, "", 5, false},
+		{"\"open\nnext", "", 6, false},
+		{"bad\\q rest\nnext", "", 11, false},
 	}
 	for _, tt := range tests {
-		got, more, ok := configValue(tt.in)
-		if got != tt.want || more != tt.more || ok != tt.ok {
-			t.Errorf("configValue(%q) = %q, %v, %v; want %q, %v, %v", tt.in, got, more, ok, tt.want, tt.more, tt.ok)
+		got, n, ok := configValue(tt.in)
+		if got != tt.want || n != tt.n || ok != tt.ok {
+			t.Errorf("configValue(%q) = %q, %d, %v; want %q, %d, %v", tt.in, got, n, ok, tt.want, tt.n, tt.ok)
 		}
+	}
+}
+
+func TestGitmodulesManyContinuationLines(t *testing.T) {
+	const lines = 5000
+	content := "[submodule \"one\"]\n\tpath = one\n\turl = https://github.com/example/one.git\n\tbranch = " +
+		strings.Repeat("a\\\n", lines) + "\n[submodule \"two\"]\n\tpath = two\n"
+	res, err := (&gitmodulesParser{}).Parse(".gitmodules", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := []core.Dependency{{Name: "github.com/example/one", Scope: core.Runtime, Direct: true,
+		Source: core.Source{Kind: core.SourceGit, Value: "https://github.com/example/one.git", Branch: strings.Repeat("a", lines)}},
+		{Name: "two", Scope: core.Runtime, Direct: true, NoPURL: true}}
+	if !reflect.DeepEqual(res.Dependencies, want) {
+		t.Errorf("got %d deps, want the branch joined from %d continuation lines and the submodule after it", len(res.Dependencies), lines)
+	}
+}
+
+func TestGitmodulesKeysIgnoreCase(t *testing.T) {
+	content := "[submodule \"one\"]\n" +
+		"\tPath = one\n" +
+		"\tURL = https://github.com/example/one.git\n" +
+		"\tBranch = Main\n"
+	res, err := (&gitmodulesParser{}).Parse(".gitmodules", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := []core.Dependency{{Name: "github.com/example/one", Scope: core.Runtime, Direct: true,
+		Source: core.Source{Kind: core.SourceGit, Value: "https://github.com/example/one.git", Branch: "Main"}}}
+	if !reflect.DeepEqual(res.Dependencies, want) {
+		t.Errorf("got %+v, want %+v", res.Dependencies, want)
 	}
 }
 

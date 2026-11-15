@@ -7,8 +7,6 @@ import (
 	"github.com/git-pkgs/manifests/internal/core"
 )
 
-const keyValueParts = 2 // key=value
-
 func init() {
 	core.Register("git", core.Manifest, &gitmodulesParser{}, core.ExactMatch(".gitmodules"))
 }
@@ -27,11 +25,13 @@ type submodule struct {
 
 func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
-	lines := strings.Split(string(content), "\n")
+	s := string(content)
 
 	var current *submodule
-	for i := 0; i < len(lines); i++ {
-		physical := strings.TrimSuffix(lines[i], "\r")
+	for pos := 0; pos < len(s); {
+		start := pos
+		pos = lineEnd(s, start)
+		physical := strings.TrimSuffix(strings.TrimSuffix(s[start:pos], "\n"), "\r")
 		line := strings.TrimSpace(physical)
 		if strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
 			continue
@@ -49,20 +49,13 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 			continue
 		}
 
-		key, raw, ok := parseKeyValue(physical)
-		if !ok {
+		eq := strings.IndexByte(physical, '=')
+		if eq < 0 {
 			continue
 		}
-		val, more, ok := configValue(raw)
-		for more {
-			if i+1 < len(lines) {
-				i++
-				raw += "\n" + strings.TrimSuffix(lines[i], "\r")
-			} else {
-				raw += "\n"
-			}
-			val, more, ok = configValue(raw)
-		}
+		key := strings.ToLower(strings.TrimSpace(physical[:eq]))
+		val, n, ok := configValue(s[start+eq+1:])
+		pos = start + eq + 1 + n
 		if !ok {
 			continue
 		}
@@ -106,22 +99,33 @@ func (s *submodule) dependency() core.Dependency {
 	return dep
 }
 
-func parseKeyValue(line string) (key, value string, ok bool) {
-	parts := strings.SplitN(line, "=", keyValueParts)
-	if len(parts) != keyValueParts {
-		return "", "", false
+// lineEnd returns the index just past the newline at or after i, or len(s).
+func lineEnd(s string, i int) int {
+	if j := strings.IndexByte(s[i:], '\n'); j >= 0 {
+		return i + j + 1
 	}
-	return strings.TrimSpace(parts[0]), parts[1], true
+	return len(s)
 }
 
-// configValue decodes a value as git's parse_value does; more means it continues on the next line, !ok that git rejects it.
-func configValue(s string) (value string, more, ok bool) {
+// configValue decodes the value at the start of s as git's parse_value does, in one pass; n is the bytes used through the newline that ends it, !ok means git rejects it.
+func configValue(s string) (value string, n int, ok bool) {
 	var b strings.Builder
-	quote := false
+	quote, comment := false, false
 	trim := 0
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if !quote && strings.IndexByte(" \t\v\f\r", c) >= 0 {
+	for n < len(s) {
+		c := s[n]
+		n++
+		if c == '\r' && n < len(s) && s[n] == '\n' {
+			c = '\n'
+			n++
+		}
+		if c == '\n' {
+			break
+		}
+		if comment {
+			continue
+		}
+		if !quote && (c == ' ' || c == '\t' || c == '\r') {
 			if trim == 0 {
 				trim = b.Len()
 			}
@@ -131,16 +135,22 @@ func configValue(s string) (value string, more, ok bool) {
 			continue
 		}
 		if !quote && (c == ';' || c == '#') {
-			break
+			comment = true
+			continue
 		}
 		trim = 0
 		switch c {
 		case '\\':
-			i++
-			if i == len(s) {
-				return "", true, true
+			if n == len(s) {
+				continue
 			}
-			switch s[i] {
+			e := s[n]
+			n++
+			if e == '\r' && n < len(s) && s[n] == '\n' {
+				e = '\n'
+				n++
+			}
+			switch e {
 			case '\n':
 				continue
 			case 't':
@@ -150,9 +160,9 @@ func configValue(s string) (value string, more, ok bool) {
 			case 'n':
 				b.WriteByte('\n')
 			case '\\', '"':
-				b.WriteByte(s[i])
+				b.WriteByte(e)
 			default:
-				return "", false, false
+				return "", lineEnd(s, n), false
 			}
 		case '"':
 			quote = !quote
@@ -161,11 +171,11 @@ func configValue(s string) (value string, more, ok bool) {
 		}
 	}
 	if quote {
-		return "", false, false
+		return "", n, false
 	}
 	value = b.String()
 	if trim > 0 {
 		value = value[:trim]
 	}
-	return value, false, true
+	return value, n, true
 }
