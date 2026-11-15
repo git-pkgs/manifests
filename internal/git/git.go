@@ -59,6 +59,14 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 		}
 
 		if current == nil {
+			// A value continued with a backslash newline may continue with a
+			// line that looks like a submodule header. Consume the whole value
+			// so that line is not mistaken for the start of a submodule.
+			if eq := strings.IndexByte(physical, '='); eq >= 0 {
+				if _, n, ok := configValue(s[start+eq+1:]); ok {
+					pos = start + eq + 1 + n
+				}
+			}
 			continue
 		}
 

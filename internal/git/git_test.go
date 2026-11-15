@@ -217,3 +217,29 @@ func TestGitmodulesOtherSectionEndsSubmodule(t *testing.T) {
 		t.Errorf("got %+v, want %+v", res.Dependencies, want)
 	}
 }
+
+// A value continued with a backslash newline belongs to the key it started on,
+// even when the continuation reads like a submodule header.
+func TestGitmodulesContinuedForeignValueLooksLikeHeader(t *testing.T) {
+	content := "[submodule \"a\"]\n" +
+		"\tpath = a\n" +
+		"[foo]\n" +
+		"\tnote = continued\\\n" +
+		"[submodule \"fake\"]\n" +
+		"\turl = https://github.com/example/other.git\n" +
+		"[submodule \"b\"]\n" +
+		"\tpath = b\n" +
+		"\turl = https://github.com/example/b.git\n"
+	res, err := (&gitmodulesParser{}).Parse(".gitmodules", []byte(content))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	want := []core.Dependency{
+		{Name: "a", Scope: core.Runtime, Direct: true, NoPURL: true},
+		{Name: "github.com/example/b", Scope: core.Runtime, Direct: true,
+			Source: core.Source{Kind: core.SourceGit, Value: "https://github.com/example/b.git"}},
+	}
+	if !reflect.DeepEqual(res.Dependencies, want) {
+		t.Errorf("got %+v, want only the real submodules %+v", res.Dependencies, want)
+	}
+}
