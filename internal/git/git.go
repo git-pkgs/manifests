@@ -14,7 +14,8 @@ func init() {
 // gitmodulesParser parses .gitmodules files.
 type gitmodulesParser struct{}
 
-var submoduleHeaderRegex = regexp.MustCompile(`^\[submodule\s+"([^"]+)"\]`)
+// Section names are case-insensitive; the quoted subsection name is not.
+var submoduleHeaderRegex = regexp.MustCompile(`(?i)^\[submodule\s+"([^"]+)"\]`)
 
 type submodule struct {
 	name   string
@@ -45,7 +46,13 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 			continue
 		}
 
-		if current == nil {
+		// Any other section header ends the current submodule. Its keys belong
+		// to that section, not to the submodule that came before it.
+		if strings.HasPrefix(line, "[") {
+			if current != nil {
+				deps = append(deps, current.dependency())
+				current = nil
+			}
 			continue
 		}
 
@@ -56,7 +63,7 @@ func (p *gitmodulesParser) Parse(filename string, content []byte) (*core.Result,
 		key := strings.ToLower(strings.TrimSpace(physical[:eq]))
 		val, n, ok := configValue(s[start+eq+1:])
 		pos = start + eq + 1 + n
-		if !ok {
+		if !ok || current == nil {
 			continue
 		}
 		switch key {
