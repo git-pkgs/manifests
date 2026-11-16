@@ -136,6 +136,8 @@ func goModDirectives(text, verb string) []goModDirective {
 		case tokens[0] != verb:
 		case len(tokens) == 2 && tokens[1] == "(":
 			inBlock = true
+		case len(tokens) == 3 && tokens[1] == "(" && tokens[2] == ")":
+			// An empty block on one line has no entries.
 		default:
 			entries = append(entries, goModDirective{tokens: tokens[1:], line: line})
 		}
@@ -204,8 +206,9 @@ func replacedModules(replacements []core.Replacement) map[moduleVersion]bool {
 }
 
 // goModTokens splits a go.mod line into tokens as the go command does: tokens
-// are separated by white space, double-quoted strings are decoded and "//"
-// outside a quoted string begins a comment, even directly after a token.
+// are separated by white space, unquoted parentheses are tokens of their own,
+// double-quoted strings are decoded and "//" outside a quoted string begins a
+// comment, even directly after a token.
 func goModTokens(line string) []string {
 	var tokens []string
 	for {
@@ -214,11 +217,11 @@ func goModTokens(line string) []string {
 			return tokens
 		}
 		quoted := line[0] == '"'
-		end := strings.IndexAny(line, " \t\r")
+		var end int
 		if quoted {
 			end = quotedStringEnd(line)
-		} else if comment := strings.Index(line, "//"); comment >= 0 && (end < 0 || comment < end) {
-			end = comment
+		} else {
+			end = unquotedTokenEnd(line)
 		}
 		if end < 0 {
 			end = len(line)
@@ -232,6 +235,23 @@ func goModTokens(line string) []string {
 		tokens = append(tokens, token)
 		line = line[end:]
 	}
+}
+
+// unquotedTokenEnd returns the length of the unquoted token that starts s,
+// stopping at white space, a parenthesis or "//". A leading parenthesis is a
+// one-byte token. It stops at the token end, so tokenizing stays linear.
+func unquotedTokenEnd(s string) int {
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '(' || c == ')':
+			return max(i, 1)
+		case c == ' ' || c == '\t' || c == '\r':
+			return i
+		case c == '/' && i+1 < len(s) && s[i+1] == '/':
+			return i
+		}
+	}
+	return len(s)
 }
 
 // quotedStringEnd returns the index just past the closing quote of the

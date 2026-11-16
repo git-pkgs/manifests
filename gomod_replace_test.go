@@ -2,7 +2,9 @@ package manifests
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestGoModReplacements(t *testing.T) {
@@ -79,5 +81,70 @@ func TestGoModWithoutReplacements(t *testing.T) {
 	}
 	if result.Replacements != nil {
 		t.Errorf("replacements = %+v, want none", result.Replacements)
+	}
+}
+
+func TestGoModParenthesisTokens(t *testing.T) {
+	content := []byte(`module example.com/app
+
+require(
+	example.com/a v1.0.0
+)
+
+require ( )
+
+require()
+
+replace(
+	example.com/a => ../a
+)
+
+replace ( )
+
+replace()
+`)
+	result, err := Parse("go.mod", content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Dependencies) != 1 || result.Dependencies[0].Name != "example.com/a" || result.Dependencies[0].Version != "v1.0.0" {
+		t.Errorf("dependencies = %+v", result.Dependencies)
+	}
+	want := []Replacement{{Name: "example.com/a", Source: Source{Kind: SourcePath, Value: "../a"}, Location: "replace/example.com%2Fa"}}
+	if !reflect.DeepEqual(result.Replacements, want) {
+		t.Errorf("replacements = %+v, want %+v", result.Replacements, want)
+	}
+	if len(result.Declarations) != 0 {
+		t.Errorf("declarations = %+v, want none", result.Declarations)
+	}
+}
+
+func TestGoModEmptyOneLineBlockKeepsLaterDirectives(t *testing.T) {
+	content := []byte("module example.com/app\n\nrequire ( )\nrequire example.com/b v2.0.0\n\nreplace ( )\nreplace example.com/b => ../b\n")
+	result, err := Parse("go.mod", content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Dependencies) != 1 || result.Dependencies[0].Name != "example.com/b" {
+		t.Errorf("dependencies = %+v", result.Dependencies)
+	}
+	if len(result.Replacements) != 1 || result.Replacements[0].Name != "example.com/b" {
+		t.Errorf("replacements = %+v", result.Replacements)
+	}
+}
+
+func TestGoModLongLine(t *testing.T) {
+	const tokens = 1 << 20
+	content := []byte("module example.com/app\n\nrequire example.com/a v1.0.0" + strings.Repeat(" a", tokens) + "\n")
+	started := time.Now()
+	result, err := Parse("go.mod", content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Errorf("parsing a %d-token line took %v", tokens, elapsed)
+	}
+	if len(result.Dependencies) != 1 || result.Dependencies[0].Version != "v1.0.0" {
+		t.Errorf("dependencies = %+v", result.Dependencies)
 	}
 }

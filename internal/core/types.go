@@ -102,11 +102,8 @@ type ArtifactIntegrity struct {
 }
 
 // Replacement records a directive that substitutes the package or source used
-// for another package, without applying it. Name and Version identify the
-// target; an empty Version targets every version. ReplacementName and
-// ReplacementVersion name the package used instead. Source holds a replacement
-// that is not a package, such as a local directory. Location is
-// ecosystem-specific and should be treated as an opaque identity.
+// for another package, without applying it. Location is ecosystem-specific and
+// should be treated as an opaque identity.
 type Replacement struct {
 	Name               string
 	Version            string

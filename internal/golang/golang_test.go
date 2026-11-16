@@ -103,6 +103,10 @@ func TestGoModTokens(t *testing.T) {
 		`a => b v1.1.0//note`:                  {"a", "=>", "b", "v1.1.0"},
 		`a => b//note`:                         {"a", "=>", "b"},
 		`a => "x//y"//note`:                    {"a", "=>", "x//y"},
+		`require(`:                             {"require", "("},
+		`require ( )`:                          {"require", "(", ")"},
+		`replace()// note`:                     {"replace", "(", ")"},
+		`a => "../(dir)"`:                      {"a", "=>", "../(dir)"},
 	} {
 		if got := goModTokens(line); !slices.Equal(got, want) {
 			t.Errorf("goModTokens(%q) = %q, want %q", line, got, want)
