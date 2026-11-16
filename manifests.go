@@ -47,6 +47,11 @@ type ArtifactIntegrity = core.ArtifactIntegrity
 // metadata fields remain source-compatible.
 type Declaration = core.Declaration
 
+// Replacement records a directive, such as a go.mod replace, that substitutes
+// the package or source used for another package. Parse does not apply it,
+// because whether it takes effect depends on how the manifest is used.
+type Replacement = core.Replacement
+
 // Source preserves a literal manifest source declaration. It does not report
 // a resolved package location.
 type Source = core.Source
@@ -103,6 +108,10 @@ type ParseResult struct {
 	// their logical locations. Unlike Dependencies, these entries are not
 	// merged, inherited, or otherwise resolved into an effective model.
 	Declarations []Declaration
+	// Replacements holds replace or override directives in source order.
+	// Dependencies are reported as written, so a caller that knows the
+	// directives apply can substitute them itself.
+	Replacements []Replacement
 	// Sources preserves manifest-level source declarations in source order.
 	// A source declaration does not imply that any dependency resolved there.
 	Sources []Source
@@ -175,6 +184,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Digest:       res.Digest,
 		Dependencies: res.Dependencies,
 		Declarations: res.Declarations,
+		Replacements: res.Replacements,
 		Sources:      res.Sources,
 		Scripts:      res.Scripts,
 		Publication:  res.Publication,

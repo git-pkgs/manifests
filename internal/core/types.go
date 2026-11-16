@@ -101,6 +101,18 @@ type ArtifactIntegrity struct {
 	Digest string
 }
 
+// Replacement records a directive that substitutes the package or source used
+// for another package, without applying it. Location is ecosystem-specific and
+// should be treated as an opaque identity.
+type Replacement struct {
+	Name               string
+	Version            string
+	ReplacementName    string
+	ReplacementVersion string
+	Source             Source
+	Location           string
+}
+
 // Declaration is a dependency-like reference at a stable logical location
 // in a manifest. Version is the requirement as written in that location,
 // before effective-model resolution or inheritance. Location is
@@ -145,6 +157,8 @@ type Result struct {
 	Digest       string
 	Dependencies []Dependency
 	Declarations []Declaration
+	// Replacements holds replace or override directives in source order.
+	Replacements []Replacement
 	// Sources preserves manifest-level source declarations in source order.
 	// These entries are configuration, not evidence that any dependency was
 	// resolved from a particular source.
