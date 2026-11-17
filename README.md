@@ -88,6 +88,14 @@ func main() {
 | vagrant | Vagrantfile | |
 | vcpkg | vcpkg.json | |
 
+### npm workspace links
+
+In v2/v3 `package-lock.json` and `npm-shrinkwrap.json`, linked packages retain
+their literal `resolved` path in `Source` with kind `path`, not in `RegistryURL`.
+Their version remains empty when the link entry has no version. Workspace
+target entries are not reported as separate dependencies; packages installed
+under a workspace's `node_modules` directory are still included.
+
 ### Swift output
 
 Swift manifests are read without executing Swift, so variables, conditions,

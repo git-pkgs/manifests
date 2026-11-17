@@ -362,6 +362,11 @@ func (e *packageLockEntry) hasContent() bool {
 }
 
 func (e *packageLockEntry) toDependency(directDependencies map[string]bool) (core.Dependency, bool) {
+	// Workspace targets describe local packages, not additional installations.
+	// Their own node_modules entries still represent installed dependencies.
+	if !strings.HasPrefix(e.Path, "node_modules/") && !strings.Contains(e.Path, "/node_modules/") {
+		return core.Dependency{}, false
+	}
 	name := extractPackageName(e.Path)
 	if name == "" || (e.Version == "" && !e.Link) {
 		return core.Dependency{}, false
@@ -374,14 +379,19 @@ func (e *packageLockEntry) toDependency(directDependencies map[string]bool) (cor
 	}
 	topLevel := !strings.Contains(strings.TrimPrefix(e.Path, "node_modules/"), "node_modules/")
 	direct := topLevel && directDependencies[name]
-	return core.Dependency{
+	dep := core.Dependency{
 		Name:        name,
 		Version:     e.Version,
 		Scope:       scope,
 		Integrity:   e.Integrity,
 		Direct:      direct,
 		RegistryURL: e.Resolved,
-	}, true
+	}
+	if e.Link {
+		dep.Source = core.Source{Kind: core.SourcePath, Value: e.Resolved}
+		dep.RegistryURL = ""
+	}
+	return dep, true
 }
 
 func parsePackageLockDirectDependencies(content []byte) map[string]bool {
