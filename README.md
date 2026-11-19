@@ -203,6 +203,16 @@ replacement can install a different source than the declared repository.
 
 **Supplement files:** go.sum is parsed as a supplement rather than a lockfile. It provides integrity hashes that can be matched against go.mod dependencies by name and version, but it doesn't represent a standalone dependency tree.
 
+**Config files:** package manager configuration that redirects installs to another registry is parsed with kind `config` and fills `Registries` instead of `Dependencies`. `.npmrc` keeps its existing `supplement` kind and also fills `Registries`.
+
+| File | Ecosystem | Entries |
+|------|-----------|---------|
+| `.npmrc` | npm | `registry`, `@scope:registry` |
+| `.yarnrc.yml` | npm | `npmRegistryServer`, `npmScopes.<scope>.npmRegistryServer` |
+| `pip.conf`, `pip.ini` | pypi | `index-url` (replaces), `extra-index-url` (supplements) |
+| `.cargo/config.toml`, `.cargo/config` | cargo | `[source.<name>]` `replace-with` chains ending at a `registry` |
+| `.bundle/config` | gem | `BUNDLE_MIRROR__<source>` and `BUNDLE_MIRROR__ALL` |
+
 ## API
 
 ### Parse
@@ -513,12 +523,30 @@ fills `Summary` and `Description` verbatim, `Keywords` from `tags` split on
 white space, `Homepage` from `projectUrl` plus `Readme` from `readme`, with the
 `repository` URL, `licenseUrl` and `iconUrl` as `Links`.
 
+### Registry
+
+```go
+type Registry struct {
+    URL      string // Registry URL, with any userinfo removed
+    Scope    string // npm scope, Cargo source or Bundler source it applies to; empty for every package
+    Replaces bool   // Used instead of the default rather than in addition to it
+    File     string // Filename passed to Parse
+}
+```
+
+These files often hold credentials. `Parse` never returns them: only registry
+keys are read, so token, password and auth keys are skipped. Userinfo is also
+removed from every URL and URL-shaped scope, so a result is safe to log or store.
+Values are literal, so environment references such as `${NPM_REGISTRY}` are
+kept as written. Cargo directory, local registry and git replacements are not
+registries and are omitted; `DiscoverVendors` reports directory sources.
+
 ### ParseResult
 
 ```go
 type ParseResult struct {
     Ecosystem    string       // npm, gem, pypi, golang, cargo, etc.
-    Kind         Kind         // manifest, lockfile, or supplement
+    Kind         Kind         // manifest, lockfile, supplement or config
     Name         string       // the package's own name, when the format declares one
     Version      string       // the package's own version, when declared
     Licenses     []string     // raw declared license values
@@ -527,6 +555,7 @@ type ParseResult struct {
     Dependencies []Dependency
     Declarations []Declaration
     Replacements []Replacement // Replace or override directives, not applied
+    Registries   []Registry    // Registry redirection configuration, without credentials
     Sources      []Source      // Ordered manifest-level source declarations
     Scripts      map[string][]string // Hook or task names with ordered commands or paths
     Publication  Publication   // Package publication settings
@@ -595,6 +624,7 @@ const (
     Lockfile   Kind = "lockfile"   // Resolved dependencies with exact versions
     Supplement Kind = "supplement" // Provides extra data (e.g. integrity hashes) for a manifest's dependencies
     Vendor     Kind = "vendor"     // Exact package identity stored under a vendor root
+    Config     Kind = "config"     // Package manager configuration, such as registry settings
 )
 ```
 
