@@ -18,7 +18,7 @@ func TestRegistryConfig(t *testing.T) {
 		want      []Registry
 	}{
 		{
-			fixture: "testdata/npm/registry-config/.npmrc", filename: ".npmrc", ecosystem: "npm", kind: Supplement,
+			fixture: "testdata/npm/registry-config/.npmrc", filename: ".npmrc", ecosystem: "npm", kind: Config,
 			want: []Registry{
 				{URL: "https://nexus.internal/repository/npm-group/", Replaces: true},
 				{URL: "https://nexus.internal/repository/acme/", Scope: "@acme", Replaces: true},
@@ -48,6 +48,10 @@ func TestRegistryConfig(t *testing.T) {
 		{
 			fixture: "testdata/cargo/registry-config/.cargo/config.toml", filename: "project/.cargo/config.toml", ecosystem: "cargo", kind: Config,
 			want: []Registry{{URL: "sparse+https://cargo.internal/api/v1/crates/", Replaces: true}},
+		},
+		{
+			fixture: "testdata/cargo/registry-alternative/.cargo/config.toml", filename: ".cargo/config.toml", ecosystem: "cargo", kind: Config,
+			want: []Registry{{URL: "sparse+https://cargo.internal/index/", Replaces: true}},
 		},
 		{
 			fixture: "testdata/cargo/registry-config/.cargo/config", filename: ".cargo/config", ecosystem: "cargo", kind: Config,
@@ -112,6 +116,7 @@ func TestNpmRCRegistryKeepsProvenance(t *testing.T) {
 
 func TestRegistryConfigIdentify(t *testing.T) {
 	for filename, want := range map[string]string{
+		".npmrc":                                "npm",
 		".yarnrc.yml":                           "npm",
 		"pip.conf":                              "pypi",
 		"config/pip.ini":                        "pypi",
@@ -148,5 +153,34 @@ func TestRegistryURLStripsCredentials(t *testing.T) {
 		if len(result.Registries) != 1 || result.Registries[0].URL != want {
 			t.Errorf("%q: registries = %+v, want %q", raw, result.Registries, want)
 		}
+	}
+}
+
+func TestDiscoverManifestsConfigFiles(t *testing.T) {
+	reader := mapFSReader(map[string]string{
+		".npmrc":                    "registry=https://npm.internal/\n",
+		".yarnrc.yml":               "npmRegistryServer: https://npm.internal/\n",
+		"pip.conf":                  "[global]\nindex-url = https://pypi.internal/simple\n",
+		"pip.ini":                   "[global]\nindex-url = https://pypi.internal/simple\n",
+		".cargo/config.toml":        "[source.crates-io]\nreplace-with = \"corp\"\n",
+		".cargo/config":             "[source.crates-io]\nreplace-with = \"corp\"\n",
+		".bundle/config":            "BUNDLE_MIRROR__ALL: https://gems.internal/\n",
+		"nested/.cargo/config.toml": "",
+	})
+	got, warnings := DiscoverManifests(reader)
+	if len(warnings) != 0 {
+		t.Fatalf("DiscoverManifests warnings: %v", warnings)
+	}
+	want := []DiscoveredManifest{
+		{Path: ".bundle/config", Ecosystem: "gem", Kind: Config},
+		{Path: ".cargo/config", Ecosystem: "cargo", Kind: Config},
+		{Path: ".cargo/config.toml", Ecosystem: "cargo", Kind: Config},
+		{Path: ".npmrc", Ecosystem: "npm", Kind: Config},
+		{Path: ".yarnrc.yml", Ecosystem: "npm", Kind: Config},
+		{Path: "pip.conf", Ecosystem: "pypi", Kind: Config},
+		{Path: "pip.ini", Ecosystem: "pypi", Kind: Config},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("DiscoverManifests() =\n%+v\nwant\n%+v", got, want)
 	}
 }

@@ -89,7 +89,10 @@ func DiscoverManifests(reader RepositoryReader) ([]DiscoveredManifest, []error) 
 		reader: reader,
 		items:  make(map[discoveredManifestKey]DiscoveredManifest),
 	}
-	for _, pattern := range []string{"*", ".github/workflows/*.yml", ".github/workflows/*.yaml"} {
+	for _, pattern := range []string{
+		"*", ".github/workflows/*.yml", ".github/workflows/*.yaml",
+		".cargo/config.toml", ".cargo/config", ".bundle/config",
+	} {
 		if err := discovery.addMatches(pattern, ""); err != nil {
 			discovery.warn(fmt.Errorf("discovering manifests matching %q: %w", pattern, err))
 		}

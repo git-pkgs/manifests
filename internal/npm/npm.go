@@ -16,7 +16,7 @@ import (
 func init() {
 	// package.json - manifest
 	core.Register("npm", core.Manifest, &npmPackageJSONParser{}, core.ExactMatch("package.json"))
-	core.Register("npm", core.Supplement, &npmRCParser{}, core.ExactMatch(".npmrc"))
+	core.Register("npm", core.Config, &npmRCParser{}, core.ExactMatch(".npmrc"))
 
 	// package-lock.json - lockfile
 	core.Register("npm", core.Lockfile, &npmPackageLockParser{}, core.ExactMatch("package-lock.json", "npm-shrinkwrap.json"))

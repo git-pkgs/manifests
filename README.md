@@ -203,14 +203,14 @@ replacement can install a different source than the declared repository.
 
 **Supplement files:** go.sum is parsed as a supplement rather than a lockfile. It provides integrity hashes that can be matched against go.mod dependencies by name and version, but it doesn't represent a standalone dependency tree.
 
-**Config files:** package manager configuration that redirects installs to another registry is parsed with kind `config` and fills `Registries` instead of `Dependencies`. `.npmrc` keeps its existing `supplement` kind and also fills `Registries`.
+**Config files:** package manager configuration that redirects installs to another registry is parsed with kind `config` and fills `Registries` instead of `Dependencies`. `.npmrc` is a config file too and still reports `Publication.Provenance`.
 
 | File | Ecosystem | Entries |
 |------|-----------|---------|
 | `.npmrc` | npm | `registry`, `@scope:registry` |
 | `.yarnrc.yml` | npm | `npmRegistryServer`, `npmScopes.<scope>.npmRegistryServer` |
 | `pip.conf`, `pip.ini` | pypi | `index-url` (replaces), `extra-index-url` (supplements) |
-| `.cargo/config.toml`, `.cargo/config` | cargo | `[source.<name>]` `replace-with` chains ending at a `registry` |
+| `.cargo/config.toml`, `.cargo/config` | cargo | `[source.<name>]` `replace-with` chains ending at a `registry` or at a `[registries.<name>]` `index` |
 | `.bundle/config` | gem | `BUNDLE_MIRROR__<source>` and `BUNDLE_MIRROR__ALL` |
 
 ## API
@@ -250,7 +250,9 @@ func Ecosystems() []string
 ### DiscoverManifests
 
 Discovers root manifests, GitHub Actions workflows, and declared Cargo, Go,
-npm/Yarn, and pnpm workspace members. Discovery is repository-aware while
+npm/Yarn, and pnpm workspace members. Root config files, including
+`.cargo/config.toml`, `.cargo/config` and `.bundle/config`, are reported with
+kind `config`. Discovery is repository-aware while
 `Parse` remains a pure single-file operation.
 
 ```go
