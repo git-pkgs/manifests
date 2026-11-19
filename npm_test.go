@@ -145,8 +145,8 @@ func TestNPMRCProvenance(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.Kind != Supplement {
-				t.Fatalf("kind = %q, want %q", result.Kind, Supplement)
+			if result.Kind != Config {
+				t.Fatalf("kind = %q, want %q", result.Kind, Config)
 			}
 			if !reflect.DeepEqual(result.Publication.Provenance, test.want) {
 				t.Fatalf("provenance = %v, want %v", result.Publication.Provenance, test.want)

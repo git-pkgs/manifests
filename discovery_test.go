@@ -164,8 +164,9 @@ func TestDiscoverManifestsReturnsPartialResultsWithConfigurationWarnings(t *test
 func TestDiscoverManifestsReaderWarnings(t *testing.T) {
 	wantErr := errors.New("glob failed")
 	_, warnings := DiscoverManifests(errorRepositoryReader{err: wantErr})
-	if len(warnings) != 3 {
-		t.Fatalf("DiscoverManifests() warnings = %v, want three root glob warnings", warnings)
+	// One warning per root pattern: the root, two workflow and three config globs.
+	if len(warnings) != 6 {
+		t.Fatalf("DiscoverManifests() warnings = %v, want six root glob warnings", warnings)
 	}
 	for _, warning := range warnings {
 		if !errors.Is(warning, wantErr) {

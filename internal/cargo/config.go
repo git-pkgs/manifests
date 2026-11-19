@@ -33,12 +33,17 @@ type cargoSource struct {
 	Registry    string `toml:"registry"`
 }
 
+type cargoRegistry struct {
+	Index string `toml:"index"`
+}
+
 // cargoConfigParser reads [source] replacements from Cargo configuration.
 type cargoConfigParser struct{}
 
 func (p *cargoConfigParser) Parse(_ string, content []byte) (*core.Result, error) {
 	var config struct {
-		Source map[string]cargoSource `toml:"source"`
+		Source     map[string]cargoSource   `toml:"source"`
+		Registries map[string]cargoRegistry `toml:"registries"`
 	}
 	metadata, err := toml.Decode(string(content), &config)
 	if err != nil {
@@ -46,7 +51,7 @@ func (p *cargoConfigParser) Parse(_ string, content []byte) (*core.Result, error
 	}
 	var registries []core.Registry
 	for _, name := range cargoSourceOrder(metadata) {
-		url := replacementRegistry(config.Source, name)
+		url := replacementRegistry(config.Source, config.Registries, name)
 		if url == "" {
 			continue
 		}
@@ -75,13 +80,17 @@ func cargoSourceOrder(metadata toml.MetaData) []string {
 }
 
 // replacementRegistry follows replace-with from name to the registry URL it
-// ends at. Directory, local registry and git replacements return "".
-func replacementRegistry(sources map[string]cargoSource, name string) string {
+// ends at. A target missing from [source] may name a [registries] entry.
+// Directory, local registry and git replacements return "".
+func replacementRegistry(sources map[string]cargoSource, registries map[string]cargoRegistry, name string) string {
 	next := sources[name].ReplaceWith
 	for range len(sources) {
-		target, ok := sources[next]
-		if next == "" || !ok {
+		if next == "" {
 			return ""
+		}
+		target, ok := sources[next]
+		if !ok {
+			return registries[next].Index
 		}
 		if target.Registry != "" {
 			return target.Registry

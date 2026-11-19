@@ -36,8 +36,13 @@ func (p *pipConfParser) Parse(_ string, content []byte) (*core.Result, error) {
 	for line := range bytes.Lines(content) {
 		text := strings.TrimRight(string(line), "\r\n")
 		trimmed := strings.TrimSpace(text)
+		// Like configparser, full-line comments are dropped and blank lines
+		// do not end a multi-line value.
+		if trimmed == "" || trimmed[0] == '#' || trimmed[0] == ';' {
+			continue
+		}
 		// configparser continues a value on indented lines.
-		if key != "" && trimmed != "" && (text[0] == ' ' || text[0] == '\t') {
+		if key != "" && (text[0] == ' ' || text[0] == '\t') {
 			value += " " + trimmed
 			continue
 		}
@@ -45,7 +50,7 @@ func (p *pipConfParser) Parse(_ string, content []byte) (*core.Result, error) {
 			add(key, value)
 			key = ""
 		}
-		if trimmed == "" || trimmed[0] == '#' || trimmed[0] == ';' || trimmed[0] == '[' {
+		if trimmed[0] == '[' {
 			continue
 		}
 		separator := strings.IndexAny(trimmed, "=:")
