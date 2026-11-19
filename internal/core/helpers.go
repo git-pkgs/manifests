@@ -113,3 +113,25 @@ func ParseDockerImage(image string) (name, version string) {
 	// No tag or digest, default to latest
 	return image, "latest"
 }
+
+// RegistryURL trims raw and removes any userinfo from its authority, so a
+// configured URL can be returned without the credentials it embeds.
+func RegistryURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	authority := 0
+	if scheme := strings.Index(raw, "://"); scheme >= 0 {
+		authority = scheme + len("://")
+	} else if strings.HasPrefix(raw, "//") {
+		authority = len("//")
+	} else {
+		return raw
+	}
+	end := len(raw)
+	if i := strings.IndexAny(raw[authority:], "/?#"); i >= 0 {
+		end = authority + i
+	}
+	if at := strings.LastIndexByte(raw[authority:end], '@'); at >= 0 {
+		return raw[:authority] + raw[authority+at+1:]
+	}
+	return raw
+}

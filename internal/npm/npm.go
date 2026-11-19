@@ -16,7 +16,7 @@ import (
 func init() {
 	// package.json - manifest
 	core.Register("npm", core.Manifest, &npmPackageJSONParser{}, core.ExactMatch("package.json"))
-	core.Register("npm", core.Supplement, &npmRCParser{}, core.ExactMatch(".npmrc"))
+	core.Register("npm", core.Config, &npmRCParser{}, core.ExactMatch(".npmrc"))
 
 	// package-lock.json - lockfile
 	core.Register("npm", core.Lockfile, &npmPackageLockParser{}, core.ExactMatch("package-lock.json", "npm-shrinkwrap.json"))
@@ -29,9 +29,26 @@ type npmRCParser struct{}
 
 func (p *npmRCParser) Parse(_ string, content []byte) (*core.Result, error) {
 	var provenance *bool
+	var registries []core.Registry
+	registryIndex := make(map[string]int)
 	for line := range bytes.Lines(content) {
 		key, value, ok := strings.Cut(strings.TrimSpace(string(line)), "=")
-		if !ok || !strings.EqualFold(strings.TrimSpace(key), "provenance") {
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		if scope, isRegistry := npmRCRegistryScope(key); isRegistry {
+			// npm keeps the last value for a repeated key.
+			registry := core.Registry{URL: npmRCValue(value), Scope: scope, Replaces: true}
+			if i, seen := registryIndex[scope]; seen {
+				registries[i] = registry
+			} else {
+				registryIndex[scope] = len(registries)
+				registries = append(registries, registry)
+			}
+			continue
+		}
+		if !strings.EqualFold(key, "provenance") {
 			continue
 		}
 		switch strings.ToLower(npmRCValue(value)) {
@@ -45,7 +62,20 @@ func (p *npmRCParser) Parse(_ string, content []byte) (*core.Result, error) {
 			provenance = nil
 		}
 	}
-	return &core.Result{Publication: core.Publication{Provenance: provenance}}, nil
+	return &core.Result{Publication: core.Publication{Provenance: provenance}, Registries: registries}, nil
+}
+
+// npmRCRegistryScope reports whether key sets the default registry or a scoped
+// one such as @acme:registry, returning the scope. Auth keys never match.
+func npmRCRegistryScope(key string) (string, bool) {
+	if strings.EqualFold(key, "registry") {
+		return "", true
+	}
+	scope, setting, ok := strings.Cut(key, ":")
+	if !ok || !strings.HasPrefix(scope, "@") || len(scope) == 1 || !strings.EqualFold(setting, "registry") {
+		return "", false
+	}
+	return scope, true
 }
 
 func npmRCValue(value string) string {
