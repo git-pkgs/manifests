@@ -47,6 +47,11 @@ type ArtifactIntegrity = core.ArtifactIntegrity
 // metadata fields remain source-compatible.
 type Declaration = core.Declaration
 
+// Registry records configuration, such as an npm registry or pip index URL,
+// that directs a package manager to a package registry. Credentials are never
+// returned: token keys are skipped and userinfo is removed from URLs.
+type Registry = core.Registry
+
 // Replacement records a directive, such as a go.mod replace, that substitutes
 // the package or source used for another package. Parse does not apply it,
 // because whether it takes effect depends on how the manifest is used.
@@ -66,6 +71,7 @@ const (
 	Lockfile   Kind = core.Lockfile
 	Supplement Kind = core.Supplement
 	Vendor     Kind = core.Vendor
+	Config     Kind = core.Config
 
 	Runtime     Scope = core.Runtime
 	Development Scope = core.Development
@@ -112,6 +118,9 @@ type ParseResult struct {
 	// Dependencies are reported as written, so a caller that knows the
 	// directives apply can substitute them itself.
 	Replacements []Replacement
+	// Registries holds registry redirection configuration from Config files
+	// and .npmrc, in source order.
+	Registries []Registry
 	// Sources preserves manifest-level source declarations in source order.
 	// A source declaration does not imply that any dependency resolved there.
 	Sources []Source
@@ -174,6 +183,19 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		declaration.Ecosystem = entryEcosystem(eco, declaration.Ecosystem, declaration.NoPURL)
 	}
 
+	registries := res.Registries[:0]
+	for _, registry := range res.Registries {
+		// Cleaned here so no parser can leak credentials; a scope can be a URL.
+		registry.URL = core.RegistryURL(registry.URL)
+		registry.Scope = core.RegistryURL(registry.Scope)
+		if registry.URL == "" {
+			continue
+		}
+		registry.File = filename
+		registries = append(registries, registry)
+	}
+	res.Registries = registries
+
 	return &ParseResult{
 		Ecosystem:    eco,
 		Kind:         kind,
@@ -185,6 +207,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Dependencies: res.Dependencies,
 		Declarations: res.Declarations,
 		Replacements: res.Replacements,
+		Registries:   res.Registries,
 		Sources:      res.Sources,
 		Scripts:      res.Scripts,
 		Publication:  res.Publication,

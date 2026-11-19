@@ -1,0 +1,18 @@
+[source.crates-io]
+replace-with = "company-mirror"
+
+[source.company-mirror]
+registry = "sparse+https://deploy:s3cret-pass@cargo.internal/api/v1/crates/"
+
+[source."https://github.com/acme/forked"]
+git = "https://github.com/acme/forked"
+replace-with = "vendored"
+
+[source.vendored]
+directory = "vendor"
+
+[registries.company-mirror]
+token = "cio_SECRET_TOKEN"
+
+[net]
+git-fetch-with-cli = true

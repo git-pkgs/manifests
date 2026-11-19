@@ -1,0 +1,7 @@
+---
+BUNDLE_PATH: "vendor/bundle"
+BUNDLE_MIRROR__HTTPS://RUBYGEMS__ORG/: "https://deploy:s3cret-pass@gems.internal/rubygems/"
+BUNDLE_MIRROR__HTTPS://RUBYGEMS__ORG/__FALLBACK_TIMEOUT: "3"
+BUNDLE_MIRROR__HTTPS://GEMS__MY___COMPANY__EXAMPLE/: "https://gems-mirror.internal/"
+BUNDLE_MIRROR__ALL: "https://everything.internal/"
+BUNDLE_GEMS__CONTRIBSYS__COM: "s3cret-user:s3cret-pass"
