@@ -445,6 +445,7 @@ type Replacement struct {
     ReplacementName    string // Package used instead, when the replacement is a package
     ReplacementVersion string // Version of ReplacementName, when given
     Source             Source // Replacement that is not a package, such as a local directory
+    Patch              string // Patch file applied to the package, as written
     Location           string // Opaque parser-defined identity within the manifest
 }
 ```
@@ -456,6 +457,23 @@ only takes effect when that file is the main module, which `Parse` cannot know.
 `go.mod` replace directives are recorded with a `path` source for a local
 directory and a `ReplacementName` otherwise. `Declarations` omit modules named
 on the left side of a replace directive.
+
+`package.json` records npm `overrides`, Yarn `resolutions` and the
+`pnpm.overrides` and `pnpm.patchedDependencies` fields, block by block and in
+source order within each block. `pnpm-workspace.yaml` is parsed as an npm
+supplement for the `overrides` and `patchedDependencies` that pnpm 10 keeps
+there. `Name` is the package a key targets: the last package of a nested npm
+override, a Yarn path such as `parent/**/child` or a pnpm chain such as
+`parent>child`. A version range in the key, as in `child@^1`, becomes
+`Version`. Values are kept as written: `npm:` aliases become a
+`ReplacementName`, Git, GitHub, URL and local values become a `Source`, while
+patch files and Yarn `patch:` descriptors become a `Patch`. Anything else,
+including `$name` references and pnpm's `-`, is the `ReplacementVersion`.
+
+`Cargo.toml` records `[patch.<source>]` entries, located by source and key,
+and `[replace]` entries, whose package ID spec gives `Name` and `Version`. A
+`path`, `git` or `registry` key becomes the `Source` and a `version` key the
+`ReplacementVersion`.
 
 ### ParseResult
 

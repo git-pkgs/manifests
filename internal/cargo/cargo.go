@@ -52,9 +52,12 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 		Workspace struct {
 			Dependencies map[string]any `toml:"dependencies"`
 		} `toml:"workspace"`
+		Patch   any `toml:"patch"`
+		Replace any `toml:"replace"`
 	}
 
-	if _, err := toml.Decode(string(content), &cargo); err != nil {
+	metadata, err := toml.Decode(string(content), &cargo)
+	if err != nil {
 		return nil, &core.ParseError{Filename: filename, Err: err}
 	}
 
@@ -105,7 +108,77 @@ func (p *cargoTomlParser) Parse(filename string, content []byte) (*core.Result, 
 		Scripts:      scripts,
 		Dependencies: filtered,
 		Declarations: declarations,
+		Replacements: cargoReplacements(metadata.Keys(), cargo.Patch, cargo.Replace),
 	}, nil
+}
+
+// cargoReplacements records [patch.<source>] and [replace] entries in source
+// order, without applying them.
+func cargoReplacements(keys []toml.Key, patch, replace any) []core.Replacement {
+	patches, _ := patch.(map[string]any)
+	replaces, _ := replace.(map[string]any)
+	if len(patches) == 0 && len(replaces) == 0 {
+		return nil
+	}
+	var replacements []core.Replacement
+	seen := make(map[string]bool)
+	for _, key := range keys {
+		var replacement core.Replacement
+		var value any
+		switch {
+		case len(key) >= 3 && key[0] == "patch":
+			registry, _ := patches[key[1]].(map[string]any)
+			value = registry[key[2]]
+			replacement.Name = key[2]
+			replacement.Location = "patch/" + url.PathEscape(key[1]) + "/" + url.PathEscape(key[2])
+			if properties, ok := value.(map[string]any); ok {
+				if name, ok := properties["package"].(string); ok && name != "" {
+					replacement.Name = name
+				}
+			}
+		case len(key) >= 2 && key[0] == "replace":
+			value = replaces[key[1]]
+			replacement.Name, replacement.Version = cargoPackageIDSpec(key[1])
+			replacement.Location = "replace/" + url.PathEscape(key[1])
+		default:
+			continue
+		}
+		if value == nil || seen[replacement.Location] {
+			continue
+		}
+		seen[replacement.Location] = true
+		replacement.Source = cargoReplacementSource(value)
+		if properties, ok := value.(map[string]any); ok {
+			replacement.ReplacementVersion, _ = properties["version"].(string)
+		} else if version, ok := value.(string); ok {
+			replacement.ReplacementVersion = version
+		}
+		replacements = append(replacements, replacement)
+	}
+	return replacements
+}
+
+// cargoPackageIDSpec splits a package ID spec such as "foo:0.1.0",
+// "foo@0.1.0" or "https://github.com/rust-lang/crates.io-index#foo:0.1.0".
+func cargoPackageIDSpec(spec string) (string, string) {
+	if index := strings.LastIndex(spec, "#"); index >= 0 {
+		spec = spec[index+1:]
+	}
+	if index := strings.IndexAny(spec, ":@"); index >= 0 {
+		return spec[:index], spec[index+1:]
+	}
+	return spec, ""
+}
+
+// cargoReplacementSource returns the git, path or registry source of a patch
+// or replace entry.
+func cargoReplacementSource(value any) core.Source {
+	if properties, ok := value.(map[string]any); ok {
+		if path, ok := properties["path"].(string); ok {
+			return core.Source{Kind: core.SourcePath, Value: path}
+		}
+	}
+	return extractCargoSource(value)
 }
 
 // collectCargoDependencies appends the dependency inventory from one Cargo
