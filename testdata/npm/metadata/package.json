@@ -1,0 +1,27 @@
+{
+  "name": "example",
+  "version": "1.0.0",
+  "description": "A currency conversion library",
+  "keywords": ["currency", "conversion", "汇率"],
+  "homepage": "https://example.test",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/example/example.git",
+    "directory": "packages/example"
+  },
+  "bugs": {
+    "url": "https://github.com/example/example/issues",
+    "email": "bugs@example.test"
+  },
+  "funding": [
+    "https://github.com/sponsors/example",
+    { "type": "opencollective", "url": "https://opencollective.com/example" }
+  ],
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  }
+}

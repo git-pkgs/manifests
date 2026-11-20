@@ -101,6 +101,7 @@ type packageJSON struct {
 	OptionalDependencies map[string]any  `json:"optionalDependencies"`
 	PeerDependencies     map[string]any  `json:"peerDependencies"`
 	PublishConfig        json.RawMessage `json:"publishConfig"`
+	packageJSONMetadata
 }
 
 type publishConfig struct {
@@ -134,6 +135,7 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Res
 		Publication: core.Publication{
 			Provenance: npmPublishConfigProvenance(pkg.PublishConfig),
 		},
+		Metadata: pkg.metadata(),
 	}, nil
 }
 
