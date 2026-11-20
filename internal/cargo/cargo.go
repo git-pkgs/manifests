@@ -143,7 +143,7 @@ func cargoReplacements(keys []toml.Key, patch, replace any) []core.Replacement {
 		default:
 			continue
 		}
-		if value == nil || seen[replacement.Location] {
+		if !isCargoReplacementValue(value) || seen[replacement.Location] {
 			continue
 		}
 		seen[replacement.Location] = true
@@ -158,16 +158,34 @@ func cargoReplacements(keys []toml.Key, patch, replace any) []core.Replacement {
 	return replacements
 }
 
+// isCargoReplacementValue reports whether a patch or replace value is a
+// dependency table or a version string, the forms Cargo accepts.
+func isCargoReplacementValue(value any) bool {
+	switch value.(type) {
+	case map[string]any, string:
+		return true
+	}
+	return false
+}
+
 // cargoPackageIDSpec splits a package ID spec such as "foo:0.1.0",
-// "foo@0.1.0" or "https://github.com/rust-lang/crates.io-index#foo:0.1.0".
+// "foo@0.1.0" or "https://github.com/rust-lang/crates.io-index#foo@0.1.0".
+// A URL with no name in its fragment, as in "https://github.com/x/foo#1.0.0",
+// names the package by its last path segment.
 func cargoPackageIDSpec(spec string) (string, string) {
-	if index := strings.LastIndex(spec, "#"); index >= 0 {
-		spec = spec[index+1:]
+	location, fragment, hasFragment := strings.Cut(spec, "#")
+	if !hasFragment && !strings.Contains(spec, "://") {
+		fragment = spec
 	}
-	if index := strings.IndexAny(spec, ":@"); index >= 0 {
-		return spec[:index], spec[index+1:]
+	if index := strings.IndexAny(fragment, ":@"); index >= 0 {
+		return fragment[:index], fragment[index+1:]
 	}
-	return spec, ""
+	if fragment != "" && (fragment[0] < '0' || fragment[0] > '9') {
+		return fragment, ""
+	}
+	location, _, _ = strings.Cut(location, "?")
+	location = strings.TrimRight(location, "/")
+	return location[strings.LastIndex(location, "/")+1:], fragment
 }
 
 // cargoReplacementSource returns the git, path or registry source of a patch

@@ -140,3 +140,66 @@ func TestCargoWithoutReplacements(t *testing.T) {
 		t.Errorf("replacements = %+v, want none", result.Replacements)
 	}
 }
+
+func TestPackageJSONReplacementSelectors(t *testing.T) {
+	result, err := Parse("package.json", []byte(`{
+  "overrides": {
+    "express": {"cookie": "0.6.0", ".": "4.18.3"}
+  },
+  "resolutions": {
+    "lodash": "npm:4.17.21",
+    "react": "npm:^18.2.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "foo@>2": "1.0.0",
+      "parent>foo@>2": "1.1.0",
+      "parent@>1>foo": "1.2.0",
+      "parent>foo": "1.3.0"
+    }
+  }
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertReplacements(t, result.Replacements, []Replacement{
+		{Name: "cookie", ReplacementVersion: "0.6.0", Location: "overrides/express/cookie"},
+		{Name: "express", ReplacementVersion: "4.18.3", Location: "overrides/express/."},
+		{Name: "lodash", ReplacementVersion: "4.17.21", Location: "resolutions/lodash"},
+		{Name: "react", ReplacementVersion: "^18.2.0", Location: "resolutions/react"},
+		{Name: "foo", Version: ">2", ReplacementVersion: "1.0.0", Location: "pnpm/overrides/foo@%3E2"},
+		{Name: "foo", Version: ">2", ReplacementVersion: "1.1.0", Location: "pnpm/overrides/parent%3Efoo@%3E2"},
+		{Name: "foo", ReplacementVersion: "1.2.0", Location: "pnpm/overrides/parent@%3E1%3Efoo"},
+		{Name: "foo", ReplacementVersion: "1.3.0", Location: "pnpm/overrides/parent%3Efoo"},
+	})
+}
+
+func TestCargoReplacementEdgeCases(t *testing.T) {
+	result, err := Parse("Cargo.toml", []byte(`[package]
+name = "app"
+
+[patch.crates-io]
+flag = false
+number = 1
+list = ["a"]
+kept = { path = "../kept" }
+
+[patch."https://github.com/example/versions"]
+pinned = "0.3.0"
+
+[replace]
+"https://github.com/example/foo#1.0.0" = { path = "vendor/foo" }
+"https://github.com/example/qux" = { path = "vendor/qux" }
+"https://github.com/example/repo#named" = { path = "vendor/named" }
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertReplacements(t, result.Replacements, []Replacement{
+		{Name: "kept", Source: Source{Kind: SourcePath, Value: "../kept"}, Location: "patch/crates-io/kept"},
+		{Name: "pinned", ReplacementVersion: "0.3.0", Location: "patch/https:%2F%2Fgithub.com%2Fexample%2Fversions/pinned"},
+		{Name: "foo", Version: "1.0.0", Source: Source{Kind: SourcePath, Value: "vendor/foo"}, Location: "replace/https:%2F%2Fgithub.com%2Fexample%2Ffoo%231.0.0"},
+		{Name: "qux", Source: Source{Kind: SourcePath, Value: "vendor/qux"}, Location: "replace/https:%2F%2Fgithub.com%2Fexample%2Fqux"},
+		{Name: "named", Source: Source{Kind: SourcePath, Value: "vendor/named"}, Location: "replace/https:%2F%2Fgithub.com%2Fexample%2Frepo%23named"},
+	})
+}

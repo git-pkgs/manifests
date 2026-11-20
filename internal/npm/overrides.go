@@ -63,7 +63,7 @@ func jsonString(value jsontext.Value) (string, bool) {
 func packageJSONReplacements(overrides, resolutions, pnpm json.RawMessage) []core.Replacement {
 	var replacements []core.Replacement
 	locations := make(map[string]int)
-	collectNpmOverrides(&replacements, locations, "overrides/", jsonObjectMembers(overrides))
+	collectNpmOverrides(&replacements, locations, "overrides/", "", jsonObjectMembers(overrides))
 	for _, member := range jsonObjectMembers(resolutions) {
 		if spec, ok := jsonString(member.value); ok && !isNpmComment(member.key) {
 			name, version := yarnResolutionTarget(member.key)
@@ -81,29 +81,32 @@ func packageJSONReplacements(overrides, resolutions, pnpm json.RawMessage) []cor
 	return replacements
 }
 
-// collectNpmOverrides walks an npm overrides object. A nested object scopes
-// its entries to a parent package. Its "." key overrides the parent.
-func collectNpmOverrides(replacements *[]core.Replacement, locations map[string]int, prefix string, members []jsonMember) {
+// collectNpmOverrides walks an npm overrides object in source order. A nested
+// object scopes its entries to parent, the package named by its key. Its "."
+// key overrides that parent.
+func collectNpmOverrides(
+	replacements *[]core.Replacement,
+	locations map[string]int,
+	prefix, parent string,
+	members []jsonMember,
+) {
 	for _, member := range members {
 		if isNpmComment(member.key) {
 			continue
 		}
 		if spec, ok := jsonString(member.value); ok {
-			if member.key == "." {
-				continue
+			key := member.key
+			if key == "." {
+				if parent == "" {
+					continue
+				}
+				key = parent
 			}
-			name, version := parseNPMSpec(member.key)
+			name, version := parseNPMSpec(key)
 			appendNpmReplacement(replacements, locations, prefix, member.key, name, version, spec)
 			continue
 		}
-		nested := jsonObjectMembers(member.value)
-		for _, child := range nested {
-			if spec, ok := jsonString(child.value); ok && child.key == "." {
-				name, version := parseNPMSpec(member.key)
-				appendNpmReplacement(replacements, locations, prefix+url.PathEscape(member.key)+"/", ".", name, version, spec)
-			}
-		}
-		collectNpmOverrides(replacements, locations, prefix+url.PathEscape(member.key)+"/", nested)
+		collectNpmOverrides(replacements, locations, prefix+url.PathEscape(member.key)+"/", member.key, jsonObjectMembers(member.value))
 	}
 }
 
@@ -128,13 +131,21 @@ type stringMember struct {
 // chain such as "parent@1>child@2".
 func collectPnpmOverrides(replacements *[]core.Replacement, locations map[string]int, prefix string, members []stringMember) {
 	for _, member := range members {
-		target := member.key
-		if index := strings.LastIndex(target, ">"); index >= 0 {
-			target = target[index+1:]
-		}
-		name, version := parseNPMSpec(target)
+		name, version := parseNPMSpec(pnpmOverrideTarget(member.key))
 		appendNpmReplacement(replacements, locations, prefix, member.key, name, version, member.value)
 	}
+}
+
+// pnpmOverrideTarget returns the target of a pnpm override selector. Like
+// pnpm, it splits at the first ">" not preceded by a space, "|" or "@", so a
+// comparison such as "foo@>2" is a range rather than a parent delimiter.
+func pnpmOverrideTarget(selector string) string {
+	for index := 1; index < len(selector); index++ {
+		if selector[index] == '>' && !strings.ContainsRune(" |@", rune(selector[index-1])) {
+			return selector[index+1:]
+		}
+	}
+	return selector
 }
 
 // collectPnpmPatches records pnpm patchedDependencies, keyed by name or
@@ -190,7 +201,11 @@ func yarnResolutionTarget(key string) (string, string) {
 func npmReplacementSpec(spec string) core.Replacement {
 	switch {
 	case strings.HasPrefix(spec, "npm:"):
-		name, version := parseNPMSpec(strings.TrimPrefix(spec, "npm:"))
+		reference := strings.TrimPrefix(spec, "npm:")
+		if isNpmRange(reference) {
+			return core.Replacement{ReplacementVersion: reference}
+		}
+		name, version := parseNPMSpec(reference)
 		return core.Replacement{ReplacementName: name, ReplacementVersion: version}
 	case strings.HasPrefix(spec, "patch:"):
 		return yarnPatchReplacement(strings.TrimPrefix(spec, "patch:"))
@@ -210,6 +225,18 @@ func npmReplacementSpec(spec string) core.Replacement {
 		return core.Replacement{Source: core.Source{Kind: core.SourceGitHub, Value: value, Ref: ref}}
 	}
 	return core.Replacement{ReplacementVersion: spec}
+}
+
+// isNpmRange reports whether an npm: reference is a range for the same
+// package, as Yarn accepts in "npm:4.17.21", rather than an aliased name.
+func isNpmRange(reference string) bool {
+	if reference == "" {
+		return false
+	}
+	if strings.ContainsRune("0123456789^~<>=*", rune(reference[0])) {
+		return true
+	}
+	return reference == "x" || reference == "X" || strings.HasPrefix(reference, "x.") || strings.HasPrefix(reference, "X.")
 }
 
 // yarnPatchReplacement reads a Yarn patch: descriptor such as

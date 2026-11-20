@@ -465,15 +465,20 @@ supplement for the `overrides` and `patchedDependencies` that pnpm 10 keeps
 there. `Name` is the package a key targets: the last package of a nested npm
 override, a Yarn path such as `parent/**/child` or a pnpm chain such as
 `parent>child`. A version range in the key, as in `child@^1`, becomes
-`Version`. Values are kept as written: `npm:` aliases become a
-`ReplacementName`, Git, GitHub, URL and local values become a `Source`, while
-patch files and Yarn `patch:` descriptors become a `Patch`. Anything else,
-including `$name` references and pnpm's `-`, is the `ReplacementVersion`.
+`Version`. A pnpm selector splits at its first `>` that is not a comparison,
+so `parent>foo@>2` targets `foo` at `>2`. Values are kept as written: `npm:`
+aliases become a `ReplacementName`, while a range such as Yarn's `npm:4.17.21`
+stays the `ReplacementVersion` of the same package. Git, GitHub, URL and local
+values become a `Source`, while patch files and Yarn `patch:` descriptors
+become a `Patch`. Anything else, including `$name` references and pnpm's `-`,
+is the `ReplacementVersion`.
 
 `Cargo.toml` records `[patch.<source>]` entries, located by source and key,
 and `[replace]` entries, whose package ID spec gives `Name` and `Version`. A
-`path`, `git` or `registry` key becomes the `Source` and a `version` key the
-`ReplacementVersion`.
+spec such as `https://github.com/example/foo#1.0.0` takes the name from the
+URL. A `path`, `git` or `registry` key becomes the `Source` while a `version`
+key or a version string becomes the `ReplacementVersion`. Values of any other
+type are skipped.
 
 ### ParseResult
 
