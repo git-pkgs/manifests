@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/json/jsontext"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -227,16 +228,28 @@ func npmReplacementSpec(spec string) core.Replacement {
 	return core.Replacement{ReplacementVersion: spec}
 }
 
+// npmComparator matches one comparator of a semver range: a full version,
+// which may carry prerelease and build parts, or a partial or X-range.
+var npmComparator = regexp.MustCompile(`^(?:[<>]=?|=|\^|~)?v?(?:\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?|(?:\d+|[xX*])(?:\.(?:\d+|[xX*])){0,2})$`)
+
+// npmOperator matches a comparison operator written apart from its version.
+var npmOperator = regexp.MustCompile(`^(?:[<>]=?|=|\^|~)$`)
+
 // isNpmRange reports whether an npm: reference is a range for the same
 // package, as Yarn accepts in "npm:4.17.21", rather than an aliased name.
+// Package names may start with a digit, so the whole reference must parse
+// as a range.
 func isNpmRange(reference string) bool {
-	if reference == "" {
+	tokens := strings.Fields(strings.ReplaceAll(reference, "||", " "))
+	if len(tokens) == 0 {
 		return false
 	}
-	if strings.ContainsRune("0123456789^~<>=*", rune(reference[0])) {
-		return true
+	for _, token := range tokens {
+		if token != "-" && !npmOperator.MatchString(token) && !npmComparator.MatchString(token) {
+			return false
+		}
 	}
-	return reference == "x" || reference == "X" || strings.HasPrefix(reference, "x.") || strings.HasPrefix(reference, "X.")
+	return true
 }
 
 // yarnPatchReplacement reads a Yarn patch: descriptor such as

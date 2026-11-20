@@ -148,7 +148,10 @@ func TestPackageJSONReplacementSelectors(t *testing.T) {
   },
   "resolutions": {
     "lodash": "npm:4.17.21",
-    "react": "npm:^18.2.0"
+    "react": "npm:^18.2.0",
+    "ranged": "npm:>=1.2.0 <2 || 3.x",
+    "numeric": "npm:123numeric@1.0.0",
+    "three": "npm:3d-view"
   },
   "pnpm": {
     "overrides": {
@@ -167,6 +170,9 @@ func TestPackageJSONReplacementSelectors(t *testing.T) {
 		{Name: "express", ReplacementVersion: "4.18.3", Location: "overrides/express/."},
 		{Name: "lodash", ReplacementVersion: "4.17.21", Location: "resolutions/lodash"},
 		{Name: "react", ReplacementVersion: "^18.2.0", Location: "resolutions/react"},
+		{Name: "ranged", ReplacementVersion: ">=1.2.0 <2 || 3.x", Location: "resolutions/ranged"},
+		{Name: "numeric", ReplacementName: "123numeric", ReplacementVersion: "1.0.0", Location: "resolutions/numeric"},
+		{Name: "three", ReplacementName: "3d-view", Location: "resolutions/three"},
 		{Name: "foo", Version: ">2", ReplacementVersion: "1.0.0", Location: "pnpm/overrides/foo@%3E2"},
 		{Name: "foo", Version: ">2", ReplacementVersion: "1.1.0", Location: "pnpm/overrides/parent%3Efoo@%3E2"},
 		{Name: "foo", ReplacementVersion: "1.2.0", Location: "pnpm/overrides/parent@%3E1%3Efoo"},
