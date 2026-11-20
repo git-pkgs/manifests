@@ -60,6 +60,13 @@ type Source = core.Source
 // A declaration does not show that a package was published with those settings.
 type Publication = core.Publication
 
+// Metadata holds descriptive package fields as written. Nil means absent and
+// an empty value means declared empty. Parse never reads a declared README.
+type Metadata = core.Metadata
+
+// Link is a declared URL with the label the manifest gives it.
+type Link = core.Link
+
 // Re-export constants.
 const (
 	Manifest   Kind = core.Manifest
@@ -122,6 +129,9 @@ type ParseResult struct {
 	Scripts map[string][]string
 	// Publication holds settings that affect publishing this package.
 	Publication Publication
+	// Metadata holds descriptive package fields such as the description,
+	// keywords and declared URLs.
+	Metadata Metadata
 }
 
 // Options configures Parse.
@@ -188,6 +198,7 @@ func Parse(filename string, content []byte, opts ...Options) (*ParseResult, erro
 		Sources:      res.Sources,
 		Scripts:      res.Scripts,
 		Publication:  res.Publication,
+		Metadata:     res.Metadata,
 	}, nil
 }
 
