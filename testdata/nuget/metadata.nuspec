@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Example.Currency</id>
+    <version>2.1.0</version>
+    <authors>Example</authors>
+    <license type="expression">MIT</license>
+    <summary>Currency conversion</summary>
+    <description>Converts between currencies.
+Supports ISO 4217 codes.</description>
+    <tags> currency  conversion
+      finance </tags>
+    <projectUrl>
+      https://example.test/currency
+    </projectUrl>
+    <repository type="git" url="https://github.com/example/currency.git" branch="main" commit="abc123" />
+    <iconUrl>https://example.test/icon.png</iconUrl>
+    <readme>../docs/README.md</readme>
+    <dependencies>
+      <group targetFramework="net8.0">
+        <dependency id="Newtonsoft.Json" version="13.0.3" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

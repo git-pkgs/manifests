@@ -457,6 +457,37 @@ only takes effect when that file is the main module, which `Parse` cannot know.
 directory and a `ReplacementName` otherwise. `Declarations` omit modules named
 on the left side of a replace directive.
 
+### Metadata
+
+```go
+type Metadata struct {
+    Summary                *string  // Short description, when kept separate
+    Description            *string  // Description as written
+    DescriptionContentType *string  // Declared media type of Description
+    Keywords               []string // Keywords or tags
+    Homepage               *string  // Declared home page URL
+    Links                  []Link   // Other declared URLs
+    Readme                 *string  // Declared README path, not read
+}
+
+type Link struct {
+    Label string // The format's own term, such as "repository"
+    URL   string // As written
+}
+```
+
+`Metadata` holds descriptive package fields. A nil pointer or slice means the
+field is absent, while a pointer to `""` or an empty slice means the manifest
+declares it empty. A declared README stays a path: `Parse` does not read it,
+even when `FSRoot` is set.
+
+`package.json` fills `Description`, `Keywords` and `Homepage`, with
+`repository`, `bugs` and each `funding` entry as `Links`. A value of an
+unexpected type is treated as absent rather than failing the parse. `.nuspec`
+fills `Summary` and `Description` verbatim, `Keywords` from `tags` split on
+white space, `Homepage` from `projectUrl` plus `Readme` from `readme`, with the
+`repository` URL, `licenseUrl` and `iconUrl` as `Links`.
+
 ### ParseResult
 
 ```go
@@ -474,6 +505,7 @@ type ParseResult struct {
     Sources      []Source      // Ordered manifest-level source declarations
     Scripts      map[string][]string // Hook or task names with ordered commands or paths
     Publication  Publication   // Package publication settings
+    Metadata     Metadata      // Descriptive package fields
 }
 ```
 

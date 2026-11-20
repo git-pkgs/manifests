@@ -53,6 +53,31 @@ type Publication struct {
 	Provenance *bool
 }
 
+// Metadata holds descriptive package fields as written in the manifest. A nil
+// pointer or slice means the field is absent; a pointer to "" or an empty
+// slice means it is declared empty.
+type Metadata struct {
+	// Summary is a short one-line description, when the format keeps it
+	// separate from Description.
+	Summary     *string
+	Description *string
+	// DescriptionContentType is the declared media type of Description,
+	// such as "text/markdown".
+	DescriptionContentType *string
+	Keywords               []string
+	Homepage               *string
+	// Links holds other declared URLs, labelled with the format's own term.
+	Links []Link
+	// Readme is a declared README path. It is a reference and is not read.
+	Readme *string
+}
+
+// Link is a declared URL with the label the manifest gives it.
+type Link struct {
+	Label string
+	URL   string
+}
+
 // Dependency represents a parsed dependency from a manifest or lockfile.
 type Dependency struct {
 	Name    string
@@ -167,6 +192,8 @@ type Result struct {
 	Scripts map[string][]string
 	// Publication holds settings that affect publishing this package.
 	Publication Publication
+	// Metadata holds descriptive package fields.
+	Metadata Metadata
 }
 
 // Parser is the interface implemented by all manifest parsers.

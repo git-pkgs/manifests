@@ -354,9 +354,19 @@ type nuspecParser struct{}
 
 type nuspecPackage struct {
 	Metadata struct {
-		ID           string        `xml:"id"`
-		Version      string        `xml:"version"`
-		License      nuspecLicense `xml:"license"`
+		ID          string        `xml:"id"`
+		Version     string        `xml:"version"`
+		License     nuspecLicense `xml:"license"`
+		Summary     *string       `xml:"summary"`
+		Description *string       `xml:"description"`
+		Tags        *string       `xml:"tags"`
+		ProjectURL  *string       `xml:"projectUrl"`
+		Readme      *string       `xml:"readme"`
+		LicenseURL  string        `xml:"licenseUrl"`
+		IconURL     string        `xml:"iconUrl"`
+		Repository  struct {
+			URL string `xml:"url,attr"`
+		} `xml:"repository"`
 		Dependencies struct {
 			Groups []nuspecDepGroup `xml:"group"`
 			Deps   []nuspecDep      `xml:"dependency"`
@@ -440,6 +450,7 @@ func (p *nuspecParser) Parse(filename string, content []byte) (*core.Result, err
 		Dependencies: deps,
 		Declarations: declarations,
 	}
+	result.Metadata = nuspecMetadata(&pkg)
 	licenseValue := strings.TrimSpace(pkg.Metadata.License.Value)
 	switch strings.ToLower(strings.TrimSpace(pkg.Metadata.License.Type)) {
 	case "expression":
@@ -450,6 +461,39 @@ func (p *nuspecParser) Parse(filename string, content []byte) (*core.Result, err
 		result.LicenseFile = licenseValue
 	}
 	return result, nil
+}
+
+// nuspecMetadata returns the descriptive nuspec fields. Summary and
+// description stay verbatim, while tags are split on white space and URLs and
+// the README path are trimmed.
+func nuspecMetadata(pkg *nuspecPackage) core.Metadata {
+	metadata := core.Metadata{
+		Summary:     pkg.Metadata.Summary,
+		Description: pkg.Metadata.Description,
+		Homepage:    trimmedOptional(pkg.Metadata.ProjectURL),
+		Readme:      trimmedOptional(pkg.Metadata.Readme),
+	}
+	if pkg.Metadata.Tags != nil {
+		metadata.Keywords = append([]string{}, strings.Fields(*pkg.Metadata.Tags)...)
+	}
+	for _, link := range []core.Link{
+		{Label: "repository", URL: pkg.Metadata.Repository.URL},
+		{Label: "licenseUrl", URL: pkg.Metadata.LicenseURL},
+		{Label: "iconUrl", URL: pkg.Metadata.IconURL},
+	} {
+		if link.URL = strings.TrimSpace(link.URL); link.URL != "" {
+			metadata.Links = append(metadata.Links, link)
+		}
+	}
+	return metadata
+}
+
+func trimmedOptional(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	return &trimmed
 }
 
 // packagesConfigParser parses packages.config files.
