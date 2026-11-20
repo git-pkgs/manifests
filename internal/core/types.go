@@ -110,7 +110,9 @@ type Replacement struct {
 	ReplacementName    string
 	ReplacementVersion string
 	Source             Source
-	Location           string
+	// Patch is a patch file applied to the package, as written.
+	Patch    string
+	Location string
 }
 
 // Declaration is a dependency-like reference at a stable logical location

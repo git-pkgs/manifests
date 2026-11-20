@@ -1,0 +1,37 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.18.2",
+    "react": "^18.2.0"
+  },
+  "overrides": {
+    "//": "semver is not a direct dependency",
+    "semver": "7.5.4",
+    "react": "$react",
+    "express": {
+      ".": "4.18.3",
+      "cookie": "0.6.0"
+    },
+    "@babel/core@7.0.0": {
+      "debug": "npm:debug-fork@4.3.5"
+    }
+  },
+  "resolutions": {
+    "minimist": "1.2.8",
+    "webpack/**/ws": "github:websockets/ws#8.17.1",
+    "@types/node@^18": "18.19.0",
+    "lodash": "patch:lodash@npm%3A4.17.21#./.yarn/patches/lodash.patch::locator=app%40workspace%3A."
+  },
+  "pnpm": {
+    "overrides": {
+      "qs": "6.11.2",
+      "express@4>body-parser": "file:../vendor/body-parser",
+      "bar@^1": "-"
+    },
+    "patchedDependencies": {
+      "express@4.18.2": "patches/express@4.18.2.patch",
+      "left-pad": "../shared/patches/left-pad.patch"
+    }
+  }
+}
