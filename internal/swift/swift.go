@@ -38,10 +38,11 @@ type packageResolvedV2 struct {
 }
 
 type packageResolvedPinV2 struct {
-	Identity string        `json:"identity"`
-	Kind     string        `json:"kind"`
-	Location string        `json:"location"`
-	State    resolvedState `json:"state"`
+	Identity         string        `json:"identity"`
+	Kind             string        `json:"kind"`
+	Location         string        `json:"location"`
+	OriginalLocation string        `json:"originalLocation"`
+	State            resolvedState `json:"state"`
 }
 
 type resolvedState struct {
@@ -116,7 +117,9 @@ func parsePackageResolvedV2(filename string, content []byte) ([]core.Dependency,
 			}
 			source = pin.State.source(pin.Location)
 		case "registry":
-			name = strings.ToLower(pin.Identity)
+			// A registry standing in for a git dependency
+			// (--replace-scm-with-registry) keeps its URL in originalLocation.
+			name = cmp.Or(core.GitCoordinate(pin.OriginalLocation), strings.ToLower(pin.Identity))
 			source = core.Source{Kind: core.SourceRegistry, Value: pin.Identity}
 		}
 
