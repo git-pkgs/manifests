@@ -3,6 +3,7 @@ package manifests
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -52,7 +53,7 @@ func TestPackageJSONReplacements(t *testing.T) {
 		{Name: "minimist", ReplacementVersion: "1.2.8", Location: "resolutions/minimist"},
 		{Name: "ws", Source: Source{Kind: SourceGitHub, Value: "websockets/ws", Ref: "8.17.1"}, Location: "resolutions/webpack%2F%2A%2A%2Fws"},
 		{Name: "@types/node", Version: "^18", ReplacementVersion: "18.19.0", Location: "resolutions/@types%2Fnode@%5E18"},
-		{Name: "lodash", ReplacementName: "lodash", ReplacementVersion: "4.17.21", Patch: "./.yarn/patches/lodash.patch", Location: "resolutions/lodash"},
+		{Name: "lodash", ReplacementVersion: "4.17.21", Patch: "./.yarn/patches/lodash.patch", Location: "resolutions/lodash"},
 		{Name: "qs", ReplacementVersion: "6.11.2", Location: "pnpm/overrides/qs"},
 		{Name: "body-parser", Source: Source{Kind: SourcePath, Value: "file:../vendor/body-parser"}, Location: "pnpm/overrides/express@4%3Ebody-parser"},
 		{Name: "bar", Version: "^1", ReplacementVersion: "-", Location: "pnpm/overrides/bar@%5E1"},
@@ -151,7 +152,8 @@ func TestPackageJSONReplacementSelectors(t *testing.T) {
     "react": "npm:^18.2.0",
     "ranged": "npm:>=1.2.0 <2 || 3.x",
     "numeric": "npm:123numeric@1.0.0",
-    "three": "npm:3d-view"
+    "three": "npm:3d-view",
+    "swapped": "patch:other@npm%3A1.0.0#./other.patch"
   },
   "pnpm": {
     "overrides": {
@@ -173,6 +175,7 @@ func TestPackageJSONReplacementSelectors(t *testing.T) {
 		{Name: "ranged", ReplacementVersion: ">=1.2.0 <2 || 3.x", Location: "resolutions/ranged"},
 		{Name: "numeric", ReplacementName: "123numeric", ReplacementVersion: "1.0.0", Location: "resolutions/numeric"},
 		{Name: "three", ReplacementName: "3d-view", Location: "resolutions/three"},
+		{Name: "swapped", ReplacementName: "other", ReplacementVersion: "1.0.0", Patch: "./other.patch", Location: "resolutions/swapped"},
 		{Name: "foo", Version: ">2", ReplacementVersion: "1.0.0", Location: "pnpm/overrides/foo@%3E2"},
 		{Name: "foo", Version: ">2", ReplacementVersion: "1.1.0", Location: "pnpm/overrides/parent%3Efoo@%3E2"},
 		{Name: "foo", ReplacementVersion: "1.2.0", Location: "pnpm/overrides/parent@%3E1%3Efoo"},
@@ -208,4 +211,33 @@ pinned = "0.3.0"
 		{Name: "qux", Source: Source{Kind: SourcePath, Value: "vendor/qux"}, Location: "replace/https:%2F%2Fgithub.com%2Fexample%2Fqux"},
 		{Name: "named", Source: Source{Kind: SourcePath, Value: "vendor/named"}, Location: "replace/https:%2F%2Fgithub.com%2Fexample%2Frepo%23named"},
 	})
+}
+
+func TestPackageJSONDeepOverrides(t *testing.T) {
+	const depth = 3000
+	payload := strings.Repeat("x", 256<<10)
+	var content strings.Builder
+	content.WriteString(`{"overrides": {`)
+	for range depth {
+		content.WriteString(`"a": {".": "1.0.0", `)
+	}
+	content.WriteString(`"//": "` + payload + `", "leaf": "2.0.0"`)
+	content.WriteString(strings.Repeat("}", depth))
+	content.WriteString(`}}`)
+
+	result, err := Parse("package.json", []byte(content.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Replacements) != depth+1 {
+		t.Fatalf("replacements = %d, want %d", len(result.Replacements), depth+1)
+	}
+	prefix := "overrides/" + strings.Repeat("a/", depth)
+	want := Replacement{Name: "leaf", ReplacementVersion: "2.0.0", Location: prefix + "leaf"}
+	if got := result.Replacements[depth]; got != want {
+		t.Errorf("deepest replacement = %+v, want %+v", got, want)
+	}
+	if got := result.Replacements[depth-1]; got.Name != "a" || got.Location != prefix+"." {
+		t.Errorf("deepest self override = %+v", got)
+	}
 }

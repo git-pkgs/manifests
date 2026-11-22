@@ -64,7 +64,7 @@ func jsonString(value jsontext.Value) (string, bool) {
 func packageJSONReplacements(overrides, resolutions, pnpm json.RawMessage) []core.Replacement {
 	var replacements []core.Replacement
 	locations := make(map[string]int)
-	collectNpmOverrides(&replacements, locations, "overrides/", "", jsonObjectMembers(overrides))
+	collectNpmOverrides(&replacements, locations, overrides)
 	for _, member := range jsonObjectMembers(resolutions) {
 		if spec, ok := jsonString(member.value); ok && !isNpmComment(member.key) {
 			name, version := yarnResolutionTarget(member.key)
@@ -82,33 +82,75 @@ func packageJSONReplacements(overrides, resolutions, pnpm json.RawMessage) []cor
 	return replacements
 }
 
-// collectNpmOverrides walks an npm overrides object in source order. A nested
-// object scopes its entries to parent, the package named by its key. Its "."
-// key overrides that parent.
-func collectNpmOverrides(
-	replacements *[]core.Replacement,
-	locations map[string]int,
-	prefix, parent string,
-	members []jsonMember,
-) {
-	for _, member := range members {
-		if isNpmComment(member.key) {
-			continue
-		}
-		if spec, ok := jsonString(member.value); ok {
-			key := member.key
-			if key == "." {
-				if parent == "" {
-					continue
-				}
-				key = parent
-			}
-			name, version := parseNPMSpec(key)
-			appendNpmReplacement(replacements, locations, prefix, member.key, name, version, spec)
-			continue
-		}
-		collectNpmOverrides(replacements, locations, prefix+url.PathEscape(member.key)+"/", member.key, jsonObjectMembers(member.value))
+// collectNpmOverrides walks an npm overrides object in one pass over its
+// tokens, so nested objects are read once however deep they go.
+func collectNpmOverrides(replacements *[]core.Replacement, locations map[string]int, raw []byte) {
+	if len(raw) == 0 {
+		return
 	}
+	decoder := jsontext.NewDecoder(bytes.NewReader(raw), json.DefaultOptionsV1())
+	if !decodeJSONObjectOpening(decoder) {
+		return
+	}
+	walker := npmOverrideWalker{
+		decoder:      decoder,
+		replacements: replacements,
+		locations:    locations,
+		path:         []byte("overrides/"),
+	}
+	walker.object("")
+}
+
+// npmOverrideWalker holds the decoder and the location path shared by every
+// level of an overrides walk. The path is extended and truncated in place.
+type npmOverrideWalker struct {
+	decoder      *jsontext.Decoder
+	replacements *[]core.Replacement
+	locations    map[string]int
+	path         []byte
+}
+
+// object reads the members of an open object through its closing brace. A
+// nested object scopes its entries to parent, the package named by its key,
+// and its "." key overrides that parent.
+func (w *npmOverrideWalker) object(parent string) bool {
+	for w.decoder.PeekKind() != '}' {
+		key, ok := decodeJSONKey(w.decoder)
+		if !ok {
+			return false
+		}
+		kind := w.decoder.PeekKind()
+		if isNpmComment(key) || (kind != '"' && kind != '{') {
+			if !skipJSONValue(w.decoder) {
+				return false
+			}
+			continue
+		}
+		token, err := w.decoder.ReadToken()
+		if err != nil {
+			return false
+		}
+		if kind == '{' {
+			mark := len(w.path)
+			w.path = append(append(w.path, url.PathEscape(key)...), '/')
+			if !w.object(key) {
+				return false
+			}
+			w.path = w.path[:mark]
+			continue
+		}
+		target := key
+		if key == "." {
+			if parent == "" {
+				continue
+			}
+			target = parent
+		}
+		name, version := parseNPMSpec(target)
+		appendNpmReplacement(w.replacements, w.locations, string(w.path), key, name, version, token.String())
+	}
+	_, err := w.decoder.ReadToken()
+	return err == nil
 }
 
 // jsonStringMembers returns the string-valued members of a JSON object.
@@ -175,6 +217,10 @@ func appendNpmReplacement(
 		return
 	}
 	replacement := npmReplacementSpec(spec)
+	// A patch of the target itself is not a package swap.
+	if replacement.Patch != "" && replacement.ReplacementName == name {
+		replacement.ReplacementName = ""
+	}
 	replacement.Name = name
 	replacement.Version = version
 	replacement.Location = core.NextLocation(locations, prefix+url.PathEscape(key))

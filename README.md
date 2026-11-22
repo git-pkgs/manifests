@@ -470,7 +470,8 @@ so `parent>foo@>2` targets `foo` at `>2`. Values are kept as written: `npm:`
 aliases become a `ReplacementName`, while a range such as Yarn's `npm:4.17.21`
 stays the `ReplacementVersion` of the same package. Git, GitHub, URL and local
 values become a `Source`, while patch files and Yarn `patch:` descriptors
-become a `Patch`. Anything else, including `$name` references and pnpm's `-`,
+become a `Patch`. A patch of the target itself leaves `ReplacementName` empty,
+so it is only set when another package is used instead. Anything else, including `$name` references and pnpm's `-`,
 is the `ReplacementVersion`.
 
 `Cargo.toml` records `[patch.<source>]` entries, located by source and key,
