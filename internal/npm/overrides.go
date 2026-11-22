@@ -68,7 +68,7 @@ func packageJSONReplacements(overrides, resolutions, pnpm json.RawMessage) []cor
 	for _, member := range jsonObjectMembers(resolutions) {
 		if spec, ok := jsonString(member.value); ok && !isNpmComment(member.key) {
 			name, version := yarnResolutionTarget(member.key)
-			appendNpmReplacement(&replacements, locations, "resolutions/", member.key, name, version, spec)
+			appendNpmReplacement(&replacements, locations, "resolutions/"+url.PathEscape(member.key), name, version, spec)
 		}
 	}
 	for _, member := range jsonObjectMembers(pnpm) {
@@ -98,8 +98,13 @@ func collectNpmOverrides(replacements *[]core.Replacement, locations map[string]
 		locations:    locations,
 		path:         []byte("overrides/"),
 	}
-	walker.object("")
+	walker.object("", 0)
 }
+
+// maxNpmOverrideDepth bounds how many objects deep an overrides walk goes.
+// Real overrides nest a few levels, while every recorded Location carries
+// the full path, so deeper objects are skipped.
+const maxNpmOverrideDepth = 32
 
 // npmOverrideWalker holds the decoder and the location path shared by every
 // level of an overrides walk. The path is extended and truncated in place.
@@ -110,17 +115,18 @@ type npmOverrideWalker struct {
 	path         []byte
 }
 
-// object reads the members of an open object through its closing brace. A
-// nested object scopes its entries to parent, the package named by its key,
-// and its "." key overrides that parent.
-func (w *npmOverrideWalker) object(parent string) bool {
+// object reads the members of an open object, depth objects below overrides,
+// through its closing brace. A nested object scopes its entries to parent,
+// the package named by its key. Its "." key overrides that parent.
+func (w *npmOverrideWalker) object(parent string, depth int) bool {
 	for w.decoder.PeekKind() != '}' {
 		key, ok := decodeJSONKey(w.decoder)
 		if !ok {
 			return false
 		}
 		kind := w.decoder.PeekKind()
-		if isNpmComment(key) || (kind != '"' && kind != '{') {
+		tooDeep := kind == '{' && depth >= maxNpmOverrideDepth
+		if isNpmComment(key) || tooDeep || (kind != '"' && kind != '{') {
 			if !skipJSONValue(w.decoder) {
 				return false
 			}
@@ -133,7 +139,7 @@ func (w *npmOverrideWalker) object(parent string) bool {
 		if kind == '{' {
 			mark := len(w.path)
 			w.path = append(append(w.path, url.PathEscape(key)...), '/')
-			if !w.object(key) {
+			if !w.object(key, depth+1) {
 				return false
 			}
 			w.path = w.path[:mark]
@@ -147,7 +153,10 @@ func (w *npmOverrideWalker) object(parent string) bool {
 			target = parent
 		}
 		name, version := parseNPMSpec(target)
-		appendNpmReplacement(w.replacements, w.locations, string(w.path), key, name, version, token.String())
+		mark := len(w.path)
+		w.path = append(w.path, url.PathEscape(key)...)
+		appendNpmReplacement(w.replacements, w.locations, string(w.path), name, version, token.String())
+		w.path = w.path[:mark]
 	}
 	_, err := w.decoder.ReadToken()
 	return err == nil
@@ -175,7 +184,7 @@ type stringMember struct {
 func collectPnpmOverrides(replacements *[]core.Replacement, locations map[string]int, prefix string, members []stringMember) {
 	for _, member := range members {
 		name, version := parseNPMSpec(pnpmOverrideTarget(member.key))
-		appendNpmReplacement(replacements, locations, prefix, member.key, name, version, member.value)
+		appendNpmReplacement(replacements, locations, prefix+url.PathEscape(member.key), name, version, member.value)
 	}
 }
 
@@ -211,7 +220,7 @@ func collectPnpmPatches(replacements *[]core.Replacement, locations map[string]i
 func appendNpmReplacement(
 	replacements *[]core.Replacement,
 	locations map[string]int,
-	prefix, key, name, version, spec string,
+	location, name, version, spec string,
 ) {
 	if name == "" {
 		return
@@ -223,7 +232,7 @@ func appendNpmReplacement(
 	}
 	replacement.Name = name
 	replacement.Version = version
-	replacement.Location = core.NextLocation(locations, prefix+url.PathEscape(key))
+	replacement.Location = core.NextLocation(locations, location)
 	*replacements = append(*replacements, replacement)
 }
 

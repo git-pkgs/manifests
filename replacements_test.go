@@ -213,31 +213,27 @@ pinned = "0.3.0"
 	})
 }
 
-func TestPackageJSONDeepOverrides(t *testing.T) {
-	const depth = 3000
+func TestPackageJSONOverridesDepthCap(t *testing.T) {
+	const depth, limit = 3000, 32
 	payload := strings.Repeat("x", 256<<10)
 	var content strings.Builder
-	content.WriteString(`{"overrides": {`)
+	content.WriteString(`{"overrides": {"before": "0.1.0", `)
 	for range depth {
 		content.WriteString(`"a": {".": "1.0.0", `)
 	}
 	content.WriteString(`"//": "` + payload + `", "leaf": "2.0.0"`)
 	content.WriteString(strings.Repeat("}", depth))
-	content.WriteString(`}}`)
+	content.WriteString(`, "after": "3.0.0"}}`)
 
 	result, err := Parse("package.json", []byte(content.String()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Replacements) != depth+1 {
-		t.Fatalf("replacements = %d, want %d", len(result.Replacements), depth+1)
+	want := []Replacement{{Name: "before", ReplacementVersion: "0.1.0", Location: "overrides/before"}}
+	for level := 1; level <= limit; level++ {
+		location := "overrides/" + strings.Repeat("a/", level) + "."
+		want = append(want, Replacement{Name: "a", ReplacementVersion: "1.0.0", Location: location})
 	}
-	prefix := "overrides/" + strings.Repeat("a/", depth)
-	want := Replacement{Name: "leaf", ReplacementVersion: "2.0.0", Location: prefix + "leaf"}
-	if got := result.Replacements[depth]; got != want {
-		t.Errorf("deepest replacement = %+v, want %+v", got, want)
-	}
-	if got := result.Replacements[depth-1]; got.Name != "a" || got.Location != prefix+"." {
-		t.Errorf("deepest self override = %+v", got)
-	}
+	want = append(want, Replacement{Name: "after", ReplacementVersion: "3.0.0", Location: "overrides/after"})
+	assertReplacements(t, result.Replacements, want)
 }
