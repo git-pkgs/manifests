@@ -1,0 +1,20 @@
+[package]
+name = "app"
+version = "0.1.0"
+
+[dependencies]
+serde = "1.0"
+rand = "0.8"
+
+[patch.crates-io]
+serde = { git = "https://github.com/serde-rs/serde", branch = "fix" }
+rand.path = "../rand"
+uuid = { path = "../uuid", version = "1.8.0" }
+my-log = { package = "log", git = "https://github.com/rust-lang/log", rev = "abc123" }
+
+[patch."https://github.com/example/baz"]
+baz = { registry = "internal", version = "0.2.0" }
+
+[replace]
+"foo:0.1.0" = { git = "https://github.com/example/foo", tag = "v0.1.1" }
+"https://github.com/rust-lang/crates.io-index#bar@1.0.0" = { path = "vendor/bar" }

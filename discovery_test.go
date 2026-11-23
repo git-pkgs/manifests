@@ -78,6 +78,7 @@ use (
 		{Path: "package.json", Ecosystem: "npm", Kind: Manifest},
 		{Path: "packages/direct/package.json", Ecosystem: "npm", Kind: Manifest, ParentPath: "pnpm-workspace.yaml"},
 		{Path: "packages/group/api/package.json", Ecosystem: "npm", Kind: Manifest, ParentPath: "pnpm-workspace.yaml"},
+		{Path: "pnpm-workspace.yaml", Ecosystem: "npm", Kind: Supplement},
 		{Path: "services/api/go.mod", Ecosystem: "golang", Kind: Manifest, ParentPath: "go.work"},
 		{Path: "tools/cli/Cargo.toml", Ecosystem: "cargo", Kind: Manifest, ParentPath: "Cargo.toml"},
 	}
@@ -232,6 +233,7 @@ func TestDiscoverManifestsNoWarningForExcludedLiteralMember(t *testing.T) {
 	}
 	want := []DiscoveredManifest{
 		{Path: "apps/web/package.json", Ecosystem: "npm", Kind: Manifest, ParentPath: "pnpm-workspace.yaml"},
+		{Path: "pnpm-workspace.yaml", Ecosystem: "npm", Kind: Supplement},
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)

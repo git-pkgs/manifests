@@ -101,6 +101,9 @@ type packageJSON struct {
 	OptionalDependencies map[string]any  `json:"optionalDependencies"`
 	PeerDependencies     map[string]any  `json:"peerDependencies"`
 	PublishConfig        json.RawMessage `json:"publishConfig"`
+	Overrides            json.RawMessage `json:"overrides"`
+	Resolutions          json.RawMessage `json:"resolutions"`
+	Pnpm                 json.RawMessage `json:"pnpm"`
 }
 
 type publishConfig struct {
@@ -131,6 +134,7 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Res
 		Scripts:      core.StringScripts(pkg.Scripts),
 		Dependencies: deps,
 		Declarations: declarations,
+		Replacements: packageJSONReplacements(pkg.Overrides, pkg.Resolutions, pkg.Pnpm),
 		Publication: core.Publication{
 			Provenance: npmPublishConfigProvenance(pkg.PublishConfig),
 		},
