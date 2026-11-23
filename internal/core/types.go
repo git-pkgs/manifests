@@ -55,7 +55,8 @@ type Publication struct {
 
 // Metadata holds descriptive package fields as written in the manifest. A nil
 // pointer or slice means the field is absent; a pointer to "" or an empty
-// slice means it is declared empty.
+// Keywords slice means it is declared empty. Links is nil when no URL is
+// declared.
 type Metadata struct {
 	// Summary is a short one-line description, when the format keeps it
 	// separate from Description.

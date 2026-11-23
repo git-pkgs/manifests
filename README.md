@@ -502,9 +502,9 @@ type Link struct {
 ```
 
 `Metadata` holds descriptive package fields. A nil pointer or slice means the
-field is absent, while a pointer to `""` or an empty slice means the manifest
-declares it empty. A declared README stays a path: `Parse` does not read it,
-even when `FSRoot` is set.
+field is absent, while a pointer to `""` or an empty `Keywords` slice means the
+manifest declares it empty. `Links` is nil when no URL is declared. A declared
+README stays a path: `Parse` does not read it, even when `FSRoot` is set.
 
 `package.json` fills `Description`, `Keywords` and `Homepage`, with
 `repository`, `bugs` and each `funding` entry as `Links`. A value of an

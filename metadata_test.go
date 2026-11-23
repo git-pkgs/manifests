@@ -22,7 +22,7 @@ func parseMetadataFixture(t *testing.T, path, filename string) *ParseResult {
 	return result
 }
 
-// assertMetadata compares as JSON so absent, empty and missing values differ.
+// assertMetadata prints both sides as JSON so nil and empty values show apart.
 func assertMetadata(t *testing.T, got, want Metadata) {
 	t.Helper()
 	if !reflect.DeepEqual(got, want) {
