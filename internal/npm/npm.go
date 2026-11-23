@@ -104,6 +104,7 @@ type packageJSON struct {
 	Overrides            json.RawMessage `json:"overrides"`
 	Resolutions          json.RawMessage `json:"resolutions"`
 	Pnpm                 json.RawMessage `json:"pnpm"`
+	packageJSONMetadata
 }
 
 type publishConfig struct {
@@ -138,6 +139,7 @@ func (p *npmPackageJSONParser) Parse(filename string, content []byte) (*core.Res
 		Publication: core.Publication{
 			Provenance: npmPublishConfigProvenance(pkg.PublishConfig),
 		},
+		Metadata: pkg.metadata(),
 	}, nil
 }
 
