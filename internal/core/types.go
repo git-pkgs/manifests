@@ -1,7 +1,7 @@
 // Package core provides shared types and the parser registry.
 package core
 
-// Kind distinguishes manifest, lockfile, supplement, and vendor records.
+// Kind distinguishes manifest, lockfile, supplement, vendor and config records.
 type Kind string
 
 const (
@@ -9,6 +9,9 @@ const (
 	Lockfile   Kind = "lockfile"
 	Supplement Kind = "supplement"
 	Vendor     Kind = "vendor"
+	// Config is package manager configuration, such as registry settings,
+	// that declares no dependencies.
+	Config Kind = "config"
 )
 
 // Scope indicates when a dependency is required.
@@ -127,6 +130,20 @@ type ArtifactIntegrity struct {
 	Digest string
 }
 
+// Registry records configuration that directs a package manager to a package
+// registry. URL never carries credentials.
+type Registry struct {
+	URL string
+	// Scope limits the entry to a package scope or source, such as an npm
+	// scope or the Cargo source being replaced. Empty applies to every package.
+	Scope string
+	// Replaces reports whether the registry is used instead of the default for
+	// its scope rather than searched in addition to it.
+	Replaces bool
+	// File is the filename passed to Parse.
+	File string
+}
+
 // Replacement records a directive that substitutes the package or source used
 // for another package, without applying it. Location is ecosystem-specific and
 // should be treated as an opaque identity.
@@ -187,6 +204,8 @@ type Result struct {
 	Declarations []Declaration
 	// Replacements holds replace or override directives in source order.
 	Replacements []Replacement
+	// Registries holds registry redirection configuration in source order.
+	Registries []Registry
 	// Sources preserves manifest-level source declarations in source order.
 	// These entries are configuration, not evidence that any dependency was
 	// resolved from a particular source.

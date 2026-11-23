@@ -1,0 +1,10 @@
+[source.crates-io]
+replace-with = "corp"
+
+[registries.corp]
+index = "sparse+https://deploy:s3cret-pass@cargo.internal/index/"
+token = "cio_SECRET_TOKEN"
+
+[source."https://github.com/acme/forked"]
+git = "https://github.com/acme/forked"
+replace-with = "unknown"
