@@ -354,7 +354,7 @@ func yamlStringMembers(node *yaml.Node) []stringMember {
 	var members []stringMember
 	for index := 0; index+1 < len(node.Content); index += 2 {
 		key, value := node.Content[index], node.Content[index+1]
-		if key.Kind == yaml.ScalarNode && value.Kind == yaml.ScalarNode {
+		if key.Kind == yaml.ScalarNode && value.Kind == yaml.ScalarNode && value.Tag != "!!null" {
 			members = append(members, stringMember{key: key.Value, value: value.Value})
 		}
 	}

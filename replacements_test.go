@@ -113,6 +113,25 @@ func TestPnpmWorkspaceInvalidYAML(t *testing.T) {
 	}
 }
 
+func TestPnpmWorkspaceSkipsNullValues(t *testing.T) {
+	result, err := Parse("pnpm-workspace.yaml", []byte(`overrides:
+  empty:
+  tilde: ~
+  word: null
+  kept: 1.2.3
+patchedDependencies:
+  left-pad@1.3.0:
+  is-odd: patches/is-odd.patch
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertReplacements(t, result.Replacements, []Replacement{
+		{Name: "kept", ReplacementVersion: "1.2.3", Location: "overrides/kept"},
+		{Name: "is-odd", Patch: "patches/is-odd.patch", Location: "patchedDependencies/is-odd"},
+	})
+}
+
 func TestCargoReplacements(t *testing.T) {
 	result := parseFixture(t, "testdata/cargo/patch/Cargo.toml", "Cargo.toml")
 
