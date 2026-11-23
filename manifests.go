@@ -125,8 +125,8 @@ type ParseResult struct {
 	// Dependencies are reported as written, so a caller that knows the
 	// directives apply can substitute them itself.
 	Replacements []Replacement
-	// Registries holds registry redirection configuration from Config files
-	// and .npmrc, in source order.
+	// Registries holds registry redirection configuration from Config files,
+	// in source order.
 	Registries []Registry
 	// Sources preserves manifest-level source declarations in source order.
 	// A source declaration does not imply that any dependency resolved there.
