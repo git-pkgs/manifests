@@ -1,0 +1,23 @@
+{
+  "originHash" : "4f1d7c9d1b0a4d0b8f6c2e5a9e3b7d1c0f2a6e8b4d9c3f1a7e5b2d8c6a4f0e9b",
+  "pins" : [
+    {
+      "identity" : "apple.swift-argument-parser",
+      "kind" : "registry",
+      "location" : "",
+      "originalLocation" : "https://github.com/apple/swift-argument-parser.git",
+      "state" : {
+        "version" : "1.7.0"
+      }
+    },
+    {
+      "identity" : "mona.LinkedList",
+      "kind" : "registry",
+      "location" : "",
+      "state" : {
+        "version" : "1.1.0"
+      }
+    }
+  ],
+  "version" : 3
+}

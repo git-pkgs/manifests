@@ -107,3 +107,38 @@ func TestPackageResolvedV2(t *testing.T) {
 		}
 	}
 }
+
+func TestPackageResolvedRegistryOriginalLocation(t *testing.T) {
+	content, err := os.ReadFile("../../testdata/swift/Package.resolved.registry")
+	if err != nil {
+		t.Fatalf("failed to read fixture: %v", err)
+	}
+
+	res, err := (&packageResolvedParser{}).Parse("Package.resolved", content)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	want := []core.Dependency{
+		{
+			Name:    "github.com/apple/swift-argument-parser",
+			Version: "1.7.0",
+			Source:  core.Source{Kind: core.SourceRegistry, Value: "apple.swift-argument-parser"},
+		},
+		{
+			Name:    "mona.linkedlist",
+			Version: "1.1.0",
+			Source:  core.Source{Kind: core.SourceRegistry, Value: "mona.LinkedList"},
+		},
+	}
+	if len(res.Dependencies) != len(want) {
+		t.Fatalf("got %d dependencies, want %d", len(res.Dependencies), len(want))
+	}
+	for i, w := range want {
+		got := res.Dependencies[i]
+		if got.Name != w.Name || got.Version != w.Version || got.Source != w.Source {
+			t.Errorf("dependency %d = %q %q %+v, want %q %q %+v",
+				i, got.Name, got.Version, got.Source, w.Name, w.Version, w.Source)
+		}
+	}
+}
