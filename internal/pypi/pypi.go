@@ -284,6 +284,11 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 			Dependencies         []string            `toml:"dependencies"`
 			OptionalDependencies map[string][]string `toml:"optional-dependencies"`
 		} `toml:"project"`
+		BuildSystem struct {
+			// Requires is decoded loosely so a malformed value does not fail
+			// the parse.
+			Requires any `toml:"requires"`
+		} `toml:"build-system"`
 	}
 
 	metadata, err := toml.Decode(string(content), &pyproject)
@@ -365,6 +370,20 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 		for _, dep := range groupDeps {
 			if requirement, ok := parsePEP508Requirement(dep); ok {
 				appendPEP508(&deps, &declarations, locations, location, requirement, scope)
+			}
+		}
+	}
+
+	// PEP 518 build requirements. The build-backend is a module path, not a
+	// package, so it is not recorded.
+	if requires, ok := pyproject.BuildSystem.Requires.([]any); ok {
+		for _, value := range requires {
+			text, ok := value.(string)
+			if !ok {
+				continue
+			}
+			if requirement, ok := parsePEP508Requirement(text); ok {
+				appendPEP508(&deps, &declarations, locations, "build-system/requires", requirement, core.Build)
 			}
 		}
 	}

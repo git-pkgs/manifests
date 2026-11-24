@@ -389,8 +389,8 @@ type Declaration struct {
 
 Python requirements written as PEP 508 strings keep their extras and
 environment marker. This covers `requirements.txt`, the `[project]`
-dependencies and optional dependencies of `pyproject.toml`, `setup.cfg` and
-`setup.py`. For the requirement below, `Name` is `requests` and `Version` is
+dependencies, optional dependencies and `build-system.requires` of
+`pyproject.toml`, `setup.cfg` and `setup.py`. For the requirement below, `Name` is `requests` and `Version` is
 `>=2`, while `Extras` is `["socks"]` and `Marker` is `python_version < '3.12'`:
 
 ```text
@@ -403,6 +403,10 @@ not evaluated, so a package listed twice under different markers gives two
 entries. A direct reference such as `pip @ https://...` has an empty `Version`.
 In `requirements.txt`, per-requirement options such as `--hash` and line
 continuations are not part of the requirement.
+
+`pyproject.toml` reports each `build-system.requires` entry with `build` scope
+and a declaration under `build-system/requires`. The `build-backend` value is
+a module path rather than a package, so it is not recorded.
 
 Declarations preserve source-level references without applying inheritance,
 merging, interpolation, or other effective-model resolution. Consumers can use

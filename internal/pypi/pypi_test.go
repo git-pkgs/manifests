@@ -223,8 +223,8 @@ func TestPyprojectToml(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(res.Dependencies) != 6 {
-		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
+	if len(res.Dependencies) != 7 {
+		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -232,7 +232,7 @@ func TestPyprojectToml(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// All 6 packages with versions and scopes
+	// All 7 packages with versions and scopes, including the build requirement
 	expected := []struct {
 		name    string
 		version string
@@ -244,6 +244,7 @@ func TestPyprojectToml(t *testing.T) {
 		{"pytest", "^5.2", core.Development},
 		{"sqlparse", "0.4.4", core.Test},
 		{"wcwidth", "*", core.Development},
+		{"poetry", ">=0.12", core.Build},
 	}
 
 	for _, exp := range expected {
@@ -893,9 +894,9 @@ func TestPyprojectPEP621OptionalDeps(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	// 1 runtime + 1 lint + 2 dev + 2 testing + 3 modeling = 9
-	if len(res.Dependencies) != 9 {
-		t.Fatalf("expected 9 dependencies, got %d", len(res.Dependencies))
+	// 1 runtime + 1 lint + 2 dev + 2 testing + 3 modeling + 2 build = 11
+	if len(res.Dependencies) != 11 {
+		t.Fatalf("expected 11 dependencies, got %d", len(res.Dependencies))
 	}
 
 	type depKey struct {
@@ -919,6 +920,8 @@ func TestPyprojectPEP621OptionalDeps(t *testing.T) {
 		{"numpy", ">=1,<3", core.Optional},
 		{"pandas", ">=1,<3", core.Optional},
 		{"scipy", ">=1,<2", core.Optional},
+		{"setuptools", ">=65", core.Build},
+		{"wheel", "", core.Build},
 	}
 
 	for _, exp := range expected {
