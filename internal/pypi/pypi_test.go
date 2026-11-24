@@ -2,7 +2,9 @@ package pypi
 
 import (
 	"os"
+	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/git-pkgs/manifests/internal/core"
@@ -562,38 +564,55 @@ func TestUvLock(t *testing.T) {
 	}
 }
 
-func TestParsePEP508(t *testing.T) {
+func TestParsePEP508Requirement(t *testing.T) {
 	tests := []struct {
-		input       string
-		wantName    string
-		wantVersion string
+		input string
+		want  pep508Requirement
+		ok    bool
 	}{
-		{"requests>=2.0", "requests", ">=2.0"},
-		{"requests (>=2.26,<3.0)", "requests", ">=2.26,<3.0"},
-		{"packaging (>=24.2)", "packaging", ">=24.2"},
-		{"platformdirs (>=3.0.0,<5)", "platformdirs", ">=3.0.0,<5"},
-		{"importlib-metadata[perf] (>=6.0); python_version < '3.12'", "importlib-metadata", ">=6.0"},
-		{"requests[security]>=2.0", "requests", ">=2.0"},
-		{"Django>=3.0,<4.0", "Django", ">=3.0,<4.0"},
-		{"pytest", "pytest", ""},
-		{"black==22.3.0", "black", "==22.3.0"},
-		{"numpy>=1.20; python_version>='3.8'", "numpy", ">=1.20"},
+		{"requests>=2.0", pep508Requirement{Name: "requests", Version: ">=2.0"}, true},
+		{"requests (>=2.26,<3.0)", pep508Requirement{Name: "requests", Version: ">=2.26,<3.0"}, true},
+		{"platformdirs (>=3.0.0,<5)", pep508Requirement{Name: "platformdirs", Version: ">=3.0.0,<5"}, true},
+		{
+			"importlib-metadata[perf] (>=6.0); python_version < '3.12'",
+			pep508Requirement{Name: "importlib-metadata", Extras: []string{"perf"}, Version: ">=6.0", Marker: "python_version < '3.12'"},
+			true,
+		},
+		{"requests[security, socks ]>=2.0", pep508Requirement{Name: "requests", Extras: []string{"security", "socks"}, Version: ">=2.0"}, true},
+		{"Django>=3.0,<4.0", pep508Requirement{Name: "Django", Version: ">=3.0,<4.0"}, true},
+		{"Flask == 0.8", pep508Requirement{Name: "Flask", Version: "== 0.8"}, true},
+		{"pytest", pep508Requirement{Name: "pytest"}, true},
+		{"numpy>=1.20; python_version>='3.8'", pep508Requirement{Name: "numpy", Version: ">=1.20", Marker: "python_version>='3.8'"}, true},
+		{"pywin32 ; sys_platform == 'win32'", pep508Requirement{Name: "pywin32", Marker: "sys_platform == 'win32'"}, true},
+		{
+			"pip @ https://example.test/pip.whl#sha256=ab ; python_version >= '3.8'",
+			pep508Requirement{Name: "pip", Marker: "python_version >= '3.8'"},
+			true,
+		},
+		{"pip @ https://example.test/a;b.whl", pep508Requirement{Name: "pip"}, true},
+		{"git+https://github.com/pygame/pygame@2.1.2", pep508Requirement{Name: "git"}, false},
+		{"./local/path", pep508Requirement{}, false},
+		{"requests[socks", pep508Requirement{Name: "requests"}, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			gotName, gotVer := parsePEP508(tt.input)
-			if gotName != tt.wantName {
-				t.Errorf("name = %q, want %q", gotName, tt.wantName)
+			got, ok := parsePEP508Requirement(tt.input)
+			if ok != tt.ok {
+				t.Fatalf("ok = %v, want %v", ok, tt.ok)
 			}
-			if gotVer != tt.wantVersion {
-				t.Errorf("version = %q, want %q", gotVer, tt.wantVersion)
+			if !ok {
+				return
+			}
+			tt.want.Text = strings.TrimSpace(tt.input)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %+v, want %+v", got, tt.want)
 			}
 		})
 	}
 }
 
-func BenchmarkParsePEP508(b *testing.B) {
+func BenchmarkParsePEP508Requirement(b *testing.B) {
 	inputs := []string{
 		"requests>=2.0",
 		"requests[security] (>=2.26,<3.0); python_version < '3.12'",
@@ -601,10 +620,9 @@ func BenchmarkParsePEP508(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, input := range inputs {
-			name, _ := parsePEP508(input)
-			if name == "" {
+			if requirement, ok := parsePEP508Requirement(input); !ok || requirement.Name == "" {
 				b.Fatal("empty dependency name")
 			}
 		}

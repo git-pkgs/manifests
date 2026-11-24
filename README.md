@@ -308,6 +308,8 @@ type Dependency struct {
     NoPURL      bool                // Source-only entry with no known package identity
     RegistryURL string              // Source registry URL (if non-default)
     Source      Source              // Explicit Git, path, or ecosystem source override
+    Extras      []string            // Requested optional features, such as Python extras
+    Marker      string              // Environment marker, as written and not evaluated
 }
 ```
 
@@ -370,17 +372,37 @@ identity.
 
 ```go
 type Declaration struct {
-    Name      string // Package name
-    Version   string // Version requirement as written in the manifest
-    Scope     Scope  // runtime, development, test, build, optional
-    Direct    bool   // Direct rather than generated or transitive
-    PURL      string // Versionless Package URL
-    Ecosystem string // Ecosystem name, in the same form as ParseResult.Ecosystem
-    NoPURL    bool   // Source-only entry with no known package identity
-    Location  string // Opaque parser-defined identity within the manifest
-    Source    Source // Explicit source override as written
+    Name        string   // Package name
+    Version     string   // Version requirement as written in the manifest
+    Scope       Scope    // runtime, development, test, build, optional
+    Direct      bool     // Direct rather than generated or transitive
+    PURL        string   // Versionless Package URL
+    Ecosystem   string   // Ecosystem name, in the same form as ParseResult.Ecosystem
+    NoPURL      bool     // Source-only entry with no known package identity
+    Location    string   // Opaque parser-defined identity within the manifest
+    Source      Source   // Explicit source override as written
+    Extras      []string // Requested optional features, such as Python extras
+    Marker      string   // Environment marker, as written and not evaluated
+    Requirement string   // Original requirement text, when written as one string
 }
 ```
+
+Python requirements written as PEP 508 strings keep their extras and
+environment marker. This covers `requirements.txt`, the `[project]`
+dependencies and optional dependencies of `pyproject.toml`, `setup.cfg` and
+`setup.py`. For the requirement below, `Name` is `requests` and `Version` is
+`>=2`, while `Extras` is `["socks"]` and `Marker` is `python_version < '3.12'`:
+
+```text
+requests[socks]>=2; python_version < '3.12'
+```
+
+The formats that report declarations (`requirements.txt` and `pyproject.toml`)
+set the same fields there, with the whole string in `Requirement`. Markers are
+not evaluated, so a package listed twice under different markers gives two
+entries. A direct reference such as `pip @ https://...` has an empty `Version`.
+In `requirements.txt`, per-requirement options such as `--hash` and line
+continuations are not part of the requirement.
 
 Declarations preserve source-level references without applying inheritance,
 merging, interpolation, or other effective-model resolution. Consumers can use
