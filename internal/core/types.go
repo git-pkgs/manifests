@@ -114,6 +114,12 @@ type Dependency struct {
 	// It is intentionally separate from RegistryURL because paths and Git
 	// repositories are not package registries.
 	Source Source
+	// Extras lists the optional features requested with the dependency as
+	// written, such as "socks" in requests[socks].
+	Extras []string `json:",omitempty"`
+	// Marker is the environment marker that conditions the dependency as
+	// written, such as "python_version < '3.12'". It is not evaluated.
+	Marker string `json:",omitempty"`
 }
 
 // ArtifactIntegrity is a verification value for one file of a dependency's
@@ -182,6 +188,15 @@ type Declaration struct {
 	NoPURL   bool
 	Location string
 	Source   Source
+	// Extras lists the optional features requested with the declaration as
+	// written.
+	Extras []string `json:",omitempty"`
+	// Marker is the environment marker that conditions the declaration as
+	// written. It is not evaluated.
+	Marker string `json:",omitempty"`
+	// Requirement is the original requirement text, when the format writes
+	// the declaration as one string, such as a PEP 508 requirement.
+	Requirement string `json:",omitempty"`
 }
 
 // Result is the output of a single parser.

@@ -64,53 +64,43 @@ func init() {
 // requirementsTxtParser parses requirements.txt files.
 type requirementsTxtParser struct{}
 
-var (
-	// pkg==1.0.0 or pkg>=1.0.0 or pkg~=1.0.0
-	requirementRegex = regexp.MustCompile(`^([a-zA-Z0-9_.-]+(?:\[[^\]]+\])?)\s*(==|>=|<=|~=|!=|>|<)?(.*)`)
-)
-
 func (p *requirementsTxtParser) Parse(filename string, content []byte) (*core.Result, error) {
 	var deps []core.Dependency
 	var declarations []core.Declaration
 	locations := make(map[string]int)
-	lines := strings.SplitSeq(string(content), "\n")
 
-	for line := range lines {
-		// Remove comments
-		if idx := strings.Index(line, "#"); idx >= 0 {
-			line = line[:idx]
-		}
-		line = strings.TrimSpace(line)
-
+	for line := range strings.SplitSeq(string(content), "\n") {
+		line = requirementsLine(line)
 		// Skip empty lines and options
 		if line == "" || strings.HasPrefix(line, "-") {
 			continue
 		}
-
-		if match := requirementRegex.FindStringSubmatch(line); match != nil {
-			name := match[1]
-			// Remove extras bracket if present
-			if idx := strings.Index(name, "["); idx >= 0 {
-				name = name[:idx]
-			}
-
-			version := ""
-			if match[2] != "" && match[3] != "" {
-				version = match[2] + match[3]
-			}
-			version = pep508Version(version)
-
-			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: version,
-				Scope:   core.Runtime,
-				Direct:  true,
-			})
-			appendPyPIDeclaration(&declarations, locations, "requirements", name, version, core.Runtime)
+		if requirement, ok := parsePEP508Requirement(line); ok {
+			appendPEP508(&deps, &declarations, locations, "requirements", requirement, core.Runtime)
 		}
 	}
 
 	return &core.Result{Dependencies: deps, Declarations: declarations}, nil
+}
+
+// requirementsLine returns the requirement on a requirements.txt line without
+// its comment, a trailing line continuation or per-requirement options such
+// as --hash. As in pip, "#" starts a comment at the start of the line or
+// after white space, so a URL fragment is kept.
+func requirementsLine(line string) string {
+	for index := 0; index < len(line); index++ {
+		if line[index] == '#' && (index == 0 || line[index-1] == ' ' || line[index-1] == '\t') {
+			line = line[:index]
+			break
+		}
+	}
+	line = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(line), "\\"))
+	for _, separator := range []string{" --", "\t--"} {
+		if index := strings.Index(line, separator); index > 0 {
+			line = strings.TrimSpace(line[:index])
+		}
+	}
+	return line
 }
 
 // pipfileParser parses Pipfile (TOML format).
@@ -362,30 +352,20 @@ func (p *pyprojectParser) Parse(filename string, content []byte) (*core.Result, 
 
 	// PEP 621 format
 	for _, dep := range pyproject.Project.Dependencies {
-		name, version := parsePEP508(dep)
-		deps = append(deps, core.Dependency{
-			Name:    name,
-			Version: version,
-			Scope:   core.Runtime,
-			Direct:  true,
-		})
-		appendPyPIDeclaration(&declarations, locations, "project/dependencies", name, version, core.Runtime)
+		if requirement, ok := parsePEP508Requirement(dep); ok {
+			appendPEP508(&deps, &declarations, locations, "project/dependencies", requirement, core.Runtime)
+		}
 	}
 
 	// PEP 621 optional dependencies
 	for _, groupName := range sortedStringKeys(pyproject.Project.OptionalDependencies) {
 		groupDeps := pyproject.Project.OptionalDependencies[groupName]
 		scope := optionalGroupScope(groupName)
+		location := "project/optional-dependencies/" + url.PathEscape(groupName)
 		for _, dep := range groupDeps {
-			name, version := parsePEP508(dep)
-			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: version,
-				Scope:   scope,
-				Direct:  true,
-			})
-			location := "project/optional-dependencies/" + url.PathEscape(groupName)
-			appendPyPIDeclaration(&declarations, locations, location, name, version, scope)
+			if requirement, ok := parsePEP508Requirement(dep); ok {
+				appendPEP508(&deps, &declarations, locations, location, requirement, scope)
+			}
 		}
 	}
 
@@ -458,13 +438,6 @@ func appendPyPIDeclaration(
 	})
 }
 
-// pep508Version removes the environment marker from a PEP 508 version
-// requirement.
-func pep508Version(version string) string {
-	version, _, _ = strings.Cut(version, ";")
-	return strings.TrimSpace(version)
-}
-
 func pyprojectLicenses(license any, licenseFiles, classifiers []string) ([]string, string) {
 	var licenses []string
 	var licenseFile string
@@ -519,48 +492,6 @@ func extractPoetryVersion(value any) string {
 	return "*"
 }
 
-func parsePEP508(dep string) (string, string) {
-	// Simple parsing for "pkg>=1.0.0" or "pkg[extra]>=1.0.0"
-	dep = strings.TrimSpace(dep)
-
-	// Find where version spec starts
-	for i, c := range dep {
-		if c == '>' || c == '<' || c == '=' || c == '~' || c == '!' || c == ';' {
-			name := strings.TrimSpace(dep[:i])
-			parenthesized := strings.HasSuffix(name, "(")
-			if parenthesized {
-				name = strings.TrimSpace(strings.TrimSuffix(name, "("))
-			}
-			// Remove extras
-			if idx := strings.Index(name, "["); idx >= 0 {
-				name = name[:idx]
-			}
-			version := ""
-			if c != ';' {
-				// Find end of version (before ;)
-				rest := dep[i:]
-				if idx := strings.Index(rest, ";"); idx >= 0 {
-					rest = rest[:idx]
-				}
-				version = strings.TrimSpace(rest)
-				if parenthesized {
-					version = strings.TrimSpace(strings.TrimSuffix(version, ")"))
-				}
-			}
-			return name, version
-		}
-	}
-
-	// No version spec
-	name := dep
-	if idx := strings.Index(name, "["); idx >= 0 {
-		name = name[:idx]
-	}
-	return name, ""
-}
-
-// optionalGroupScope maps a PEP 621 optional-dependency group name to a scope.
-// Well-known dev/test group names get their own scope; everything else is optional.
 func optionalGroupScope(groupName string) core.Scope {
 	switch strings.ToLower(groupName) {
 	case groupDev, groupDevelopment, "develop", "lint":
@@ -821,10 +752,6 @@ func (p *pipResolvedDepsParser) Parse(filename string, content []byte) (*core.Re
 type setupPyParser struct{}
 
 var (
-	// Match install_requires list items
-	installRequiresRegex = regexp.MustCompile(`install_requires\s*=\s*\[([^\]]*)\]`)
-	// Match extras_require dict
-	extrasRequireRegex = regexp.MustCompile(`extras_require\s*=\s*\{([^}]*)\}`)
 	// Match quoted string
 	quotedStringRegex = regexp.MustCompile(`['"]([^'"]+)['"]`)
 	// Match name= keyword argument in setup()
@@ -864,34 +791,21 @@ func (p *setupPyParser) Parse(filename string, content []byte) (*core.Result, er
 		}
 	}
 
-	// Parse install_requires
-	const regexCaptureGroups = 2 // full match + first capture group
-	if match := installRequiresRegex.FindStringSubmatch(contentStr); match != nil {
-		for _, req := range quotedStringRegex.FindAllStringSubmatch(match[1], -1) {
-			if len(req) >= regexCaptureGroups {
-				name, version := parseSetupRequirement(req[1])
-				deps = append(deps, core.Dependency{
-					Name:    name,
-					Version: version,
-					Scope:   core.Runtime,
-					Direct:  true,
-				})
+	if start := setupKeywordValue(contentStr, "install_requires", '['); start >= 0 {
+		requirements, _ := pythonStringList(contentStr, start)
+		for _, text := range requirements {
+			if requirement, ok := parsePEP508Requirement(text); ok {
+				deps = append(deps, requirement.dependency(core.Runtime))
 			}
 		}
 	}
-
-	// Parse extras_require
-	if match := extrasRequireRegex.FindStringSubmatch(contentStr); match != nil {
-		for groupName, groupDeps := range parseExtrasRequire(match[1]) {
-			scope := optionalGroupScope(groupName)
-			for _, req := range groupDeps {
-				name, version := parseSetupRequirement(req)
-				deps = append(deps, core.Dependency{
-					Name:    name,
-					Version: version,
-					Scope:   scope,
-					Direct:  true,
-				})
+	if start := setupKeywordValue(contentStr, "extras_require", '{'); start >= 0 {
+		for _, group := range setupExtrasRequire(contentStr, start) {
+			scope := optionalGroupScope(group.name)
+			for _, text := range group.requirements {
+				if requirement, ok := parsePEP508Requirement(text); ok {
+					deps = append(deps, requirement.dependency(scope))
+				}
 			}
 		}
 	}
@@ -938,27 +852,16 @@ func (p *setupCfgParser) Parse(_ string, content []byte) (*core.Result, error) {
 	}
 
 	var deps []core.Dependency
-	for _, requirement := range configLines(options["install_requires"]) {
-		name, version := parseSetupRequirement(requirement)
-		if name != "" {
-			deps = append(deps, core.Dependency{
-				Name:    name,
-				Version: version,
-				Scope:   core.Runtime,
-				Direct:  true,
-			})
+	for _, text := range configLines(options["install_requires"]) {
+		if requirement, ok := parsePEP508Requirement(text); ok {
+			deps = append(deps, requirement.dependency(core.Runtime))
 		}
 	}
-	for group, value := range sections["options.extras_require"] {
-		for _, requirement := range configLines(value) {
-			name, version := parseSetupRequirement(requirement)
-			if name != "" {
-				deps = append(deps, core.Dependency{
-					Name:    name,
-					Version: version,
-					Scope:   optionalGroupScope(group),
-					Direct:  true,
-				})
+	extras := sections["options.extras_require"]
+	for _, group := range sortedStringKeys(extras) {
+		for _, text := range configLines(extras[group]) {
+			if requirement, ok := parsePEP508Requirement(text); ok {
+				deps = append(deps, requirement.dependency(optionalGroupScope(group)))
 			}
 		}
 	}
@@ -1031,42 +934,6 @@ func configCommaValues(value string) []string {
 		}
 	}
 	return values
-}
-
-func parseSetupRequirement(req string) (string, string) {
-	// Parse "package>=1.0,<2.0" or "package==1.0" etc.
-	req = strings.TrimSpace(req)
-
-	for i, c := range req {
-		if c == '>' || c == '<' || c == '=' || c == '~' || c == '!' {
-			name := strings.TrimSpace(req[:i])
-			version := strings.TrimSpace(req[i:])
-			return name, version
-		}
-	}
-
-	return req, ""
-}
-
-// extrasRequireGroupRegex matches a group key and its list value inside extras_require,
-// e.g. 'testing': ['pkg1', 'pkg2>=1.0']
-var extrasRequireGroupRegex = regexp.MustCompile(`['"]([^'"]+)['"]\s*:\s*\[([^\]]*)\]`)
-
-// parseExtrasRequire parses the inner content of a setup.py extras_require dict
-// and returns a map of group name to list of requirement strings.
-func parseExtrasRequire(content string) map[string][]string {
-	groups := make(map[string][]string)
-	const regexCaptureGroups = 2
-	for _, match := range extrasRequireGroupRegex.FindAllStringSubmatch(content, -1) {
-		groupName := match[1]
-		listContent := match[2]
-		for _, req := range quotedStringRegex.FindAllStringSubmatch(listContent, -1) {
-			if len(req) >= regexCaptureGroups {
-				groups[groupName] = append(groups[groupName], req[1])
-			}
-		}
-	}
-	return groups
 }
 
 // pylockTomlParser parses pylock.toml files (PEP 751).
