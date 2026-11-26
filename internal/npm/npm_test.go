@@ -621,8 +621,8 @@ func TestNpmLocalFilePackageLock(t *testing.T) {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
-	if len(res.Dependencies) != 7 {
-		t.Fatalf("expected 7 dependencies, got %d", len(res.Dependencies))
+	if len(res.Dependencies) != 6 {
+		t.Fatalf("expected 6 dependencies, got %d", len(res.Dependencies))
 	}
 
 	depMap := make(map[string]core.Dependency)
@@ -630,10 +630,9 @@ func TestNpmLocalFilePackageLock(t *testing.T) {
 		depMap[d.Name] = d
 	}
 
-	// All 7 packages
+	// The local target src/other-package is not a separate installed package.
 	expected := map[string]string{
 		"react":        "18.3.1",
-		"src":          "1.0.0",
 		"js-tokens":    "4.0.0",
 		"left-pad":     "1.3.0",
 		"lodash":       "4.17.21",
