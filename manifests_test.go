@@ -680,6 +680,9 @@ func TestIdentifyFiles(t *testing.T) {
 		// golang
 		{"go.mod", "golang", Manifest, true},
 		{"go.sum", "golang", Supplement, true},
+		{"go.graph", "golang", Lockfile, true},
+		{"go.mod.graph", "golang", Lockfile, true},
+		{"go.modgraph", "golang", Lockfile, true},
 
 		// pypi
 		{"requirements.txt", "pypi", Manifest, true},

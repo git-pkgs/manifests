@@ -64,7 +64,7 @@ func main() {
 | gem | Gemfile, gems.rb, *.gemspec | Gemfile.lock, gems.locked |
 | git | .gitmodules | |
 | github-actions | .github/workflows/*.yml, .github/workflows/*.yaml | .github/workflows/actions.lock |
-| golang | go.mod, Godeps, glide.yaml, Gopkg.toml | Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest, go.graph |
+| golang | go.mod, Godeps, glide.yaml, Gopkg.toml | Godeps.json, glide.lock, Gopkg.lock, vendor.json, go-resolved-dependencies.json, vendor/manifest, go.graph, go.mod.graph, go.modgraph |
 | guix | manifest.scm, *-manifest.scm | |
 | hackage | *.cabal | stack.yaml.lock, cabal.config, cabal.project.freeze |
 | haxelib | haxelib.json | |
@@ -182,6 +182,8 @@ replacement can install a different source than the declared repository.
 | go-resolved-dependencies.json | | | ✓ | ✓ |
 | vendor/manifest | | | | |
 | go.graph | | | | ✓ |
+| go.mod.graph | | | | ✓ |
+| go.modgraph | | | | ✓ |
 | Manifest.toml | | | | |
 | gradle.lockfile | | | ✓ | |
 | gradle-dependencies-q.txt | | | ✓ | |
