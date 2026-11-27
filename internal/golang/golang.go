@@ -17,8 +17,8 @@ func init() {
 	// go.sum - supplement (provides integrity hashes for go.mod dependencies)
 	core.Register("golang", core.Supplement, &goSumParser{}, core.ExactMatch("go.sum"))
 
-	// go.graph - lockfile (go mod graph output)
-	core.Register("golang", core.Lockfile, &goGraphParser{}, core.ExactMatch("go.graph"))
+	// go mod graph output saved under any of its common names
+	core.Register("golang", core.Lockfile, &goGraphParser{}, core.ExactMatch("go.graph", "go.mod.graph", "go.modgraph"))
 }
 
 // goModParser parses go.mod files.
