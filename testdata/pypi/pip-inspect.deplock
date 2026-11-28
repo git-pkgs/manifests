@@ -1,0 +1,111 @@
+{
+  "version": "1",
+  "pip_version": "24.2",
+  "installed": [
+    {
+      "metadata": {
+        "metadata_version": "2.1",
+        "name": "requests",
+        "version": "2.32.3",
+        "summary": "Python HTTP for Humans.",
+        "requires_dist": [
+          "charset-normalizer<4,>=2",
+          "idna<4,>=2.5",
+          "urllib3<3,>=1.21.1",
+          "certifi>=2017.4.17"
+        ],
+        "requires_python": ">=3.8"
+      },
+      "metadata_location": "/venv/lib/python3.12/site-packages/requests-2.32.3.dist-info",
+      "installer": "pip",
+      "requested": true
+    },
+    {
+      "metadata": {
+        "metadata_version": "2.3",
+        "name": "urllib3",
+        "version": "2.2.3",
+        "requires_python": ">=3.8"
+      },
+      "metadata_location": "/venv/lib/python3.12/site-packages/urllib3-2.2.3.dist-info",
+      "installer": "pip",
+      "requested": false
+    },
+    {
+      "metadata": {
+        "metadata_version": "2.1",
+        "name": "certifi",
+        "version": "2024.8.30",
+        "requires_python": ">=3.6"
+      },
+      "metadata_location": "/venv/lib/python3.12/site-packages/certifi-2024.8.30.dist-info",
+      "installer": "pip",
+      "requested": false
+    },
+    {
+      "metadata": {
+        "metadata_version": "2.1",
+        "name": "attrs",
+        "version": "24.2.0"
+      },
+      "metadata_location": "/venv/lib/python3.12/site-packages/attrs-24.2.0.dist-info",
+      "direct_url": {
+        "url": "https://github.com/python-attrs/attrs.git",
+        "vcs_info": {
+          "vcs": "git",
+          "requested_revision": "24.2.0",
+          "commit_id": "a9a5ad6f2c4f8f1b6a1e3c8d2f4b5a6c7d8e9f01"
+        }
+      },
+      "installer": "pip",
+      "requested": true
+    },
+    {
+      "metadata": {
+        "metadata_version": "2.1",
+        "name": "six",
+        "version": "1.16.0"
+      },
+      "metadata_location": "/venv/lib/python3.12/site-packages/six-1.16.0.dist-info",
+      "direct_url": {
+        "url": "https://files.pythonhosted.org/packages/d9/5a/e7c31adbe875f2abbb91bd84cf2dc52d792b5a01506781dbcf25c91daf11/six-1.16.0-py2.py3-none-any.whl",
+        "archive_info": {
+          "hash": "sha256=8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254",
+          "hashes": {
+            "sha256": "8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"
+          }
+        }
+      },
+      "installer": "pip",
+      "requested": true
+    },
+    {
+      "metadata": {
+        "metadata_version": "2.1",
+        "name": "example-app",
+        "version": "0.1.0"
+      },
+      "metadata_location": "/src/example-app/example_app.egg-info",
+      "direct_url": {
+        "url": "file:///src/example-app",
+        "dir_info": {
+          "editable": true
+        }
+      },
+      "installer": "pip",
+      "requested": true
+    },
+    {
+      "metadata": {
+        "metadata_version": "2.1"
+      },
+      "metadata_location": "/venv/lib/python3.12/site-packages/broken.dist-info",
+      "requested": false
+    }
+  ],
+  "environment": {
+    "implementation_name": "cpython",
+    "python_version": "3.12",
+    "sys_platform": "linux"
+  }
+}

@@ -1,0 +1,23 @@
+lock-version = "1.0"
+created-by = "pip"
+
+[[packages]]
+name = "pytest"
+version = "8.3.3"
+
+[[packages.wheels]]
+name = "pytest-8.3.3-py3-none-any.whl"
+url = "https://files.pythonhosted.org/packages/6b/77/7440a06a8ead44c7757a64362dd22df5760f9b12dc5f11b6188cd2fc27a0/pytest-8.3.3-py3-none-any.whl"
+
+[packages.wheels.hashes]
+sha256 = "a6853c7375b2663155079443d2e45de913a911a11d669df02a50814944db57b2"
+
+[[packages]]
+name = "iniconfig"
+version = "2.0.0"
+
+[packages.archive]
+url = "https://files.pythonhosted.org/packages/d7/4b/cbd8e699e64a6f16ca3a8220661b5f83792b3017d0f79807cb8708d33913/iniconfig-2.0.0.tar.gz"
+
+[packages.archive.hashes]
+sha256 = "2d91e135bf72d31a410b17c16da610a82cb55f6b0477d1a902134b24a455b8b3"

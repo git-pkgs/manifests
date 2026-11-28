@@ -82,7 +82,7 @@ func main() {
 | nuget | *.csproj, *.vbproj, *.fsproj, *.nuspec, packages.config, Directory.Packages.props, Project.json | packages.lock.json, paket.lock, project.assets.json, *.deps.json, Project.lock.json |
 | opam | opam, *.opam | |
 | pub | pubspec.yaml | pubspec.lock |
-| pypi | requirements.txt, Pipfile, pyproject.toml, setup.py, setup.cfg | Pipfile.lock, poetry.lock, pdm.lock, uv.lock, pip-dependency-graph.json, pip-resolved-dependencies.txt, pylock.toml |
+| pypi | requirements.txt, requirements*.in, requirements/**/*.in, Pipfile, pyproject.toml, setup.py, setup.cfg | Pipfile.lock, poetry.lock, pdm.lock, uv.lock, pip-dependency-graph.json, pip-resolved-dependencies.txt, pylock.toml, pylock.*.toml, pip-inspect.deplock |
 | rpm | *.spec | |
 | swift | Package.swift, Package@swift-*.swift | Package.resolved |
 | vagrant | Vagrantfile | |
@@ -157,6 +157,8 @@ replacement can install a different source than the declared repository.
 | pdm.lock | | ✓ | ✓ | |
 | uv.lock | ✓ | ✓ | | |
 | pylock.toml | | ✓ | | |
+| pylock.*.toml | | ✓ | | |
+| pip-inspect.deplock | | ✓ | | ✓ |
 | pip-resolved-dependencies.txt | | | | |
 | pip-dependency-graph.json | | | | |
 | composer.lock | ✓ | ✓ | ✓ | |
@@ -409,6 +411,18 @@ continuations are not part of the requirement.
 `pyproject.toml` reports each `build-system.requires` entry with `build` scope
 and a declaration under `build-system/requires`. The `build-backend` value is
 a module path rather than a package, so it is not recorded.
+
+`requirements*.in` and `requirements/**/*.in` files are pip-tools inputs and
+use the `requirements.txt` parser, so `-c` and `-r` lines are skipped. Named
+PEP 751 lockfiles such as `pylock.dev.toml` use the `pylock.toml` parser.
+
+`pip-inspect.deplock` is the JSON report of `pip inspect`, as saved by
+DepLock. Each installed distribution is reported with runtime scope, and
+`Direct` follows the `requested` flag. Entries without a name are skipped.
+Packages installed from a direct URL keep it as their `Source`: Git checkouts
+use the `git` kind with the commit in `Ref`, local directories use the `path`
+kind and other URLs use the `url` kind. An archive's sha256 becomes
+`Integrity`.
 
 Declarations preserve source-level references without applying inheritance,
 merging, interpolation, or other effective-model resolution. Consumers can use

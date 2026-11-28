@@ -1,0 +1,7 @@
+# Inputs for requirements/test.txt, compiled with pip-compile
+-c ../pip-compile/requirements.txt
+
+pexpect
+pytest>=7  # test runner
+pytest-xdist[psutil]
+exceptiongroup; python_version < "3.11"

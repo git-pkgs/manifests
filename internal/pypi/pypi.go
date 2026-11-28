@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"maps"
 	"net/url"
+	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -26,6 +28,8 @@ func init() {
 			core.ExactMatch("requirements.txt", "requirements.frozen"),
 			core.GlobMatch("*requirements*.txt"),
 			core.GlobMatch("requirements/*.txt"),
+			core.GlobMatch("requirements*.in"),
+			core.CustomMatch(requirementsDirInMatch),
 		))
 
 	// Pipfile - manifest
@@ -58,7 +62,32 @@ func init() {
 	core.Register("pypi", core.Manifest, &setupCfgParser{}, core.ExactMatch("setup.cfg"))
 
 	// pylock.toml - lockfile (PEP 751)
-	core.Register("pypi", core.Lockfile, &pylockTomlParser{}, core.ExactMatch("pylock.toml"))
+	core.Register("pypi", core.Lockfile, &pylockTomlParser{},
+		core.AnyMatch(core.ExactMatch("pylock.toml"), core.CustomMatch(namedPylockMatch)))
+}
+
+// requirementsDirInMatch matches requirements/**/*.in, the pip-tools input
+// files kept under a requirements directory at any depth.
+func requirementsDirInMatch(filename string) bool {
+	name := filepath.ToSlash(filename)
+	if !strings.HasSuffix(name, ".in") {
+		return false
+	}
+	dir := path.Dir(name)
+	return dir == "requirements" || strings.HasPrefix(dir, "requirements/") ||
+		strings.HasSuffix(dir, "/requirements") || strings.Contains(dir, "/requirements/")
+}
+
+// namedPylockMatch matches pylock.<name>.toml, where PEP 751 requires a
+// non-empty name without dots.
+func namedPylockMatch(filename string) bool {
+	name := path.Base(filepath.ToSlash(filename))
+	middle, ok := strings.CutPrefix(name, "pylock.")
+	if !ok {
+		return false
+	}
+	middle, ok = strings.CutSuffix(middle, ".toml")
+	return ok && middle != "" && !strings.Contains(middle, ".")
 }
 
 // requirementsTxtParser parses requirements.txt files.
